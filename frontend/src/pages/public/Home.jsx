@@ -1,0 +1,7 @@
+import {useMemo,useState} from 'react';
+import {useProducts} from '../../hooks/useProducts';
+import ProductGrid from '../../components/product/ProductGrid';
+export default function Home(){const {products,error}=useProducts();
+const [q,setQ]=useState('');
+const filtered=useMemo(()=>products.filter(p=>`${p.title} ${p.category}`.toLowerCase().includes(q.toLowerCase())),[products,q]);
+return <><section className="hero"><span>MARKETPLACE</span><h1>Jual beli mobil dengan admin sebagai perantara.</h1><p>Pilih produk, buka transaksi, bayar melalui QRIS utama, lalu tunggu verifikasi admin.</p></section><section><div className="section-head"><h2>Produk tersedia</h2><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cari mobil..."/></div>{error&&<div className="notice error">{error}</div>}<ProductGrid products={filtered}/></section></>}

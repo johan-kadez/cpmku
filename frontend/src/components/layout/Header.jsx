@@ -1,0 +1,6 @@
+import {Link,useNavigate} from 'react-router-dom';
+import {useAuth} from '../../context/AuthContext';
+export default function Header(){const {user,login,logout,role}=useAuth();
+const nav=useNavigate();
+return <header className="header"><Link className="brand" to="/">JOHAN<span>MARKETPLACE</span></Link><nav><Link to="/">Produk</Link>{user&&<Link to="/chat">Chat</Link>}{role==='seller'?<Link to="/seller/dashboard">Seller</Link>:<><Link to="/seller/login">Seller Login</Link><Link to="/seller/apply">Daftar Seller</Link></>}{role==='admin'&&<Link to="/admin">Admin</Link>}</nav><div className="auth"><span className="user-mini">{user?.displayName||''}</span>{user?<button onClick={()=>{logout();
+nav('/')}}>Keluar</button>:<button onClick={login}>Google Login</button>}</div></header>}

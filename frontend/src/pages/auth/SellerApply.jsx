@@ -1,0 +1,20 @@
+import {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {useAuth} from '../../context/AuthContext';
+import {api} from '../../services/api';
+import {required,validUrl} from '../../utils/validation';
+export default function SellerApply(){const {user}=useAuth();
+const nav=useNavigate();
+const [f,setF]=useState({name:user?.displayName||'',phone:'',reason:'',photoUrl:user?.photoURL||''});
+const [busy,setBusy]=useState(false);
+if(!user)return <section className="auth-card"><h1>Login Google dulu</h1><p>Pengajuan seller membutuhkan akun Google.</p></section>;
+const submit=async e=>{e.preventDefault();
+try{required(f.name,'Nama');
+required(f.phone,'Nomor');
+required(f.reason,'Alasan');
+validUrl(f.photoUrl,'URL foto');
+setBusy(true);
+await api('/sellers/apply',{method:'POST',body:JSON.stringify(f)});
+alert('Pengajuan seller dikirim. Tunggu persetujuan admin.');
+nav('/')}catch(e){alert(e.message)}finally{setBusy(false)}};
+return <form className="form-card" onSubmit={submit}><h1>Daftar Seller</h1><label>Nama<input value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></label><label>Nomor<input value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/></label><label>Alasan<textarea value={f.reason} onChange={e=>setF({...f,reason:e.target.value})}/></label><label>URL Foto Profile<input value={f.photoUrl} onChange={e=>setF({...f,photoUrl:e.target.value})}/></label><button className="button primary" disabled={busy}>{busy?'Mengirim...':'Ajukan Seller'}</button></form>}

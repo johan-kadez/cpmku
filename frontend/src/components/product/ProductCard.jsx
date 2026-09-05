@@ -1,0 +1,3 @@
+import {Link} from 'react-router-dom';
+import {rupiah} from '../../utils/format';
+export default function ProductCard({product}){return <article className="product-card"><Link to={`/product/${product.id}`}><img src={product.imageUrl} alt={product.title}/></Link><div className="product-body"><span className="muted">{product.category||'Mobil'}</span><h3>{product.title}</h3><strong>{rupiah(product.price)}</strong><p>Stok {product.stock}</p><Link className="button" to={`/product/${product.id}`}>Lihat</Link></div></article>}

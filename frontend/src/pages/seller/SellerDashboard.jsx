@@ -1,0 +1,18 @@
+import {useEffect,useState} from 'react';
+import {useAuth} from '../../context/AuthContext';
+import {api} from '../../services/api';
+import {collection,query,where,onSnapshot} from 'firebase/firestore';
+import {db} from '../../services/firebase';
+import {rupiah} from '../../utils/format';
+export default function SellerDashboard(){const {user,role}=useAuth();
+const [products,setProducts]=useState([]);
+const [f,setF]=useState({title:'',description:'',imageUrl:'',price:'',stock:1});
+const [busy,setBusy]=useState(false);
+useEffect(()=>user&&role==='seller'?onSnapshot(query(collection(db,'products'),where('sellerUid','==',user.uid)),s=>setProducts(s.docs.map(d=>({id:d.id,...d.data()})))):undefined,[user,role]);
+if(role!=='seller')return <div className="state">Akses seller belum disetujui.</div>;
+const add=async e=>{e.preventDefault();
+setBusy(true);
+try{await api('/products',{method:'POST',body:JSON.stringify({...f,price:Number(f.price),stock:Number(f.stock)})});
+setF({title:'',description:'',imageUrl:'',price:'',stock:1});
+}catch(e){alert(e.message)}finally{setBusy(false)}};
+return <><section className="page-title"><h1>Seller Dashboard</h1><p>Produk baru masuk pending sampai admin menyetujui.</p></section><form className="form-card" onSubmit={add}><h2>Tambah Produk</h2>{['title','imageUrl','price','stock'].map(k=><label key={k}>{k}<input required value={f[k]} type={k==='price'||k==='stock'?'number':'text'} onChange={e=>setF({...f,[k]:e.target.value})}/></label>)}<label>description<textarea required value={f.description} onChange={e=>setF({...f,description:e.target.value})}/></label><button className="button primary" disabled={busy}>Ajukan Produk</button></form><div className="grid">{products.map(p=><article className="product-card" key={p.id}><img src={p.imageUrl} alt=""/><div className="product-body"><h3>{p.title}</h3><p>{rupiah(p.price)} · Stok {p.stock}</p><span className="badge">{p.status}</span></div></article>)}</div></>}
