@@ -1,56 +1,32 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleProvider } from '../services/firebase';
+import { auth, googleProvider, firebaseReady } from '../services/firebase';
 import { api } from '../services/api';
 
 const C = createContext(null);
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState(null);
-
+  const [user, setUser] = useState(null), [loading, setLoading] = useState(true), [role, setRole] = useState(null), [banned, setBanned] = useState(false);
   useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return undefined;
-    }
-
-    let active = true;
-    const unsubscribe = onAuthStateChanged(auth, async (current) => {
-      if (!active) return;
-      setUser(current);
-      setRole(null);
-
-      if (!current) {
-        setLoading(false);
-        return;
-      }
-
+    if (!firebaseReady) { setLoading(false); return; }
+    let alive = true;
+    const off = onAuthStateChanged(auth, async current => {
+      if (!alive) return;
+      setUser(current); setRole(null); setBanned(false);
+      if (!current) { setLoading(false); return; }
       try {
         const result = await api('/auth/me');
-        if (active) setRole(result.user?.role || 'buyer');
-      } catch {
-        if (active) setRole('buyer');
-      } finally {
-        if (active) setLoading(false);
-      }
+        if (alive) { setRole(result.user?.role || 'buyer'); setBanned(Boolean(result.user?.banned)); }
+      } catch (e) { if (alive) setRole('buyer'); }
+      finally { if (alive) setLoading(false); }
     });
-
-    return () => {
-      active = false;
-      unsubscribe();
-    };
+    return () => { alive = false; off(); };
   }, []);
-
-  const login = () => {
-    if (!auth || !googleProvider) return Promise.reject(new Error('Firebase belum dikonfigurasi.'));
+  const login = async () => {
+    if (!firebaseReady) throw new Error('Firebase belum dikonfigurasi.');
     return signInWithPopup(auth, googleProvider);
   };
-  const logout = () => (auth ? signOut(auth) : Promise.resolve());
-
-  const value = useMemo(() => ({ user, loading, role, login, logout }), [user, loading, role]);
+  const logout = () => signOut(auth);
+  const value = useMemo(() => ({ user, loading, role, banned, login, logout }), [user, loading, role, banned]);
   return <C.Provider value={value}>{children}</C.Provider>;
 }
-
 export const useAuth = () => useContext(C);

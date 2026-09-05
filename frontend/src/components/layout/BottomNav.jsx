@@ -1,0 +1,4 @@
+import {NavLink} from 'react-router-dom';import {useAuth} from '../../context/AuthContext';
+const helpIcon='https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg';
+const profileIcon='https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2024516/it6w8f7sn5wdrgmsnl4n.svg';
+export default function BottomNav(){const {user}=useAuth();const items=[['/','⌂','Home'],['/products','⛟','Produk'],['/favorites','♥','Favorite'],['/transactions','⇄','Transaksi']];return <nav className="bottom-nav">{items.map(([to,icon,label])=><NavLink key={to} to={to} end={to==='/' }><b>{icon}</b><span>{label}</span></NavLink>)}<NavLink to="/help"><img src={helpIcon} alt="Bantuan"/><span>Bantuan</span></NavLink><NavLink to="/profile"><img src={profileIcon} alt="Profile"/><span>{user?'Profile':'Login'}</span></NavLink></nav>}

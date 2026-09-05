@@ -12,23 +12,29 @@ export function NotificationProvider({ children }) {
 
   useEffect(() => {
     notifiedIds.current.clear();
-    if (!user || !db) {
+    if (!user) {
       setNotifications([]);
       return undefined;
     }
 
     return onSnapshot(
       query(collection(db, 'notifications'), where('toUid', '==', user.uid), orderBy('createdAt', 'desc')),
-      (snap) => {
-        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      snap => {
+        const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setNotifications(rows);
+
         const latest = rows[0];
-        if (latest && !notifiedIds.current.has(latest.id) && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        if (
+          latest &&
+          !notifiedIds.current.has(latest.id) &&
+          typeof window !== 'undefined' &&
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ) {
           notifiedIds.current.add(latest.id);
-          new Notification(latest.title || 'Johan Marketplace', { body: latest.message || '' });
+          new Notification(latest.title || 'Johan Marketplace', { body: latest.message || latest.body || '' });
         }
-      },
-      (error) => console.error('Notification listener error:', error)
+      }
     );
   }, [user]);
 

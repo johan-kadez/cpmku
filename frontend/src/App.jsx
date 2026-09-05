@@ -1,19 +1,3 @@
-import AppRoutes from './routes/AppRoutes';
-import { AuthProvider } from './context/AuthContext';
-import { NotificationProvider } from './context/NotificationContext';
-import ErrorBoundary from './components/common/ErrorBoundary';
-import FirebaseSetup from './components/common/FirebaseSetup';
-import { firebaseConfigured } from './services/firebase';
-
-export default function App() {
-  if (!firebaseConfigured) return <FirebaseSetup />;
-  return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <NotificationProvider>
-          <AppRoutes />
-        </NotificationProvider>
-      </AuthProvider>
-    </ErrorBoundary>
-  );
-}
+import {Component} from 'react';import AppRoutes from './routes/AppRoutes';import {AuthProvider} from './context/AuthContext';import {NotificationProvider} from './context/NotificationContext';import {MaintenanceProvider} from './context/MaintenanceContext';
+class ErrorBoundary extends Component{constructor(p){super(p);this.state={error:null}}static getDerivedStateFromError(error){return{error}}render(){if(this.state.error)return <main className="fatal"><h1>Terjadi kesalahan aplikasi</h1><p>{this.state.error.message||'Silakan muat ulang halaman.'}</p><button onClick={()=>location.reload()}>Muat ulang</button></main>;return this.props.children}}
+export default function App(){return <ErrorBoundary><AuthProvider><MaintenanceProvider><NotificationProvider><AppRoutes/></NotificationProvider></MaintenanceProvider></AuthProvider></ErrorBoundary>}
