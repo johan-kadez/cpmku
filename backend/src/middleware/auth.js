@@ -8,13 +8,8 @@ export async function requireAuth(req, res, next) {
 
   try {
     req.user = await auth.verifyIdToken(header.slice(7));
-    const isAdmin = env.adminEmails.includes((req.user.email || '').toLowerCase());
-    if (!isAdmin) {
-      const profile = await db.collection('users').doc(req.user.uid).get();
-      if (profile.exists && profile.data().banned === true) {
-        throw new HttpError(403, 'Akun diblokir admin.');
-      }
-    }
+    const profile = await db.collection('users').doc(req.user.uid).get();
+    if (profile.exists && profile.data().banned === true) throw new HttpError(403, 'Akun diblokir admin.');
     return next();
   } catch (e) {
     if (e instanceof HttpError) throw e;

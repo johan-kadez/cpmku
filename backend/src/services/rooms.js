@@ -45,7 +45,7 @@ export async function callSeller(roomId) {
     toUid: room.buyerUid,
     type: 'seller_called',
     title: 'Seller dipanggil',
-    body: `Admin sudah memanggil seller untuk produk ${room.productId}.`,
+    message: `Admin sudah memanggil seller untuk produk ${room.productId}.`,
     roomId,
     createdAt: FieldValue.serverTimestamp(),
     read: false
@@ -54,7 +54,7 @@ export async function callSeller(roomId) {
     toUid: room.sellerUid,
     type: 'seller_called',
     title: 'Anda dipanggil admin',
-    body: `Admin memanggil Anda untuk transaksi produk ${room.productId}.`,
+    message: `Admin memanggil Anda untuk transaksi produk ${room.productId}.`,
     roomId,
     createdAt: FieldValue.serverTimestamp(),
     read: false

@@ -1,42 +1,4 @@
-import { db } from '../../src/firebase/admin.js';
-import { asyncHandler } from '../../src/utils/errors.js';
-
-const TWO_HOURS = 2 * 60 * 60 * 1000;
-const TWELVE_HOURS = 12 * 60 * 60 * 1000;
-
-async function deleteRoom(roomDoc) {
-  const messages = await roomDoc.ref.collection('messages').limit(450).get();
-  const batch = db.batch();
-  for (const message of messages.docs) batch.delete(message.ref);
-  batch.delete(roomDoc.ref);
-  await batch.commit();
-  return messages.size;
-}
-
-export default asyncHandler(async (req, res) => {
-  const secret = req.headers['x-cron-secret'] ||
-    String(req.headers.authorization || '').replace(/^Bearer\s+/, '');
-
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const now = Date.now();
-  const [doneSnap, activeSnap] = await Promise.all([
-    db.collection('rooms').where('status', '==', 'done').limit(100).get(),
-    db.collection('rooms').where('status', '==', 'in_transaction').limit(100).get()
-  ]);
-
-  let deleted = 0;
-  for (const room of [...doneSnap.docs, ...activeSnap.docs]) {
-    const data = room.data();
-    const timestamp = data.completedAt?.toMillis?.() || data.updatedAt?.toMillis?.() || 0;
-    const maxAge = data.status === 'done' ? TWELVE_HOURS : TWO_HOURS;
-    if (timestamp && now - timestamp >= maxAge) {
-      await deleteRoom(room);
-      deleted++;
-    }
-  }
-
-  return res.json({ ok: true, deleted });
-});
+import {db} from '../../src/firebase/admin.js';import {asyncHandler} from '../../src/utils/errors.js';
+const TWO_HOURS=2*60*60*1000,TWELVE_HOURS=12*60*60*1000;
+async function deleteRoom(roomRef){while(true){const snap=await roomRef.collection('messages').limit(400).get();if(snap.empty)break;const batch=db.batch();snap.docs.forEach(d=>batch.delete(d.ref));await batch.commit()}await roomRef.delete()}
+export default asyncHandler(async(req,res)=>{const secret=req.headers['x-cron-secret']||String(req.headers.authorization||'').replace(/^Bearer\s+/,'');if(!process.env.CRON_SECRET||secret!==process.env.CRON_SECRET)return res.status(401).json({error:'Unauthorized'});const now=Date.now();const statuses=['completed','cancelled','in_transaction'];let deleted=0;for(const status of statuses){const snap=await db.collection('rooms').where('status','==',status).limit(100).get();for(const room of snap.docs){const d=room.data(),t=d.completedAt?.toMillis?.()||d.cancelledAt?.toMillis?.()||d.updatedAt?.toMillis?.()||0,max=status==='completed'?TWELVE_HOURS:TWO_HOURS;if(t&&now-t>=max){await deleteRoom(room.ref);deleted++}}}return res.json({ok:true,deleted})})

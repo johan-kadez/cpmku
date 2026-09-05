@@ -65,35 +65,29 @@ export async function setStatus(type, id, status) {
 
   if (type === 'products') {
     if (status === 'approved') {
-      await ref.update({ status: 'available', approvalStatus: 'approved', visibility: 'public', approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+      await ref.update({ status: 'available', visibility: 'public', approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
     } else {
-      await ref.update({ status: 'rejected', approvalStatus: 'rejected', visibility: 'private', updatedAt: FieldValue.serverTimestamp() });
+      await ref.update({ status: 'rejected', visibility: 'private', updatedAt: FieldValue.serverTimestamp() });
     }
     return { ok: true };
   }
 
   if (type === 'orders' && status === 'cancelled') {
-    const d = snap.data();
-    if (d.status !== 'in_transaction') throw new HttpError(409, 'Order tidak sedang aktif.');
-
-    const batch = db.batch();
-    batch.update(ref, { status: 'cancelled', updatedAt: FieldValue.serverTimestamp() });
-
-    const product = await db.collection('products').doc(d.productDocId || d.productId).get();
-    if (product.exists && product.data().status === 'in_transaction') {
-      batch.update(product.ref, { status: 'available', visibility: 'public', updatedAt: FieldValue.serverTimestamp() });
-    }
-
-    const room = await db.collection('rooms').doc(id).get();
-    if (room.exists) batch.update(room.ref, { status: 'cancelled', cancelledAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
-
-    const payment = await db.collection('payments').doc(id).get();
-    if (payment.exists && payment.data().status === 'pending') {
-      batch.update(payment.ref, { status: 'rejected', updatedAt: FieldValue.serverTimestamp() });
-    }
-
-    await batch.commit();
-    return { ok: true };
+    return db.runTransaction(async tx => {
+      const fresh = await tx.get(ref);
+      if (!fresh.exists) throw new HttpError(404, 'Order tidak ditemukan.');
+      const d = fresh.data();
+      if (d.status !== 'in_transaction') throw new HttpError(409, 'Order tidak sedang aktif.');
+      const productRef = db.collection('products').doc(d.productId);
+      const roomRef = db.collection('rooms').doc(d.roomId || id);
+      const paymentRef = db.collection('payments').doc(id);
+      const [product, room, payment] = await Promise.all([tx.get(productRef), tx.get(roomRef), tx.get(paymentRef)]);
+      tx.update(ref, { status: 'cancelled', cancelledAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+      if (product.exists && product.data().status === 'in_transaction') tx.update(productRef, { status: 'available', visibility: 'public', updatedAt: FieldValue.serverTimestamp() });
+      if (room.exists) tx.update(roomRef, { status: 'cancelled', cancelledAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+      if (payment.exists && payment.data().status === 'pending') tx.update(paymentRef, { status: 'rejected', updatedAt: FieldValue.serverTimestamp() });
+      return { ok: true };
+    });
   }
 
   if (type === 'payments') {
@@ -127,9 +121,10 @@ export async function setBan(uid, banned) {
 
 export async function saveSettings(data) {
   const qrisUrl = String(data?.qrisUrl || '').trim();
-  if (qrisUrl) {
-    try { new URL(qrisUrl); } catch { throw new HttpError(400, 'URL QRIS tidak valid.'); }
-  }
-  await db.collection('settings').doc('main').set({ qrisUrl, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const maintenanceMode = Boolean(data?.maintenanceMode);
+  const maintenanceTitle = String(data?.maintenanceTitle || '').trim();
+  const maintenanceMessage = String(data?.maintenanceMessage || '').trim();
+  if (qrisUrl) { try { new URL(qrisUrl); } catch { throw new HttpError(400, 'URL QRIS tidak valid.'); } }
+  await db.collection('settings').doc('main').set({ qrisUrl, maintenanceMode, maintenanceTitle, maintenanceMessage, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   return { ok: true };
 }

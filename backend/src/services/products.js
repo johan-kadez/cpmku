@@ -37,7 +37,6 @@ export async function createProduct(uid, seller, data) {
     sellerPhotoUrl: seller.photoUrl,
     visibility: 'private',
     status: 'pending',
-    approvalStatus: 'pending',
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
   });
