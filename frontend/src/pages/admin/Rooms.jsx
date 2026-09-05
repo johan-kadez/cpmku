@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
+
 export default function Rooms() {
   const [rooms, setRooms] = useState([]);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
   const load = async () => {
     try {
       setError('');
@@ -14,8 +16,9 @@ export default function Rooms() {
       setError(e.message);
     }
   };
-  useEffect(() => { load();
- }, []);
+
+  useEffect(() => { load(); }, []);
+
   const call = async id => {
     try {
       await api(`/rooms/${id}/call-seller`, { method: 'POST' });
@@ -24,6 +27,7 @@ export default function Rooms() {
       alert(e.message);
     }
   };
+
   return (
     <section>
       <div className="section-head">

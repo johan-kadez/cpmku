@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
+
 const ACTIONS = {
   sellers: [['approved', 'Approve'], ['rejected', 'Reject']],
   products: [['approved', 'Approve'], ['rejected', 'Reject']],
   orders: [['cancelled', 'Batalkan']],
   payments: [['verified', 'Verifikasi'], ['rejected', 'Tolak']]
 };
+
 export default function Manage({ type, title }) {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
@@ -18,8 +20,9 @@ export default function Manage({ type, title }) {
       setError(e.message);
     }
   };
-  useEffect(() => { load();
- }, [type]);
+
+  useEffect(() => { load(); }, [type]);
+
   const action = async (id, status) => {
     if (type === 'orders' && !window.confirm('Batalkan transaksi ini?')) return;
     try {
@@ -32,6 +35,7 @@ export default function Manage({ type, title }) {
       alert(e.message);
     }
   };
+
   return (
     <section>
       <div className="section-head">

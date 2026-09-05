@@ -73,3 +73,5 @@
   }
 }
 
+
+.fatal-state{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;background:#0d0d0d;color:#fff}.fatal-state h1{font-size:clamp(1.6rem,5vw,2.5rem);margin:.4rem 0}.fatal-state p{max-width:720px;color:#b8b8b8;line-height:1.6}.eyebrow{color:#e02b18;font-weight:800;letter-spacing:.12em}.setup-list{max-width:720px;width:100%;text-align:left;background:#151515;border:1px solid #292929;border-radius:14px;padding:18px;margin-top:16px}.setup-list ol{line-height:1.8;color:#b8b8b8}.setup-list code{color:#fff;background:#1d1d1d;padding:2px 6px;border-radius:4px}

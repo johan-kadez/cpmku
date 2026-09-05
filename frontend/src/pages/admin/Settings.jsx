@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { api } from '../../services/api';
+
 export default function Settings() {
   const [qrisUrl, setQrisUrl] = useState('');
   const [busy, setBusy] = useState(false);
+
   useEffect(() => onSnapshot(doc(db, 'settings', 'main'), snap => {
     if (snap.exists()) setQrisUrl(snap.data().qrisUrl || '');
   }), []);
+
   const save = async e => {
     e.preventDefault();
     setBusy(true);
@@ -23,6 +26,7 @@ export default function Settings() {
       setBusy(false);
     }
   };
+
   return (
     <form className="form-card" onSubmit={save}>
       <h2>QRIS Utama</h2>

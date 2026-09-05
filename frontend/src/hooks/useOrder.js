@@ -1,7 +1,1 @@
-import {useState} from 'react';
-import {api} from '../services/api';
-export function useOrder(){const [busy,setBusy]=useState(false);
-const createOrder=async productId=>{setBusy(true);
-try{return await api('/orders',{method:'POST',body:JSON.stringify({productId})})}finally{setBusy(false)}};
-return {createOrder,busy};
-}
+import {useState} from 'react';import {api} from '../services/api';export function useOrder(){const [busy,setBusy]=useState(false);const createOrder=async productId=>{setBusy(true);try{return await api('/orders',{method:'POST',body:JSON.stringify({productId})})}finally{setBusy(false)}};return {createOrder,busy};}

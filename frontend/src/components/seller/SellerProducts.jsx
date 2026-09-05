@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { rupiah } from "../../utils/format";
+
 /**
  * SellerProducts
  *
@@ -55,25 +56,30 @@ export default function SellerProducts({
     price: "",
     stock: "",
   });
+
   useEffect(() => {
     if (Array.isArray(externalProducts)) {
       setLoading(false);
       setError("");
       return undefined;
     }
+
     if (!sellerUid) {
       setFirestoreProducts([]);
       setLoading(false);
       setError("");
       return undefined;
     }
+
     setLoading(true);
     setError("");
+
     const productsQuery = query(
       collection(db, "products"),
       where("sellerUid", "==", sellerUid),
       orderBy("createdAt", "desc"),
     );
+
     const unsubscribe = onSnapshot(
       productsQuery,
       (snapshot) => {
@@ -93,6 +99,7 @@ export default function SellerProducts({
             collection(db, "products"),
             where("sellerUid", "==", sellerUid),
           );
+
           const fallbackUnsubscribe = onSnapshot(
             fallbackQuery,
             (fallbackSnapshot) => {
@@ -106,6 +113,7 @@ export default function SellerProducts({
                   const bTime = timestampValue(b.createdAt);
                   return bTime - aTime;
                 });
+
               setFirestoreProducts(rows);
               setLoading(false);
               setError("");
@@ -118,30 +126,38 @@ export default function SellerProducts({
               );
             },
           );
+
           return fallbackUnsubscribe;
         }
+
         setLoading(false);
         setError(err?.message || "Gagal memuat produk seller.");
       },
     );
+
     return () => {
       unsubscribe();
     };
   }, [sellerUid, externalProducts]);
+
   const products = useMemo(() => {
     const source = Array.isArray(externalProducts)
       ? externalProducts
       : firestoreProducts;
+
     return [...source].sort(
       (a, b) => timestampValue(b?.createdAt) - timestampValue(a?.createdAt),
     );
   }, [externalProducts, firestoreProducts]);
+
   function startEdit(product) {
     if (!product?.id) return;
+
     if (typeof onEdit === "function") {
       onEdit(product);
       return;
     }
+
     setEditingId(product.id);
     setEditForm({
       title: safeString(product.title),
@@ -152,6 +168,7 @@ export default function SellerProducts({
     });
     setError("");
   }
+
   function cancelEdit() {
     setEditingId("");
     setEditForm({
@@ -162,27 +179,34 @@ export default function SellerProducts({
       stock: "",
     });
   }
+
   async function saveEdit(product) {
     if (!product?.id) return;
+
     const title = safeString(editForm.title);
     const description = safeString(editForm.description);
     const imageUrl = safeString(editForm.imageUrl);
     const price = Number(editForm.price);
     const stock = Number(editForm.stock);
+
     if (!title) {
       setError("Nama produk wajib diisi.");
       return;
     }
+
     if (!Number.isFinite(price) || price < 0) {
       setError("Harga produk tidak valid.");
       return;
     }
+
     if (!Number.isFinite(stock) || stock < 0) {
       setError("Stok produk tidak valid.");
       return;
     }
+
     setBusyId(product.id);
     setError("");
+
     try {
       await updateDoc(doc(db, "products", product.id), {
         title,
@@ -192,6 +216,7 @@ export default function SellerProducts({
         stock: Math.floor(stock),
         updatedAt: serverTimestamp(),
       });
+
       cancelEdit();
     } catch (err) {
       setError(err?.message || "Gagal memperbarui produk.");
@@ -199,19 +224,26 @@ export default function SellerProducts({
       setBusyId("");
     }
   }
+
   async function removeProduct(product) {
     if (!product?.id) return;
+
     if (typeof onDelete === "function") {
       onDelete(product);
       return;
     }
+
     if (!editable) return;
+
     const confirmed = window.confirm(
       `Hapus produk "${safeString(product.title) || "tanpa nama"}"?`,
     );
+
     if (!confirmed) return;
+
     setBusyId(product.id);
     setError("");
+
     try {
       await deleteDoc(doc(db, "products", product.id));
     } catch (err) {
@@ -220,6 +252,7 @@ export default function SellerProducts({
       setBusyId("");
     }
   }
+
   if (loading) {
     return (
       <section className="seller-products">
@@ -227,6 +260,7 @@ export default function SellerProducts({
       </section>
     );
   }
+
   return (
     <section className="seller-products">
       {error ? (
@@ -234,6 +268,7 @@ export default function SellerProducts({
           {error}
         </div>
       ) : null}
+
       {!products.length ? (
         <div className="state">{emptyText}</div>
       ) : (
@@ -241,11 +276,13 @@ export default function SellerProducts({
           {products.map((product) => {
             const isEditing = editingId === product.id;
             const isBusy = busyId === product.id;
+
             if (isEditing) {
               return (
                 <article className="product-card seller-product-editor" key={product.id}>
                   <div className="product-body">
                     <h3>Edit Produk</h3>
+
                     <label>
                       Nama Produk
                       <input
@@ -260,6 +297,7 @@ export default function SellerProducts({
                         disabled={isBusy}
                       />
                     </label>
+
                     <label>
                       Deskripsi
                       <textarea
@@ -273,6 +311,7 @@ export default function SellerProducts({
                         disabled={isBusy}
                       />
                     </label>
+
                     <label>
                       URL Gambar
                       <input
@@ -287,6 +326,7 @@ export default function SellerProducts({
                         disabled={isBusy}
                       />
                     </label>
+
                     <label>
                       Harga
                       <input
@@ -303,6 +343,7 @@ export default function SellerProducts({
                         disabled={isBusy}
                       />
                     </label>
+
                     <label>
                       Stok
                       <input
@@ -319,6 +360,7 @@ export default function SellerProducts({
                         disabled={isBusy}
                       />
                     </label>
+
                     <div className="product-actions">
                       <button
                         type="button"
@@ -341,6 +383,7 @@ export default function SellerProducts({
                 </article>
               );
             }
+
             return (
               <article
                 className="product-card seller-product-card"
@@ -369,12 +412,16 @@ export default function SellerProducts({
                     </div>
                   )}
                 </button>
+
                 <div className="product-body">
                   {product.category ? (
                     <span className="muted">{product.category}</span>
                   ) : null}
+
                   <h3>{safeString(product.title) || "Produk tanpa nama"}</h3>
+
                   <strong>{rupiah(product.price)}</strong>
+
                   {showStock ? (
                     <p>
                       Stok{" "}
@@ -383,6 +430,7 @@ export default function SellerProducts({
                         : 0}
                     </p>
                   ) : null}
+
                   {showStatus ? (
                     <span
                       className={`badge seller-product-status status-${normalizeStatus(
@@ -392,11 +440,13 @@ export default function SellerProducts({
                       {formatStatus(product.status)}
                     </span>
                   ) : null}
+
                   {product.description ? (
                     <p className="muted seller-product-description">
                       {product.description}
                     </p>
                   ) : null}
+
                   {editable ? (
                     <div className="product-actions">
                       <button
@@ -426,15 +476,20 @@ export default function SellerProducts({
     </section>
   );
 }
+
 function safeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
+
 function normalizeStatus(value) {
   return safeString(value).toLowerCase().replace(/[^a-z0-9_-]/g, "-") || "unknown";
 }
+
 function formatStatus(value) {
   const status = safeString(value);
+
   if (!status) return "Status tidak tersedia";
+
   const labels = {
     pending: "Menunggu Persetujuan",
     available: "Tersedia",
@@ -443,16 +498,21 @@ function formatStatus(value) {
     draft: "Draft",
     archived: "Diarsipkan",
   };
+
   return labels[status.toLowerCase()] || status;
 }
+
 function timestampValue(value) {
   if (!value) return 0;
+
   if (typeof value?.toMillis === "function") {
     return value.toMillis();
   }
+
   if (typeof value?.seconds === "number") {
     return value.seconds * 1000;
   }
+
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : 0;
 }
