@@ -1,4 +1,1 @@
-import {db} from '../src/firebase/admin.js';
-console.log('Seed utility loaded. It intentionally creates no fake marketplace data.');
-console.log('Configure Firebase and run your own approved records through the admin panel.');
-await db.terminate();
+import {db} from '../src/firebase/admin.js';console.log('Seed utility loaded. It intentionally creates no fake marketplace data.');console.log('Configure Firebase and run your own approved records through the admin panel.');await db.terminate();

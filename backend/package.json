@@ -1,13 +1,1 @@
-{
-  "name": "johan-marketplace-backend",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "test": "node tests/smoke.js",
-    "check": "node --check api/index.js"
-  },
-  "dependencies": {
-    "firebase-admin": "^13.4.0"
-  }
-}
+{"name":"johan-marketplace-backend","private":true,"version":"1.0.0","type":"module","scripts":{"test":"node tests/smoke.js","check":"node --check api/index.js"},"dependencies":{"firebase-admin":"^13.4.0"}}

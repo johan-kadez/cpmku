@@ -4,6 +4,7 @@ export class HttpError extends Error {
     this.status = status;
   }
 }
+
 export function setCors(req, res) {
   const origin = process.env.PUBLIC_APP_ORIGIN || '*';
   res.setHeader('Access-Control-Allow-Origin', origin === '*' ? '*' : origin);
@@ -11,6 +12,7 @@ export function setCors(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
 }
+
 export function asyncHandler(fn) {
   return async (req, res) => {
     setCors(req, res);

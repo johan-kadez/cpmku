@@ -6,6 +6,7 @@ import { createOrder, doneOrder } from '../services/orders.js';
 import { sendMessage, callSeller } from '../services/rooms.js';
 import * as A from '../services/admin.js';
 import { HttpError } from '../utils/errors.js';
+
 export const me = async (req, res) => ok(res, { user: await currentUser(req.user) });
 export const sellerApply = async (req, res) => created(res, await applySeller(req.user.uid, req.user.email, req.body));
 export const productCreate = async (req, res) => created(res, await createProduct(req.user.uid, req.seller, req.body));
@@ -23,5 +24,4 @@ export const status = type => async (req, res) => ok(res, await A.setStatus(type
 export const settings = async (req, res) => ok(res, await A.saveSettings(req.body));
 export const banUser = async (req, res) => ok(res, await A.setBan(req.query.id, req.body?.banned));
 export const health = async (req, res) => ok(res, { ok: true, service: 'johan-marketplace-backend', time: new Date().toISOString() });
-export const bad = () => { throw new HttpError(404, 'Endpoint tidak ditemukan.');
- };
+export const bad = () => { throw new HttpError(404, 'Endpoint tidak ditemukan.'); };
