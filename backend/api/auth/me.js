@@ -1,0 +1,5 @@
+import {me} from '../../src/controllers/index.js';
+import {requireAuth} from '../../src/middleware/auth.js';
+import {asyncHandler} from '../../src/utils/errors.js';
+export default asyncHandler(async(req,res)=>{await requireAuth(req,res,()=>{});
+return me(req,res)})

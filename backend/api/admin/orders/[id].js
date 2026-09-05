@@ -1,0 +1,8 @@
+import {status} from '../../../src/controllers/index.js';
+import {requireAuth} from '../../../src/middleware/auth.js';
+import {requireAdmin} from '../../../src/middleware/admin.js';
+import {asyncHandler} from '../../../src/utils/errors.js';
+export default asyncHandler(async(req,res)=>{if(req.method!=='PATCH')return res.status(405).json({error:'Method not allowed'});
+await requireAuth(req,res,()=>{});
+await requireAdmin(req,res,()=>{});
+return status('orders')(req,res)})
