@@ -10,9 +10,10 @@ export default asyncHandler(async (req, res) => {
   await requireAuth(req, res, () => {});
   await requireAdmin(req, res, () => {});
 
-  let segments = req.query.path;
-  if (!Array.isArray(segments)) segments = segments ? [segments] : [];
-  segments = segments.filter(Boolean);
+  const pathname = (req.url || '').split('?')[0];
+  const parts = pathname.split('/').filter(Boolean);
+  const adminIdx = parts.lastIndexOf('admin');
+  const segments = adminIdx >= 0 ? parts.slice(adminIdx + 1) : parts;
   const [resource, id] = segments;
   req.query.id = id;
 
@@ -39,5 +40,5 @@ export default asyncHandler(async (req, res) => {
     return status(resource)(req, res);
   }
 
-  return res.status(404).json({ error: `Endpoint tidak ditemukan. (path=${JSON.stringify(req.query.path)}, resource=${JSON.stringify(resource)}, id=${JSON.stringify(id)})` });
+  return res.status(404).json({ error: `Endpoint tidak ditemukan. (url=${JSON.stringify(req.url)}, resource=${JSON.stringify(resource)}, id=${JSON.stringify(id)})` });
 });
