@@ -22,6 +22,6 @@ export const dashboard = async (req, res) => ok(res, await A.dashboard());
 export const list = type => async (req, res) => ok(res, await A.listCollection(type));
 export const status = type => async (req, res) => ok(res, await A.setStatus(type, req.query.id, req.body?.status));
 export const settings = async (req, res) => ok(res, await A.saveSettings(req.body));
-export const banUser = async (req, res) => ok(res, await A.setBan(req.query.id, req.body?.banned));
+export const updateUser = async (req, res) => ok(res, await A.updateUser(req.query.id, req.body || {}));
 export const health = async (req, res) => ok(res, { ok: true, service: 'johan-marketplace-backend', time: new Date().toISOString() });
 export const bad = () => { throw new HttpError(404, 'Endpoint tidak ditemukan.'); };

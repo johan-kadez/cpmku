@@ -119,6 +119,40 @@ export async function setBan(uid, banned) {
   return { ok: true };
 }
 
+export async function updateUser(uid, { banned, role } = {}) {
+  const result = { ok: true };
+
+  if (typeof banned === 'boolean') {
+    await setBan(uid, banned);
+    result.banned = banned;
+  }
+
+  if (role) {
+    if (!['buyer', 'seller'].includes(role)) throw new HttpError(400, 'Role tidak valid.');
+    const sellerRef = db.collection('sellers').doc(uid);
+    if (role === 'seller') {
+      const userSnap = await db.collection('users').doc(uid).get();
+      const u = userSnap.exists ? userSnap.data() : {};
+      await sellerRef.set({
+        uid,
+        email: u.email || '',
+        name: u.name || '',
+        photoUrl: u.photoUrl || '',
+        status: 'approved',
+        banned: false,
+        approvedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    } else {
+      const existing = await sellerRef.get();
+      if (existing.exists) await sellerRef.update({ status: 'revoked', updatedAt: FieldValue.serverTimestamp() });
+    }
+    result.role = role;
+  }
+
+  return result;
+}
+
 export async function saveSettings(data) {
   const qrisUrl = String(data?.qrisUrl || '').trim();
   const maintenanceMode = Boolean(data?.maintenanceMode);
