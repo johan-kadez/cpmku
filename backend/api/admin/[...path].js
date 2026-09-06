@@ -10,7 +10,9 @@ export default asyncHandler(async (req, res) => {
   await requireAuth(req, res, () => {});
   await requireAdmin(req, res, () => {});
 
-  const segments = Array.isArray(req.query.path) ? req.query.path : (req.query.path ? [req.query.path] : []);
+  let segments = req.query.path;
+  if (!Array.isArray(segments)) segments = segments ? [segments] : [];
+  segments = segments.filter(Boolean);
   const [resource, id] = segments;
   req.query.id = id;
 
@@ -37,5 +39,5 @@ export default asyncHandler(async (req, res) => {
     return status(resource)(req, res);
   }
 
-  return res.status(404).json({ error: 'Endpoint tidak ditemukan.' });
+  return res.status(404).json({ error: `Endpoint tidak ditemukan. (path=${JSON.stringify(req.query.path)}, resource=${JSON.stringify(resource)}, id=${JSON.stringify(id)})` });
 });
