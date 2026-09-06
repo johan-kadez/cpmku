@@ -1,3 +1,13 @@
+export default asyncHandler(async (req, res) => {
+  console.log('========== ADMIN API ==========');
+  console.log('URL:', req.url);
+  console.log('METHOD:', req.method);
+  console.log('QUERY:', req.query);
+  console.log('================================');
+
+  await requireAuth(req, res, () => {});
+  await requireAdmin(req, res, () => {});
+  
 import {
   dashboard,
   settings,
