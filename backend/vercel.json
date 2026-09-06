@@ -1,1 +1,1 @@
-{"functions":{"api/**/*.js":{"runtime":"nodejs22.x"}},"crons":[{"path":"/api/cron/cleanup","schedule":"*/30 * * * *"}]}
+{"functions":{"api/**/*.js":{"runtime":"nodejs22.x"}},"crons":[{"path":"/api/cron/cleanup","schedule":"0 3 * * *"}]}
