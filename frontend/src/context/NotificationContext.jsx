@@ -34,7 +34,8 @@ export function NotificationProvider({ children }) {
           notifiedIds.current.add(latest.id);
           new Notification(latest.title || 'Johan Marketplace', { body: latest.message || latest.body || '' });
         }
-      }
+      },
+      () => setNotifications([])
     );
   }, [user]);
 
