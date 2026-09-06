@@ -43,17 +43,40 @@ export default asyncHandler(async (req, res) => {
 
   let segments = req.query?.path;
 
-  // Normalisasi path
-  if (!segments) {
+// Vercel kadang tidak mengisi req.query.path
+// untuk catch-all route, jadi ambil dari URL sebagai fallback.
+if (!segments) {
+  const pathname = new URL(
+    req.url,
+    `https://${req.headers.host || 'localhost'}`
+  ).pathname;
+
+  const parts = pathname
+    .split('/')
+    .filter(Boolean);
+
+  // /api/admin/dashboard
+  //        ↑    ↑
+  //      api  admin  dashboard
+
+  const adminIndex = parts.indexOf('admin');
+
+  if (adminIndex !== -1) {
+    segments = parts.slice(adminIndex + 1);
+  } else {
     segments = [];
-  } else if (!Array.isArray(segments)) {
-    segments = [segments];
   }
+}
 
-  segments = segments.filter(Boolean);
+if (!Array.isArray(segments)) {
+  segments = [segments];
+}
 
-  const [resource, id] = segments;
+segments = segments.filter(Boolean);
 
+const [resource, id] = segments;
+
+req.query.id = id;
   // Jangan overwrite query object secara aneh
   req.query = {
     ...req.query,
