@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, googleProvider, firebaseReady } from '../services/firebase';
 import { api } from '../services/api';
 
@@ -25,8 +25,12 @@ export function AuthProvider({ children }) {
     if (!firebaseReady) throw new Error('Firebase belum dikonfigurasi.');
     return signInWithPopup(auth, googleProvider);
   };
+  const loginAdmin = async (email, password) => {
+    if (!firebaseReady) throw new Error('Firebase belum dikonfigurasi.');
+    return signInWithEmailAndPassword(auth, email, password);
+  };
   const logout = () => signOut(auth);
-  const value = useMemo(() => ({ user, loading, role, banned, login, logout }), [user, loading, role, banned]);
+  const value = useMemo(() => ({ user, loading, role, banned, login, loginAdmin, logout }), [user, loading, role, banned]);
   return <C.Provider value={value}>{children}</C.Provider>;
 }
 export const useAuth = () => useContext(C);
