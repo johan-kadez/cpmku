@@ -22,7 +22,7 @@ export default asyncHandler(async (req, res) => {
   }
 
   if (resource === 'settings' && !id) {
-    if (req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.method !== 'PATCH') return res.status(505).json({ error: 'Method not allowed' });
     return settings(req, res);
   }
 
