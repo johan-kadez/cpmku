@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import logo from '../../assets/NAMA_FILE_LOGO_KAMU.png';
+import logo from '../../assets/file_0000000060d481fab374b11e35f23cf9.png';
 
 export default function Header() {
   const { user, role } = useAuth();
