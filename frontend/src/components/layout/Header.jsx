@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import logo from '../../assets/NAMA_FILE_LOGO_KAMU.png';
 
 export default function Header() {
   const { user, role } = useAuth();
@@ -7,7 +8,7 @@ export default function Header() {
   return (
     <header className="header">
       <Link className="brand" to="/">
-        CPMKU<span>MARKETPLACE</span>
+        <img src={logo} alt="Logo" className="brand-logo" />
       </Link>
       
       <Link className="profile-pill" to="/profile">
