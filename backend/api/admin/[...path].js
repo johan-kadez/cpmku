@@ -6,7 +6,7 @@ import { asyncHandler } from '../../src/utils/errors.js';
 const LISTABLE = ['orders', 'payments', 'products', 'rooms', 'sellers', 'users'];
 const STATUSABLE = ['orders', 'payments', 'products', 'rooms', 'sellers'];
 
-export default asyncHandler(async (req, res) => {
+const inner = asyncHandler(async (req, res) => {
   await requireAuth(req, res, () => {});
   await requireAdmin(req, res, () => {});
 
@@ -42,3 +42,13 @@ export default asyncHandler(async (req, res) => {
 
   return res.status(404).json({ error: `Endpoint tidak ditemukan. (url=${JSON.stringify(req.url)}, resource=${JSON.stringify(resource)}, id=${JSON.stringify(id)})` });
 });
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
+  if ((req.method || '').toUpperCase() === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  return inner(req, res);
+}
