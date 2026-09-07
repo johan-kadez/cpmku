@@ -1,3 +1,125 @@
-import {Routes,Route,Navigate} from 'react-router-dom';import AppLayout from '../components/layout/AppLayout';import Home from '../pages/public/Home';import Products from '../pages/public/Products';import Favorites from '../pages/public/Favorites';import Transactions from '../pages/public/Transactions';import Profile from '../pages/public/Profile';import Help from '../pages/public/Help';import ProductDetail from '../pages/public/ProductDetail';import SellerPage from '../pages/public/SellerPage';import Login from '../pages/auth/Login';import SellerApply from '../pages/auth/SellerApply';import SellerLogin from '../pages/auth/SellerLogin';import SellerDashboard from '../pages/seller/SellerDashboard';import ChatPage from '../pages/chat/ChatPage';import AdminLogin from '../pages/admin/AdminLogin';import AdminShell from '../pages/admin/AdminShell';import Dashboard from '../pages/admin/Dashboard';import Manage from '../pages/admin/Manage';import Settings from '../pages/admin/Settings';import Rooms from '../pages/admin/Rooms';import Users from '../pages/admin/Users';import {useAuth} from '../context/AuthContext';
-function Private({children,roles,loginPath='/profile'}){const{user,role,loading}=useAuth();if(loading)return <div className="state">Memuat sesi...</div>;if(!user)return <Navigate to={loginPath} replace/>;if(roles&&!roles.includes(role))return <div className="state">Akses ditolak.</div>;return children}
-export default function AppRoutes(){return <Routes><Route element={<AppLayout/>}><Route path="/" element={<Home/>}/><Route path="/products" element={<Products/>}/><Route path="/favorites" element={<Favorites/>}/><Route path="/transactions" element={<Transactions/>}/><Route path="/profile" element={<Profile/>}/><Route path="/help" element={<Help/>}/><Route path="/login" element={<Login/>}/><Route path="/seller/login" element={<SellerLogin/>}/><Route path="/seller/apply" element={<SellerApply/>}/><Route path="/seller/dashboard" element={<Private roles={['seller']}><SellerDashboard/></Private>}/><Route path="/product/:id" element={<ProductDetail/>}/><Route path="/seller/:uid" element={<SellerPage/>}/><Route path="/chat" element={<Private><ChatPage/></Private>}/><Route path="/chat/:roomId" element={<Private><ChatPage/></Private>}/><Route path="/maintenance" element={<div className="maintenance"><div><h1>WEBSITE SEDANG DALAM PEMELIHARAN</h1></div></div>}/><Route path="*" element={<Navigate to="/" replace/>}/></Route><Route path="/admin/login" element={<AdminLogin/>}/><Route path="/admin" element={<Private roles={['admin']} loginPath="/admin/login"><AdminShell/></Private>}><Route index element={<Dashboard/>}/><Route path="sellers" element={<Manage type="sellers" title="Seller Applications"/>}/><Route path="products" element={<Manage type="products" title="Products"/>}/><Route path="orders" element={<Manage type="orders" title="Orders"/>}/><Route path="payments" element={<Manage type="payments" title="Payments"/>}/><Route path="rooms" element={<Rooms/>}/><Route path="users" element={<Users/>}/><Route path="settings" element={<Settings/>}/></Route></Routes>}
+import { Routes, Route, Navigate } from 'react-router-dom';
+import AppLayout from '../components/layout/AppLayout';
+import Home from '../pages/public/Home';
+import Products from '../pages/public/Products';
+import Favorites from '../pages/public/Favorites';
+import Transactions from '../pages/public/Transactions';
+import Profile from '../pages/public/Profile';
+import Help from '../pages/public/Help';
+import ProductDetail from '../pages/public/ProductDetail';
+import SellerPage from '../pages/public/SellerPage';
+import Login from '../pages/auth/Login';
+import SellerApply from '../pages/auth/SellerApply';
+import SellerLogin from '../pages/auth/SellerLogin';
+import SellerDashboard from '../pages/seller/SellerDashboard';
+import ChatPage from '../pages/chat/ChatPage';
+import AdminLogin from '../pages/admin/AdminLogin';
+import AdminShell from '../pages/admin/AdminShell';
+import Dashboard from '../pages/admin/Dashboard';
+import Manage from '../pages/admin/Manage';
+import Settings from '../pages/admin/Settings';
+import Rooms from '../pages/admin/Rooms';
+import Users from '../pages/admin/Users';
+import { useAuth } from '../context/AuthContext';
+
+function Private({ children, roles, loginPath = '/profile' }) {
+  const { user, role, loading } = useAuth();
+
+  if (loading) {
+    return <div className="state">Memuat sesi...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to={loginPath} replace />;
+  }
+
+  if (roles && !roles.includes(role)) {
+    return <div className="state">Akses ditolak.</div>;
+  }
+
+  return children;
+}
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public & Customer Routes (Menggunakan AppLayout) */}
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/favorites" element={<Favorites />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/help" element={<Help />} />
+        <Route path="/login" element={<Login />} />
+        
+        {/* Seller Auth & Dashboard */}
+        <Route path="/seller/login" element={<SellerLogin />} />
+        <Route path="/seller/apply" element={<SellerApply />} />
+        <Route 
+          path="/seller/dashboard" 
+          element={
+            <Private roles={['seller']}>
+              <SellerDashboard />
+            </Private>
+          } 
+        />
+        
+        {/* Dynamic Public Routes */}
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/seller/:uid" element={<SellerPage />} />
+        
+        {/* Chat Routes */}
+        <Route 
+          path="/chat" 
+          element={
+            <Private>
+              <ChatPage />
+            </Private>
+          } 
+        />
+        <Route 
+          path="/chat/:roomId" 
+          element={
+            <Private>
+              <ChatPage />
+            </Private>
+          } 
+        />
+        
+        {/* Maintenance & Fallback */}
+        <Route 
+          path="/maintenance" 
+          element={
+            <div className="maintenance">
+              <div>
+                <h1>WEBSITE SEDANG DALAM PEMELIHARAN</h1>
+              </div>
+            </div>
+          } 
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+
+      {/* Admin Routes */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route 
+        path="/admin" 
+        element={
+          <Private roles={['admin']} loginPath="/admin/login">
+            <AdminShell />
+          </Private>
+        }
+      >
+        <Route index element={<Dashboard />} />
+        <Route path="sellers" element={<Manage type="sellers" title="Seller Applications" />} />
+        <Route path="products" element={<Manage type="products" title="Products" />} />
+        <Route path="orders" element={<Manage type="orders" title="Orders" />} />
+        <Route path="payments" element={<Manage type="payments" title="Payments" />} />
+        <Route path="rooms" element={<Rooms />} />
+        <Route path="users" element={<Users />} />
+        <Route path="settings" element={<Settings />} />
+      </Route>
+    </Routes>
+  );
+}
