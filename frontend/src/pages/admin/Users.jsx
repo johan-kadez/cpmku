@@ -2,39 +2,36 @@ import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 
 export default function Users() {
-  const [users, setUsers] = useState([]);
+  const [rows, setRows] = useState([]);
 
-  const fetchUsers = () => {
+  const load = () =>
     api('/admin/users')
-      .then((res) => setUsers(res.items || []))
-      .catch((err) => alert(err.message));
-  };
+      .then(r => setRows(r.items || []))
+      .catch(e => alert(e.message));
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(load, []);
 
-  const toggleBan = async (id, banned) => {
+  const ban = async (uid, banned) => {
     try {
-      await api(`/admin/users/${id}`, {
+      await api(`/admin/users?id=${uid}`, {
         method: 'PATCH',
-        body: JSON.stringify({ banned }),
+        body: JSON.stringify({ banned })
       });
-      fetchUsers();
-    } catch (err) {
-      alert(err.message);
+      load();
+    } catch (e) {
+      alert(e.message);
     }
   };
 
-  const changeRole = async (id, role) => {
+  const setRole = async (uid, role) => {
     try {
-      await api(`/admin/users/${id}`, {
+      await api(`/admin/users?id=${uid}`, {
         method: 'PATCH',
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ role })
       });
-      fetchUsers();
-    } catch (err) {
-      alert(err.message);
+      load();
+    } catch (e) {
+      alert(e.message);
     }
   };
 
@@ -42,29 +39,23 @@ export default function Users() {
     <section>
       <div className="section-head">
         <h2>Users</h2>
-        <button onClick={fetchUsers}>Refresh</button>
+        <button onClick={load}>Refresh</button>
       </div>
       <div className="admin-table">
-        {users.map((u) => (
-          <article key={u.id}>
-            <b>{u.name || u.email || u.id}</b>
-            <span>{u.banned ? 'BANNED' : 'ACTIVE'}</span>
+        {rows.map(r => (
+          <article key={r.id}>
+            <b>{r.name || r.email || r.id}</b>
+            <span>{r.banned ? 'BANNED' : 'ACTIVE'}</span>
             <div>
-              <button onClick={() => toggleBan(u.id, !u.banned)}>
-                {u.banned ? 'Unban' : 'Ban'}
+              <button onClick={() => ban(r.id, !r.banned)}>
+                {r.banned ? 'Unban' : 'Ban'}
               </button>
-              <button onClick={() => changeRole(u.id, 'seller')}>
-                Jadikan Seller
-              </button>
-              <button onClick={() => changeRole(u.id, 'buyer')}>
-                Jadikan Buyer
-              </button>
+              <button onClick={() => setRole(r.id, 'seller')}>Jadikan Seller</button>
+              <button onClick={() => setRole(r.id, 'buyer')}>Jadikan Buyer</button>
             </div>
           </article>
         ))}
-        {!users.length && (
-          <div className="state">Belum ada profil user tersimpan.</div>
-        )}
+        {!rows.length && <div className="state">Belum ada profil user tersimpan.</div>}
       </div>
     </section>
   );
