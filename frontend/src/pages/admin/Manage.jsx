@@ -26,7 +26,7 @@ export default function Manage({ type, title }) {
   const action = async (id, status) => {
     if (type === 'orders' && !window.confirm('Batalkan transaksi ini?')) return;
     try {
-      await api(`/admin/${type}/${id}`, {
+      await api(`/admin/${type}?id=${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
