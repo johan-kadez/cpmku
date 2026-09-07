@@ -21,7 +21,7 @@ export default function Home() {
     <>
       {/* Hero Section */}
       <section className="hero">
-        <span>MARKETPLACE</span>
+        <h1>WELCOME TO CPMKU MARKETPLACE</h1>
         <p>
           Pilih produk, buka transaksi, bayar melalui QRIS utama, 
           lalu tunggu verifikasi admin.
