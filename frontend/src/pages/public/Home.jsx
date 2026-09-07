@@ -25,7 +25,7 @@ export default function Home() {
         <span>MARKETPLACE</span>
         <h1>Welcome To CpmKu</h1>
         <p>
-          Pilih produk, buka transaksi, bayar melalui QRIS utama, 
+          Pilih produk, buka transaksi, bayar melalui QR utama, 
           lalu tunggu verifikasi admin.
         </p>
         <Link className="button primary" to="/products">
