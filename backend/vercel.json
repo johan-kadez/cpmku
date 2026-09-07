@@ -1,1 +1,1 @@
-{"crons":[{"path":"/api/cron/cleanup","schedule":"0 3 * * *"}]}
+{"crons":[{"path":"/api/cron/cleanup","schedule":"0 3 * * *"}],"headers":[{"source":"/api/(.*)","headers":[{"key":"Access-Control-Allow-Origin","value":"https://cpmku.vercel.app"},{"key":"Access-Control-Allow-Methods","value":"GET,POST,PATCH,OPTIONS"},{"key":"Access-Control-Allow-Headers","value":"Authorization, Content-Type"},{"key":"Vary","value":"Origin"}]}]}
