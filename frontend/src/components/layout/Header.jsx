@@ -9,20 +9,7 @@ export default function Header() {
       <Link className="brand" to="/">
         CPMKU<span>MARKETPLACE</span>
       </Link>
-
-      <nav>
-        <Link to="/">Home</Link>
-        <Link to="/products">Produk</Link>
-        
-        {role === 'seller' && (
-          <Link to="/seller/dashboard">Dashboard Seller</Link>
-        )}
-        
-        {role === 'admin' && (
-          <Link to="/admin">Admin</Link>
-        )}
-      </nav>
-
+      
       <Link className="profile-pill" to="/profile">
         {user?.photoURL ? (
           <img src={user.photoURL} alt="" />
