@@ -1,1 +1,24 @@
-import {useAuth} from '../../context/AuthContext';import {useFavorites} from '../../hooks/useFavorites';import ProductCard from '../../components/product/ProductCard';import {Link} from 'react-router-dom';export default function Favorites(){const{user}=useAuth();const{items,error}=useFavorites(user?.uid);if(!user)return <section className="empty-page"><h1>Favorite</h1><p>Login untuk menyimpan dan melihat produk favorit.</p><Link className="button primary" to="/profile">Sign In</Link></section>;return <section><h1>Favorite</h1>{error&&<div className="notice error">{error}</div>}{!items.length?<div className="state">Belum ada produk favorit.</div>:<div className="grid">{items.map(p=><ProductCard key={p.id} product={{...p,status:'available',stock:'—'}}/>)}</div>}</section>}
+export default function Help() {
+  return (
+    <section className="help-page">
+      <span className="eyebrow">BANTUAN</span>
+      <h1>Butuh bantuan?</h1>
+      <p>
+        CpmKu menggunakan Sistem Admin sebagai perantara transaksi. 
+        Untuk masalah transaksi, gunakan chat pada room transaksi sebelum menekan DONE.
+      </p>
+
+      <div className="help-card">
+        <h2>Alur transaksi</h2>
+        <ol>
+          <li>Pilih produk yang tersedia.</li>
+          <li>Buat order dan lihat QRIS.</li>
+          <li>Bayar manual menggunakan Product ID sebagai identifikasi.</li>
+          <li>Admin memverifikasi pembayaran dan memanggil seller.</li>
+          <li>Gunakan chat jika ada kendala.</li>
+          <li>Buyer menekan DONE setelah menerima item.</li>
+        </ol>
+      </div>
+    </section>
+  );
+}
