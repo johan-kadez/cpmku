@@ -16,7 +16,7 @@ export default function AppLayout() {
     return (
       <main className="maintenance">
         <div>
-          <span>CPMKU Marketplace</span>
+          <span>Cpmku Marketplace</span>
           <h1>WEBSITE SEDANG DALAM PEMELIHARAAN</h1>
           <p>
             {settings.maintenanceMessage || 
