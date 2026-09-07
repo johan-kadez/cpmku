@@ -32,7 +32,7 @@ export function NotificationProvider({ children }) {
           Notification.permission === 'granted'
         ) {
           notifiedIds.current.add(latest.id);
-          new Notification(latest.title || 'Johan Marketplace', { body: latest.message || latest.body || '' });
+          new Notification(latest.title || 'CpmKu Marketplace', { body: latest.message || latest.body || '' });
         }
       },
       () => setNotifications([])
