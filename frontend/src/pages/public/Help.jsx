@@ -1,1 +1,24 @@
-export default function Help(){return <section className="help-page"><span className="eyebrow">BANTUAN</span><h1>Butuh bantuan?</h1><p>Johan Marketplace menggunakan Admin sebagai perantara transaksi. Untuk masalah transaksi, gunakan chat pada room transaksi sebelum menekan DONE.</p><div className="help-card"><h2>Alur transaksi</h2><ol><li>Pilih produk yang tersedia.</li><li>Buat order dan lihat QRIS.</li><li>Bayar manual menggunakan Product ID sebagai identifikasi.</li><li>Admin memverifikasi pembayaran dan memanggil seller.</li><li>Gunakan chat jika ada kendala.</li><li>Buyer menekan DONE setelah menerima item.</li></ol></div></section>}
+export default function Help() {
+  return (
+    <section className="help-page">
+      <span className="eyebrow">BANTUAN</span>
+      <h1>Butuh bantuan?</h1>
+      <p>
+        Cpmku menggunakan Sistem Admin sebagai perantara transaksi. 
+        Untuk masalah transaksi, gunakan chat pada room transaksi sebelum menekan DONE.
+      </p>
+
+      <div className="help-card">
+        <h2>Alur transaksi</h2>
+        <ol>
+          <li>Pilih produk yang tersedia.</li>
+          <li>Buat order dan lihat QRIS.</li>
+          <li>Bayar manual menggunakan Product ID sebagai identifikasi.</li>
+          <li>Admin memverifikasi pembayaran dan memanggil seller.</li>
+          <li>Gunakan chat jika ada kendala.</li>
+          <li>Buyer menekan DONE setelah menerima item.</li>
+        </ol>
+      </div>
+    </section>
+  );
+}
