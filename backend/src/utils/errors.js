@@ -6,9 +6,7 @@ export class HttpError extends Error {
 }
 
 export function setCors(req, res) {
-  const origin = process.env.PUBLIC_APP_ORIGIN || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin === '*' ? '*' : origin);
-  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
 }
