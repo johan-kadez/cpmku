@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../services/api';
+import {
+useEffect,
+useState
+} from 'react';
+
+import {
+api
+} from '../../services/api';
 
 const ACTIONS = {
 sellers: [
@@ -19,11 +25,21 @@ payments: [
 ]
 };
 
-export default function Manage({ type, title }) {
-const [rows, setRows] = useState([]);
-const [error, setError] = useState('');
-const [loading, setLoading] = useState(true);
-const [processing, setProcessing] = useState('');
+export default function Manage({
+type,
+title
+}) {
+const [rows, setRows] =
+useState([]);
+
+const [error, setError] =
+useState('');
+
+const [loading, setLoading] =
+useState(true);
+
+const [processing, setProcessing] =
+useState('');
 
 const load = async () => {
 try {
@@ -38,9 +54,9 @@ setError('');
   setRows(
     response.items || []
   );
-} catch (e) {
+} catch (error) {
   setError(
-    e.message ||
+    error.message ||
       'Gagal memuat data.'
   );
 } finally {
@@ -58,19 +74,26 @@ const action = async (
 id,
 status
 ) => {
-const actionLabel =
-status === 'approved'
-? 'menyetujui'
-: status === 'rejected'
-? 'menolak'
-: 'melanjutkan';
+let message =
+'Yakin ingin memproses data ini?';
 
 ```
-if (
-  !window.confirm(
-    `Yakin ingin ${actionLabel} data ini?`
-  )
-) {
+if (status === 'approved') {
+  message =
+    'Yakin ingin menyetujui pengajuan ini?';
+}
+
+if (status === 'rejected') {
+  message =
+    'Yakin ingin menolak pengajuan ini?';
+}
+
+if (status === 'cancelled') {
+  message =
+    'Yakin ingin membatalkan transaksi ini?';
+}
+
+if (!window.confirm(message)) {
   return;
 }
 
@@ -89,12 +112,13 @@ try {
   );
 
   await load();
-} catch (e) {
+} catch (error) {
   const message =
-    e.message ||
+    error.message ||
     'Gagal memproses data.';
 
   setError(message);
+
   alert(message);
 } finally {
   setProcessing('');
@@ -103,7 +127,8 @@ try {
 
 };
 
-return ( <section> <div className="section-head"> <h2>{title}</h2>
+return ( <section> <div className="section-head"> <h2>
+{title} </h2>
 
 ```
     <button
@@ -125,28 +150,33 @@ return ( <section> <div className="section-head"> <h2>{title}</h2>
 
   <div className="admin-table">
     {type === 'sellers' &&
-      rows.map(r => (
+      rows.map(row => (
         <article
-          key={r.id}
+          key={row.id}
           className="seller-application"
         >
           <div className="seller-application-header">
-            {r.photoUrl && (
+            {row.photoUrl && (
               <img
-                src={r.photoUrl}
-                alt={r.name || 'Foto pemohon'}
+                src={row.photoUrl}
+                alt={
+                  row.name ||
+                  'Foto pemohon'
+                }
                 className="seller-application-photo"
               />
             )}
 
-            <div>
+            <div className="seller-application-title">
               <b>
-                {r.name ||
+                {row.name ||
                   'Tanpa nama'}
               </b>
 
               <span>
-                Status: {r.status || 'pending'}
+                Status:{' '}
+                {row.status ||
+                  'pending'}
               </span>
             </div>
           </div>
@@ -158,7 +188,7 @@ return ( <section> <div className="section-head"> <h2>{title}</h2>
               </strong>
 
               <span>
-                {r.name || '-'}
+                {row.name || '-'}
               </span>
             </div>
 
@@ -168,7 +198,7 @@ return ( <section> <div className="section-head"> <h2>{title}</h2>
               </strong>
 
               <span>
-                {r.phone || '-'}
+                {row.phone || '-'}
               </span>
             </div>
 
@@ -178,7 +208,7 @@ return ( <section> <div className="section-head"> <h2>{title}</h2>
               </strong>
 
               <span>
-                {r.email || '-'}
+                {row.email || '-'}
               </span>
             </div>
 
@@ -188,52 +218,52 @@ return ( <section> <div className="section-head"> <h2>{title}</h2>
               </strong>
 
               <span>
-                {r.reason || '-'}
+                {row.reason || '-'}
               </span>
             </div>
           </div>
 
-          <div className="seller-application-actions">
-            {(ACTIONS[type] || []).map(
-              ([status, label]) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() =>
-                    action(
-                      r.id,
-                      status
-                    )
-                  }
-                  disabled={
-                    processing === r.id ||
-                    r.status ===
-                      status
-                  }
-                >
-                  {processing === r.id
-                    ? 'Memproses...'
-                    : label}
-                </button>
-              )
-            )}
-          </div>
+          {row.status === 'pending' && (
+            <div className="seller-application-actions">
+              {(ACTIONS.sellers || []).map(
+                ([status, label]) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() =>
+                      action(
+                        row.id,
+                        status
+                      )
+                    }
+                    disabled={
+                      processing === row.id
+                    }
+                  >
+                    {processing === row.id
+                      ? 'Memproses...'
+                      : label}
+                  </button>
+                )
+              )}
+            </div>
+          )}
         </article>
       ))}
 
     {type !== 'sellers' &&
-      rows.map(r => (
-        <article key={r.id}>
+      rows.map(row => (
+        <article key={row.id}>
           <b>
-            {r.name ||
-              r.title ||
-              r.productId ||
-              r.orderId ||
-              r.id}
+            {row.name ||
+              row.title ||
+              row.productId ||
+              row.orderId ||
+              row.id}
           </b>
 
           <span>
-            {r.status}
+            {row.status || '-'}
           </span>
 
           <div>
@@ -244,15 +274,15 @@ return ( <section> <div className="section-head"> <h2>{title}</h2>
                   type="button"
                   onClick={() =>
                     action(
-                      r.id,
+                      row.id,
                       status
                     )
                   }
                   disabled={
-                    processing === r.id
+                    processing === row.id
                   }
                 >
-                  {processing === r.id
+                  {processing === row.id
                     ? 'Memproses...'
                     : label}
                 </button>
@@ -263,7 +293,7 @@ return ( <section> <div className="section-head"> <h2>{title}</h2>
       ))}
 
     {!loading &&
-      !rows.length &&
+      rows.length === 0 &&
       !error && (
         <div className="state">
           Tidak ada data.
