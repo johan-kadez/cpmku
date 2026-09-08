@@ -31,7 +31,6 @@ export default function Profile() {
   } = useAuth();
 
   const nav = useNavigate();
-
   const fileInputRef = useRef(null);
 
   const [uploading, setUploading] = useState(false);
@@ -61,7 +60,6 @@ export default function Profile() {
     }
 
     setError('');
-
     fileInputRef.current?.click();
   };
 
@@ -73,87 +71,58 @@ export default function Profile() {
     setError('');
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError(
-        'Format foto harus JPG, PNG, atau WEBP.'
-      );
-
+      setError('Format foto harus JPG, PNG, atau WEBP.');
       return;
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError(
-        'Ukuran foto maksimal 5 MB.'
-      );
-
+      setError('Ukuran foto maksimal 5 MB.');
       return;
     }
 
-    const localPreview =
-      URL.createObjectURL(file);
+    const localPreview = URL.createObjectURL(file);
 
     setPreview(localPreview);
     setUploading(true);
 
     try {
-      const signature =
-        await api(
-          '/profile/signature',
-          {
-            method: 'POST'
-          }
-        );
-
-      const formData =
-        new FormData();
-
-      formData.append(
-        'file',
-        file
+      const signature = await api(
+        '/profile/signature',
+        {
+          method: 'POST'
+        }
       );
 
-      formData.append(
-        'api_key',
-        signature.apiKey
-      );
+      const formData = new FormData();
 
+      formData.append('file', file);
+      formData.append('api_key', signature.apiKey);
       formData.append(
         'timestamp',
         String(signature.timestamp)
       );
-
       formData.append(
         'signature',
         signature.signature
       );
-
       formData.append(
         'public_id',
         signature.publicId
       );
-
-      formData.append(
-        'overwrite',
-        'true'
-      );
-
-      formData.append(
-        'invalidate',
-        'true'
-      );
-
+      formData.append('overwrite', 'true');
+      formData.append('invalidate', 'true');
       formData.append(
         'transformation',
         signature.transformation
       );
 
-      const cloudinaryResponse =
-        await fetch(
-          `https://api.cloudinary.com/v1_1/${signature.cloudName}/image/upload`,
-          {
-            method: 'POST',
-            body: formData
-          }
-        );
+      const cloudinaryResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${signature.cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
 
       let cloudinaryData = {};
 
@@ -167,7 +136,7 @@ export default function Profile() {
       if (!cloudinaryResponse.ok) {
         throw new Error(
           cloudinaryData.error?.message ||
-            'Upload foto ke Cloudinary gagal.'
+          'Upload foto ke Cloudinary gagal.'
         );
       }
 
@@ -182,31 +151,26 @@ export default function Profile() {
         );
       }
 
-      const saved =
-        await api(
-          '/profile/photo',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              secureUrl:
-                cloudinaryData.secure_url,
-
-              publicId:
-                cloudinaryData.public_id,
-
-              version:
-                cloudinaryData.version,
-
-              signature:
-                cloudinaryData.signature
-            })
-          }
-        );
-
-      await updateUserPhoto(
-        saved.photoURL
+      const saved = await api(
+        '/profile/photo',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            secureUrl:
+              cloudinaryData.secure_url,
+            publicId:
+              cloudinaryData.public_id,
+            version:
+              cloudinaryData.version,
+            signature:
+              cloudinaryData.signature
+          })
+        }
       );
 
+      await updateUserPhoto(saved.photoURL);
+
+      URL.revokeObjectURL(localPreview);
       setPreview('');
 
       if (fileInputRef.current) {
@@ -218,22 +182,20 @@ export default function Profile() {
         error
       );
 
+      URL.revokeObjectURL(localPreview);
       setPreview('');
 
       setError(
         error.message ||
-          'Gagal mengubah foto profil.'
+        'Gagal mengubah foto profil.'
       );
     } finally {
       setUploading(false);
     }
   };
 
-  const handleFileChange = async (
-    event
-  ) => {
-    const file =
-      event.target.files?.[0];
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
 
     await uploadProfilePhoto(file);
   };
@@ -253,9 +215,7 @@ export default function Profile() {
 
         <div className="login-choices">
           <div>
-            <span>
-              LOGIN AS BUYER
-            </span>
+            <span>LOGIN AS BUYER</span>
 
             <h2>Buyer</h2>
 
@@ -275,9 +235,7 @@ export default function Profile() {
           </div>
 
           <div>
-            <span>
-              LOGIN AS SELLER
-            </span>
+            <span>LOGIN AS SELLER</span>
 
             <h2>Seller</h2>
 
@@ -309,35 +267,23 @@ export default function Profile() {
     <section className="profile-page">
       <div className="account-card">
         <div className="profile-avatar-area">
-          <button
-            type="button"
-            className="profile-avatar-button"
-            onClick={openFilePicker}
-            disabled={uploading}
-            aria-label="Ubah foto profil"
-          >
-            {displayedPhoto ? (
-              <img
-                className="avatar large"
-                src={displayedPhoto}
-                alt="Foto profil"
-              />
-            ) : (
-              <div className="avatar large fallback">
-                {(user.displayName ||
-                  user.email ||
-                  'U')
-                  .charAt(0)
-                  .toUpperCase()}
-              </div>
-            )}
-
-            <span className="profile-avatar-overlay">
-              {uploading
-                ? 'Mengupload...'
-                : 'Ubah Foto'}
-            </span>
-          </button>
+          {displayedPhoto ? (
+            <img
+              className="avatar large"
+              src={displayedPhoto}
+              alt="Foto profil"
+            />
+          ) : (
+            <div className="avatar large fallback">
+              {(
+                user.displayName ||
+                user.email ||
+                'U'
+              )
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+          )}
 
           <input
             ref={fileInputRef}
@@ -350,8 +296,7 @@ export default function Profile() {
 
         <div className="profile-info">
           <h1>
-            {user.displayName ||
-              'User'}
+            {user.displayName || 'User'}
           </h1>
 
           <p className="profile-email">
@@ -361,27 +306,6 @@ export default function Profile() {
           <span className="badge">
             {role || 'buyer'}
           </span>
-
-          <button
-            type="button"
-            className="button primary profile-change-photo"
-            onClick={openFilePicker}
-            disabled={uploading}
-          >
-            {uploading
-              ? 'Mengupload foto...'
-              : 'Ubah Foto Profil'}
-          </button>
-
-          <p className="profile-photo-hint">
-            JPG, PNG, atau WEBP · maksimal 5 MB
-          </p>
-
-          {error && (
-            <div className="notice error">
-              {error}
-            </div>
-          )}
         </div>
       </div>
 
@@ -407,6 +331,23 @@ export default function Profile() {
         )}
 
         <button
+          type="button"
+          onClick={openFilePicker}
+          disabled={uploading}
+        >
+          {uploading
+            ? 'Mengupload Foto...'
+            : 'Ganti Foto Profile'}
+        </button>
+
+        {error && (
+          <div className="notice error">
+            {error}
+          </div>
+        )}
+
+        <button
+          type="button"
           onClick={async () => {
             await logout();
             nav('/');
