@@ -628,7 +628,6 @@ footer {
   }
 }
 
-/* SellerProducts component: self-contained layout helpers. */
 .seller-products {
   width: 100%;
 }
@@ -730,7 +729,6 @@ footer {
   }
 }
 
-/* Final responsive navigation and profile UX */
 body {
   padding-bottom:110px;
 }
@@ -1062,10 +1060,6 @@ body {
   }
   }
 
-/* =========================================================
-   CPMKU — DARK GLASSMORPHISM + RESTRAINED BLUE ACCENT
-   ========================================================= */
-
 :root {
   --blue-950:#0b1f33;
   --blue-900:#1e3a8a;
@@ -1081,7 +1075,6 @@ body {
   --glass-blur:24px;
 }
 
-/* Existing glass header, refined with blue tint */
 .header {
   background:rgba(10,15,25,0.62);
   border-bottom:1px solid rgba(59,130,246,0.18);
@@ -1090,7 +1083,6 @@ body {
   -webkit-backdrop-filter:blur(24px) saturate(150%);
 }
 
-/* Blue interactive buttons */
 .auth button,
 .header button,
 .section-head button,
@@ -1112,7 +1104,6 @@ body {
   border-color:rgba(59,130,246,0.50);
 }
 
-/* Primary CTA */
 .button.primary {
   background:#2563eb;
   border-color:#3b82f6;
@@ -1124,7 +1115,6 @@ body {
   border-color:#3b82f6;
 }
 
-/* Inputs — blue focus instead of gray */
 .section-head input:focus,
 .form-card input:focus,
 .form-card textarea:focus,
@@ -1136,7 +1126,6 @@ body {
   box-shadow:0 0 0 3px rgba(37,99,235,0.12);
 }
 
-/* Glass profile pill */
 .profile-pill {
   margin-left:auto;
   display:flex;
@@ -1156,7 +1145,6 @@ body {
   border-color:rgba(59,130,246,0.34);
 }
 
-/* Glass floating navigation */
 .bottom-nav {
   position:fixed;
   left:50%;
@@ -1219,7 +1207,6 @@ body {
   opacity:1;
 }
 
-/* Glass profile menu */
 .profile-links a,
 .profile-links button {
   background:rgba(18,24,36,0.58);
@@ -1241,7 +1228,6 @@ body {
   transform:translateY(-1px);
 }
 
-/* Glass account/profile card */
 .account-card {
   background:rgba(18,24,36,0.48);
   border:1px solid rgba(59,130,246,0.16);
@@ -1249,7 +1235,6 @@ body {
   -webkit-backdrop-filter:blur(18px) saturate(130%);
 }
 
-/* Subtle blue glass for common dark surface */
 .seller-mini,
 .seller-profile,
 .auth-card,
@@ -1268,7 +1253,6 @@ body {
   border-color:rgba(59,130,246,0.10);
 }
 
-/* Blue focus/selection feel without turning the whole UI blue */
 .admin-nav a:hover {
   background:rgba(37,99,235,0.10);
   border-color:rgba(59,130,246,0.25);
@@ -1290,7 +1274,6 @@ body {
   color:#3b82f6;
 }
 
-/* Keep destructive states red */
 .notice.error {
   border-color:#8d2418;
 }
@@ -1312,5 +1295,5 @@ body {
     background:rgba(13,18,28,0.72);
     border-color:rgba(59,130,246,0.22);
   }
-}
-
+  }
+  
