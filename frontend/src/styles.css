@@ -742,21 +742,16 @@ body {
   font-weight:800;
 }
 
-/* Dark Glassmorphism Profile */
 .profile-pill {
   margin-left:auto;
   display:flex;
   align-items:center;
   gap:8px;
   padding:7px 12px;
-
-  background:rgba(255,255,255,0.06);
-  border:1px solid rgba(255,255,255,0.12);
-
-  backdrop-filter:blur(18px) saturate(140%);
-  -webkit-backdrop-filter:blur(18px) saturate(140%);
-
+  border:1px solid #333;
   border-radius:14px;
+  background:#181818;
+  box-shadow:6px 6px 14px #080808,-4px -4px 12px #1c1c1c;
 }
 
 .profile-pill img {
@@ -766,29 +761,22 @@ body {
   object-fit:cover;
 }
 
-/* Dark Glassmorphism Bottom Navigation */
 .bottom-nav {
   position:fixed;
   left:50%;
   transform:translateX(-50%);
   bottom:max(16px,env(safe-area-inset-bottom));
   z-index:100;
-
   display:flex;
   justify-content:space-around;
   align-items:center;
-
   width:min(760px,calc(100vw - 32px));
   height:72px;
   padding:8px 10px;
-
   border-radius:25px;
-
-  background:rgba(20,20,20,0.58);
-  border:1px solid rgba(255,255,255,0.10);
-
-  backdrop-filter:blur(24px) saturate(150%);
-  -webkit-backdrop-filter:blur(24px) saturate(150%);
+  background:#161616;
+  border:1px solid #2c2c2c;
+  box-shadow:9px 9px 22px #050505,-6px -6px 18px #202020;
 }
 
 .bottom-nav a {
@@ -805,8 +793,8 @@ body {
 
 .bottom-nav a.active {
   color:#fff;
-  background:rgba(255,255,255,0.10);
-  border:1px solid rgba(255,255,255,0.12);
+  background:#1d1d1d;
+  box-shadow:inset 2px 2px 6px #101010,inset -2px -2px 6px #242424;
 }
 
 .bottom-nav b {
@@ -886,7 +874,6 @@ body {
   height:72px;
 }
 
-/* Dark Glassmorphism Profile Links */
 .profile-links {
   display:grid;
   gap:10px;
@@ -895,12 +882,8 @@ body {
 
 .profile-links a,
 .profile-links button {
-  background:rgba(255,255,255,0.055);
-  border:1px solid rgba(255,255,255,0.10);
-
-  backdrop-filter:blur(16px) saturate(140%);
-  -webkit-backdrop-filter:blur(16px) saturate(140%);
-
+  background:#2563eb;
+  border:1px solid #777;
   border-radius:14px;
   padding:15px;
   text-align:left;
@@ -1076,5 +1059,257 @@ body {
 
   .profile-pill span {
     font-size:12px;
+  }
+  }
+
+/* =========================================================
+   CPMKU — DARK GLASSMORPHISM + RESTRAINED BLUE ACCENT
+   ========================================================= */
+
+:root {
+  --blue-950:#0b1f33;
+  --blue-900:#1e3a8a;
+  --blue-800:#1d4ed8;
+  --blue-700:#2563eb;
+  --blue-500:#3b82f6;
+  --blue-400:#60a5fa;
+
+  --glass-bg:rgba(18,24,36,0.58);
+  --glass-bg-soft:rgba(255,255,255,0.055);
+  --glass-border:rgba(59,130,246,0.22);
+  --glass-border-soft:rgba(255,255,255,0.10);
+  --glass-blur:24px;
+}
+
+/* Existing glass header, refined with blue tint */
+.header {
+  background:rgba(10,15,25,0.62);
+  border-bottom:1px solid rgba(59,130,246,0.18);
+  box-shadow:0 8px 30px rgba(0,0,0,0.20);
+  backdrop-filter:blur(24px) saturate(150%);
+  -webkit-backdrop-filter:blur(24px) saturate(150%);
+}
+
+/* Blue interactive buttons */
+.auth button,
+.header button,
+.section-head button,
+.admin-table button,
+.chat-room header button,
+.chat-actions button {
+  background:rgba(37,99,235,0.12);
+  border:1px solid rgba(59,130,246,0.35);
+  color:#fff;
+}
+
+.auth button:hover,
+.header button:hover,
+.section-head button:hover,
+.admin-table button:hover,
+.chat-room header button:hover,
+.chat-actions button:hover {
+  background:rgba(37,99,235,0.20);
+  border-color:rgba(59,130,246,0.50);
+}
+
+/* Primary CTA */
+.button.primary {
+  background:#2563eb;
+  border-color:#3b82f6;
+  color:#fff;
+}
+
+.button.primary:hover {
+  background:#1d4ed8;
+  border-color:#3b82f6;
+}
+
+/* Inputs — blue focus instead of gray */
+.section-head input:focus,
+.form-card input:focus,
+.form-card textarea:focus,
+.chat-room form input:focus,
+.seller-product-editor input:focus,
+.seller-product-editor textarea:focus {
+  outline:none;
+  border-color:rgba(59,130,246,0.65);
+  box-shadow:0 0 0 3px rgba(37,99,235,0.12);
+}
+
+/* Glass profile pill */
+.profile-pill {
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 12px;
+  background:rgba(18,24,36,0.58);
+  border:1px solid rgba(59,130,246,0.22);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border-radius:14px;
+  box-shadow:none;
+}
+
+.profile-pill:hover {
+  background:rgba(37,99,235,0.10);
+  border-color:rgba(59,130,246,0.34);
+}
+
+/* Glass floating navigation */
+.bottom-nav {
+  position:fixed;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:max(16px,env(safe-area-inset-bottom));
+  z-index:100;
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  width:min(760px,calc(100vw - 32px));
+  height:72px;
+  padding:8px 10px;
+  border-radius:25px;
+  background:rgba(13,18,28,0.66);
+  border:1px solid rgba(59,130,246,0.22);
+  backdrop-filter:blur(24px) saturate(150%);
+  -webkit-backdrop-filter:blur(24px) saturate(150%);
+  box-shadow:0 12px 35px rgba(0,0,0,0.28);
+}
+
+.bottom-nav a {
+  width:16.66%;
+  min-width:0;
+  display:grid;
+  justify-items:center;
+  gap:3px;
+  color:#8b94a5;
+  font-size:9px;
+  padding:5px 0;
+  border-radius:15px;
+  transition:background .18s ease,color .18s ease,border-color .18s ease;
+}
+
+.bottom-nav a:hover {
+  color:#dbeafe;
+  background:rgba(37,99,235,0.08);
+}
+
+.bottom-nav a.active {
+  color:#fff;
+  background:rgba(37,99,235,0.16);
+  border:1px solid rgba(59,130,246,0.30);
+  box-shadow:none;
+}
+
+.bottom-nav b {
+  font-size:22px;
+  font-weight:400;
+  line-height:22px;
+}
+
+.bottom-nav img {
+  width:21px;
+  height:21px;
+  filter:invert(1);
+  opacity:.8;
+}
+
+.bottom-nav a.active img {
+  opacity:1;
+}
+
+/* Glass profile menu */
+.profile-links a,
+.profile-links button {
+  background:rgba(18,24,36,0.58);
+  border:1px solid rgba(59,130,246,0.18);
+  backdrop-filter:blur(16px) saturate(140%);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);
+  border-radius:14px;
+  padding:15px;
+  text-align:left;
+  color:#fff;
+  box-shadow:none;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+
+.profile-links a:hover,
+.profile-links button:hover {
+  background:rgba(37,99,235,0.12);
+  border-color:rgba(59,130,246,0.34);
+  transform:translateY(-1px);
+}
+
+/* Glass account/profile card */
+.account-card {
+  background:rgba(18,24,36,0.48);
+  border:1px solid rgba(59,130,246,0.16);
+  backdrop-filter:blur(18px) saturate(130%);
+  -webkit-backdrop-filter:blur(18px) saturate(130%);
+}
+
+/* Subtle blue glass for common dark surfaces */
+.seller-mini,
+.seller-profile,
+.auth-card,
+.form-card,
+.chat-layout>aside,
+.chat-room,
+.modal,
+.stat,
+.admin-nav a,
+.admin-table article,
+.login-choices>div,
+.help-card,
+.transaction,
+.maintenance>div {
+  background:rgba(18,18,24,0.48);
+  border-color:rgba(59,130,246,0.10);
+}
+
+/* Blue focus/selection feel without turning the whole UI blue */
+.admin-nav a:hover {
+  background:rgba(37,99,235,0.10);
+  border-color:rgba(59,130,246,0.25);
+}
+
+.badge {
+  border-color:rgba(59,130,246,0.28);
+}
+
+.notice {
+  border-color:rgba(59,130,246,0.18);
+}
+
+.eyebrow {
+  color:#3b82f6;
+}
+
+.heart.saved {
+  color:#3b82f6;
+}
+
+/* Keep destructive states red */
+.notice.error {
+  border-color:#8d2418;
+}
+
+.notice.warning {
+  border-color:#8b6b16;
+}
+
+.chat-room form button {
+  background:#1d4ed8;
+}
+
+.fatal button {
+  background:#1d4ed8;
+}
+
+@media(max-width:650px) {
+  .bottom-nav {
+    background:rgba(13,18,28,0.72);
+    border-color:rgba(59,130,246,0.22);
   }
 }
