@@ -1,35 +1,39 @@
 import { auth } from './firebase';
 
-const base =
-import.meta.env.VITE_API_BASE_URL ||
-'/api';
+const base = import.meta.env.VITE_API_BASE_URL || '/api';
 
-export async function api(
-path,
-options = {}
-) {
-const token =
-auth.currentUser
-? await auth.currentUser.getIdToken()
+function getAuthUser() {
+return new Promise(resolve => {
+const unsubscribe = auth.onAuthStateChanged(user => {
+unsubscribe();
+resolve(user);
+});
+});
+}
+
+export async function api(path, options = {}) {
+let user = auth.currentUser;
+
+if (!user) {
+user = await getAuthUser();
+}
+
+const token = user
+? await user.getIdToken()
 : null;
 
-const response = await fetch(
-`${base}${path}`,
-{
+const response = await fetch("${base}${path}", {
 ...options,
 headers: {
-'Content-Type':
-'application/json',
+'Content-Type': 'application/json',
 ...(options.headers || {}),
 ...(token
 ? {
-Authorization:
-`Bearer ${token}`
+Authorization: "Bearer ${token}"
 }
 : {})
 }
-}
-);
+});
 
 let data = {};
 
@@ -42,7 +46,7 @@ data = {};
 if (!response.ok) {
 throw new Error(
 data.error ||
-`Request gagal (${response.status})`
+"Request gagal (${response.status})"
 );
 }
 
