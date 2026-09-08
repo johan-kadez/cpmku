@@ -1,0 +1,34 @@
+import {
+  profilePhotoSignature
+} from '../../src/controllers/index.js';
+
+import {
+  requireAuth
+} from '../../src/middleware/auth.js';
+
+import {
+  asyncHandler
+} from '../../src/utils/errors.js';
+
+export default asyncHandler(
+  async (req, res) => {
+    await requireAuth(
+      req,
+      res,
+      () => {}
+    );
+
+    if (req.method !== 'POST') {
+      res.status(405).json({
+        error: 'Method tidak diizinkan.'
+      });
+
+      return;
+    }
+
+    return profilePhotoSignature(
+      req,
+      res
+    );
+  }
+);
