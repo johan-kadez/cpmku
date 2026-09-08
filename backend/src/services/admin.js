@@ -1,3 +1,57 @@
+import { db, FieldValue } from '../firebase/admin.js';
+import { HttpError } from '../utils/errors.js';
+
+const COLLECTIONS = {
+sellers: 'registrations',
+products: 'products',
+orders: 'orders',
+payments: 'payments',
+rooms: 'rooms',
+users: 'users'
+};
+
+export async function dashboard() {
+const [sellers, products, orders, payments, rooms] =
+await Promise.all(
+[
+'registrations',
+'products',
+'orders',
+'payments',
+'rooms'
+].map(collection =>
+db.collection(collection).get()
+)
+);
+
+return {
+stats: {
+registrations: sellers.size,
+products: products.size,
+orders: orders.size,
+payments: payments.size,
+rooms: rooms.size
+}
+};
+}
+
+export async function listCollection(name) {
+const collection =
+COLLECTIONS[name] || name;
+
+const snap = await db
+.collection(collection)
+.limit(200)
+.get();
+
+return {
+items: snap.docs.map(doc => ({
+id: doc.id,
+...doc.data()
+}))
+};
+}
+
 export async function setStatus(
 type,
 id,
@@ -42,6 +96,13 @@ throw new HttpError(
 );
 }
 
+if (!id) {
+throw new HttpError(
+400,
+'ID data wajib diisi.'
+);
+}
+
 const ref = db
 .collection(collection)
 .doc(id);
@@ -56,10 +117,12 @@ throw new HttpError(
 }
 
 if (type === 'sellers') {
-const d = snap.data();
+const registration = snap.data();
 
 ```
-if (d.status !== 'pending') {
+if (
+  registration.status !== 'pending'
+) {
   throw new HttpError(
     409,
     'Pengajuan seller ini sudah diproses.'
@@ -67,18 +130,24 @@ if (d.status !== 'pending') {
 }
 
 if (status === 'approved') {
+  const sellerRef = db
+    .collection('sellers')
+    .doc(id);
+
   const batch = db.batch();
 
   batch.set(
-    db.collection('sellers').doc(id),
+    sellerRef,
     {
-      uid: id,
-      email: d.email || '',
-      name: d.name || '',
-      phone: d.phone || '',
-      reason: d.reason || '',
-      description: d.reason || '',
-      photoUrl: d.photoUrl || '',
+      uid: registration.uid || id,
+      email: registration.email || '',
+      name: registration.name || '',
+      phone: registration.phone || '',
+      reason: registration.reason || '',
+      description:
+        registration.reason || '',
+      photoUrl:
+        registration.photoUrl || '',
       status: 'approved',
       banned: false,
       approvedAt:
@@ -149,7 +218,8 @@ FieldValue.serverTimestamp()
 
 ```
 return {
-  ok: true
+  ok: true,
+  status
 };
 ```
 
@@ -172,10 +242,10 @@ await transaction.get(ref);
       );
     }
 
-    const d = fresh.data();
+    const order = fresh.data();
 
     if (
-      d.status !== 'in_transaction'
+      order.status !== 'in_transaction'
     ) {
       throw new HttpError(
         409,
@@ -185,11 +255,11 @@ await transaction.get(ref);
 
     const productRef = db
       .collection('products')
-      .doc(d.productId);
+      .doc(order.productId);
 
     const roomRef = db
       .collection('rooms')
-      .doc(d.roomId || id);
+      .doc(order.roomId || id);
 
     const paymentRef = db
       .collection('payments')
@@ -260,7 +330,8 @@ await transaction.get(ref);
     }
 
     return {
-      ok: true
+      ok: true,
+      status: 'cancelled'
     };
   }
 );
@@ -269,12 +340,12 @@ await transaction.get(ref);
 }
 
 if (type === 'payments') {
-const d = snap.data();
+const payment = snap.data();
 
 ```
 const orderRef = db
   .collection('orders')
-  .doc(d.orderId);
+  .doc(payment.orderId);
 
 if (status === 'verified') {
   await ref.update({
@@ -307,7 +378,8 @@ if (status === 'verified') {
 }
 
 return {
-  ok: true
+  ok: true,
+  status
 };
 ```
 
@@ -322,7 +394,8 @@ FieldValue.serverTimestamp()
 
 ```
 return {
-  ok: true
+  ok: true,
+  status
 };
 ```
 
@@ -332,4 +405,182 @@ throw new HttpError(
 400,
 'Aksi tidak tersedia.'
 );
+}
+
+export async function setBan(
+uid,
+banned
+) {
+const value = Boolean(banned);
+
+await db
+.collection('users')
+.doc(uid)
+.set(
+{
+uid,
+banned: value,
+updatedAt:
+FieldValue.serverTimestamp()
+},
+{
+merge: true
+}
+);
+
+const seller = await db
+.collection('sellers')
+.doc(uid)
+.get();
+
+if (seller.exists) {
+await seller.ref.update({
+banned: value,
+updatedAt:
+FieldValue.serverTimestamp()
+});
+}
+
+return {
+ok: true
+};
+}
+
+export async function updateUser(
+uid,
+{
+banned,
+role
+} = {}
+) {
+const result = {
+ok: true
+};
+
+if (
+typeof banned === 'boolean'
+) {
+await setBan(
+uid,
+banned
+);
+
+```
+result.banned = banned;
+```
+
+}
+
+if (role) {
+if (
+!['buyer', 'seller'].includes(role)
+) {
+throw new HttpError(
+400,
+'Role tidak valid.'
+);
+}
+
+```
+const sellerRef = db
+  .collection('sellers')
+  .doc(uid);
+
+if (role === 'seller') {
+  const userSnap = await db
+    .collection('users')
+    .doc(uid)
+    .get();
+
+  const user = userSnap.exists
+    ? userSnap.data()
+    : {};
+
+  await sellerRef.set(
+    {
+      uid,
+      email: user.email || '',
+      name: user.name || '',
+      photoUrl:
+        user.photoUrl || '',
+      status: 'approved',
+      banned: false,
+      approvedAt:
+        FieldValue.serverTimestamp(),
+      updatedAt:
+        FieldValue.serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+} else {
+  const existing =
+    await sellerRef.get();
+
+  if (existing.exists) {
+    await sellerRef.update({
+      status: 'revoked',
+      updatedAt:
+        FieldValue.serverTimestamp()
+    });
+  }
+}
+
+result.role = role;
+```
+
+}
+
+return result;
+}
+
+export async function saveSettings(data) {
+const qrisUrl = String(
+data?.qrisUrl || ''
+).trim();
+
+const maintenanceMode = Boolean(
+data?.maintenanceMode
+);
+
+const maintenanceTitle = String(
+data?.maintenanceTitle || ''
+).trim();
+
+const maintenanceMessage = String(
+data?.maintenanceMessage || ''
+).trim();
+
+if (qrisUrl) {
+try {
+new URL(qrisUrl);
+} catch {
+throw new HttpError(
+400,
+'URL QRIS tidak valid.'
+);
+}
+}
+
+await db
+.collection('settings')
+.doc('main')
+.set(
+{
+qrisUrl,
+maintenanceMode,
+maintenanceTitle,
+maintenanceMessage,
+updatedAt:
+FieldValue.serverTimestamp()
+},
+{
+merge: true
+}
+);
+
+return {
+ok: true
+};
 }
