@@ -42,7 +42,7 @@ export async function currentUser(user) {
 
   let role = 'buyer';
 
-  if (env.adminEmails.includes(email)) {
+  if (env.ADMIN_EMAILS.includes(email)) {
     role = 'admin';
   } else if (
     seller.exists &&
