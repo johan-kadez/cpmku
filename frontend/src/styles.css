@@ -742,16 +742,21 @@ body {
   font-weight:800;
 }
 
+/* Dark Glassmorphism Profile */
 .profile-pill {
   margin-left:auto;
   display:flex;
   align-items:center;
   gap:8px;
   padding:7px 12px;
-  border:1px solid #333;
+
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.12);
+
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+
   border-radius:14px;
-  background:#181818;
-  box-shadow:6px 6px 14px #080808,-4px -4px 12px #1c1c1c;
 }
 
 .profile-pill img {
@@ -761,22 +766,29 @@ body {
   object-fit:cover;
 }
 
+/* Dark Glassmorphism Bottom Navigation */
 .bottom-nav {
   position:fixed;
   left:50%;
   transform:translateX(-50%);
   bottom:max(16px,env(safe-area-inset-bottom));
   z-index:100;
+
   display:flex;
   justify-content:space-around;
   align-items:center;
+
   width:min(760px,calc(100vw - 32px));
   height:72px;
   padding:8px 10px;
+
   border-radius:25px;
-  background:#161616;
-  border:1px solid #2c2c2c;
-  box-shadow:9px 9px 22px #050505,-6px -6px 18px #202020;
+
+  background:rgba(20,20,20,0.58);
+  border:1px solid rgba(255,255,255,0.10);
+
+  backdrop-filter:blur(24px) saturate(150%);
+  -webkit-backdrop-filter:blur(24px) saturate(150%);
 }
 
 .bottom-nav a {
@@ -793,8 +805,8 @@ body {
 
 .bottom-nav a.active {
   color:#fff;
-  background:#1d1d1d;
-  box-shadow:inset 2px 2px 6px #101010,inset -2px -2px 6px #242424;
+  background:rgba(255,255,255,0.10);
+  border:1px solid rgba(255,255,255,0.12);
 }
 
 .bottom-nav b {
@@ -874,6 +886,7 @@ body {
   height:72px;
 }
 
+/* Dark Glassmorphism Profile Links */
 .profile-links {
   display:grid;
   gap:10px;
@@ -882,8 +895,12 @@ body {
 
 .profile-links a,
 .profile-links button {
-  background:#2563eb;
-  border:1px solid #777;
+  background:rgba(255,255,255,0.055);
+  border:1px solid rgba(255,255,255,0.10);
+
+  backdrop-filter:blur(16px) saturate(140%);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);
+
   border-radius:14px;
   padding:15px;
   text-align:left;
@@ -1060,4 +1077,4 @@ body {
   .profile-pill span {
     font-size:12px;
   }
-  }
+}
