@@ -9,10 +9,10 @@ export const env = {
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
   privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
 
-  if (env.adminEmails.includes(email)) {
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean),
+  adminEmails: (process.env.ADMIN_EMAILS || '')
+  .split(',')
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean),
 
   origin: process.env.PUBLIC_APP_ORIGIN || '*',
 
