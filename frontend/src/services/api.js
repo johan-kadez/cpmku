@@ -1,23 +1,19 @@
 import { auth } from './firebase';
 
-const base =
-  import.meta.env.VITE_API_BASE_URL ||
-  '/api';
+const base = import.meta.env.PROD
+  ? '/api'
+  : (import.meta.env.VITE_API_BASE_URL || '/api');
 
 function getAuthUser() {
   return new Promise(resolve => {
-    const unsubscribe =
-      auth.onAuthStateChanged(user => {
-        unsubscribe();
-        resolve(user);
-      });
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      unsubscribe();
+      resolve(user);
+    });
   });
 }
 
-export async function api(
-  path,
-  options = {}
-) {
+export async function api(path, options = {}) {
   let user = auth.currentUser;
 
   if (!user) {
@@ -28,23 +24,18 @@ export async function api(
     ? await user.getIdToken()
     : null;
 
-  const response = await fetch(
-    `${base}${path}`,
-    {
-      ...options,
-      headers: {
-        'Content-Type':
-          'application/json',
-        ...(options.headers || {}),
-        ...(token
-          ? {
-              Authorization:
-                `Bearer ${token}`
-            }
-          : {})
-      }
+  const response = await fetch(`${base}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+      ...(token
+        ? {
+            Authorization: `Bearer ${token}`
+          }
+        : {})
     }
-  );
+  });
 
   let data = {};
 
