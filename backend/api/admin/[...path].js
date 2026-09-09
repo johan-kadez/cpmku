@@ -1,99 +1,46 @@
 import {
   dashboard,
-  settings,
-  list,
-  status,
-  updateUser
-} from '../../src/controllers/index.js';
+  listCollection,
+  setStatus,
+  setBan,
+  updateUser,
+  saveSettings
+} from '../../src/services/admin.js';
+
 import { requireAuth } from '../../src/middleware/auth.js';
 import { requireAdmin } from '../../src/middleware/admin.js';
-import { asyncHandler } from '../../src/utils/errors.js';
 
-const LISTABLE = [
-  'orders',
-  'payments',
-  'products',
-  'rooms',
-  'sellers',
-  'users'
-];
+function getSegments(req) {
+  const queryPath =
+    req.query?.path ??
+    req.query?.['...path'];
 
-const STATUSABLE = [
-  'orders',
-  'payments',
-  'products',
-  'rooms',
-  'sellers'
-];
-
-const inner = asyncHandler(async (req, res) => {
-  await requireAuth(req, res, () => {});
-  await requireAdmin(req, res, () => {});
-
-  const rawPath = req.query?.path;
-
-  const segments = Array.isArray(rawPath)
-    ? rawPath
-    : typeof rawPath === 'string'
-      ? rawPath.split('/').filter(Boolean)
-      : [];
-
-  const [resource, id] = segments;
-
-  req.query.id = id;
-
-  if (resource === 'dashboard' && !id) {
-    return dashboard(req, res);
+  if (Array.isArray(queryPath)) {
+    return queryPath.filter(Boolean);
   }
 
-  if (resource === 'settings' && !id) {
-    if (req.method !== 'PATCH') {
-      return res
-        .status(405)
-        .json({ error: 'Method not allowed' });
-    }
-
-    return settings(req, res);
+  if (typeof queryPath === 'string' && queryPath) {
+    return queryPath.split('/').filter(Boolean);
   }
 
-  if (resource === 'users' && id) {
-    if (req.method !== 'PATCH') {
-      return res
-        .status(405)
-        .json({ error: 'Method not allowed' });
-    }
+  const pathname = new URL(
+    req.url || '/',
+    `https://${req.headers.host || 'localhost'}`
+  ).pathname;
 
-    return updateUser(req, res);
+  const marker = '/api/admin/';
+
+  if (pathname.startsWith(marker)) {
+    return pathname
+      .slice(marker.length)
+      .split('/')
+      .filter(Boolean);
   }
 
-  if (
-    LISTABLE.includes(resource) &&
-    !id
-  ) {
-    return list(resource)(req, res);
-  }
+  return [];
+}
 
-  if (
-    STATUSABLE.includes(resource) &&
-    id
-  ) {
-    if (req.method !== 'PATCH') {
-      return res
-        .status(405)
-        .json({ error: 'Method not allowed' });
-    }
-
-    return status(resource)(req, res);
-  }
-
-  return res.status(404).json({
-    error: 'Endpoint tidak ditemukan.',
-    resource,
-    id
-  });
-});
-
-export default async function handler(req, res) {
+function sendCors(req, res) {
   const origin = req.headers.origin;
 
   if (origin === 'https://cpmku.vercel.app') {
@@ -113,12 +60,116 @@ export default async function handler(req, res) {
     'GET,POST,PATCH,OPTIONS'
   );
 
-  if (
-    (req.method || '').toUpperCase() ===
-    'OPTIONS'
-  ) {
+  res.setHeader(
+    'Vary',
+    'Origin'
+  );
+}
+
+export default async function handler(req, res) {
+  sendCors(req, res);
+
+  if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  return inner(req, res);
+  try {
+    await requireAuth(req, res);
+
+    await requireAdmin(req, res);
+
+    const segments = getSegments(req);
+    const resource = segments[0];
+    const id = segments[1];
+
+    if (resource === 'dashboard' && !id) {
+      return res.status(200).json(
+        await dashboard()
+      );
+    }
+
+    if (resource === 'settings' && !id) {
+      if (req.method === 'GET') {
+        return res.status(200).json(
+          await listCollection('settings')
+        );
+      }
+
+      if (req.method === 'PATCH') {
+        return res.status(200).json(
+          await saveSettings(req.body || {})
+        );
+      }
+
+      return res.status(405).json({
+        error: 'Method not allowed.'
+      });
+    }
+
+    if (resource === 'users' && id) {
+      if (req.method !== 'PATCH') {
+        return res.status(405).json({
+          error: 'Method not allowed.'
+        });
+      }
+
+      return res.status(200).json(
+        await updateUser(
+          id,
+          req.body || {}
+        )
+      );
+    }
+
+    if (
+      [
+        'sellers',
+        'products',
+        'orders',
+        'payments',
+        'rooms'
+      ].includes(resource)
+    ) {
+      if (!id && req.method === 'GET') {
+        return res.status(200).json(
+          await listCollection(resource)
+        );
+      }
+
+      if (id && req.method === 'PATCH') {
+        const status =
+          req.body?.status;
+
+        return res.status(200).json(
+          await setStatus(
+            resource,
+            id,
+            status
+          )
+        );
+      }
+    }
+
+    return res.status(404).json({
+      error: 'Endpoint tidak ditemukan.'
+    });
+  } catch (error) {
+    console.error(
+      'ADMIN API ERROR:',
+      error
+    );
+
+    const status =
+      Number.isInteger(error?.statusCode)
+        ? error.statusCode
+        : Number.isInteger(error?.status)
+          ? error.status
+          : 500;
+
+    return res.status(status).json({
+      error:
+        error?.message ||
+        'Internal server error.'
+    });
+  }
 }
