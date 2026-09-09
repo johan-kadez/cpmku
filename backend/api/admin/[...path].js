@@ -2,7 +2,6 @@ import {
   dashboard,
   listCollection,
   setStatus,
-  setBan,
   updateUser,
   saveSettings
 } from '../../src/services/admin.js';
@@ -19,8 +18,13 @@ function getSegments(req) {
     return queryPath.filter(Boolean);
   }
 
-  if (typeof queryPath === 'string' && queryPath) {
-    return queryPath.split('/').filter(Boolean);
+  if (
+    typeof queryPath === 'string' &&
+    queryPath
+  ) {
+    return queryPath
+      .split('/')
+      .filter(Boolean);
   }
 
   const pathname = new URL(
@@ -40,7 +44,7 @@ function getSegments(req) {
   return [];
 }
 
-function sendCors(req, res) {
+function setCors(req, res) {
   const origin = req.headers.origin;
 
   if (origin === 'https://cpmku.vercel.app') {
@@ -57,7 +61,7 @@ function sendCors(req, res) {
 
   res.setHeader(
     'Access-Control-Allow-Methods',
-    'GET,POST,PATCH,OPTIONS'
+    'GET, POST, PATCH, OPTIONS'
   );
 
   res.setHeader(
@@ -67,28 +71,46 @@ function sendCors(req, res) {
 }
 
 export default async function handler(req, res) {
-  sendCors(req, res);
+  setCors(req, res);
 
-  if (req.method === 'OPTIONS') {
+  if (
+    (req.method || '').toUpperCase() ===
+    'OPTIONS'
+  ) {
     return res.status(200).end();
   }
 
   try {
-    await requireAuth(req, res);
+    await requireAuth(
+      req,
+      res,
+      () => {}
+    );
 
-    await requireAdmin(req, res);
+    await requireAdmin(
+      req,
+      res,
+      () => {}
+    );
 
     const segments = getSegments(req);
     const resource = segments[0];
     const id = segments[1];
 
-    if (resource === 'dashboard' && !id) {
+    if (
+      resource === 'dashboard' &&
+      !id &&
+      req.method === 'GET'
+    ) {
       return res.status(200).json(
         await dashboard()
       );
     }
 
-    if (resource === 'settings' && !id) {
+    if (
+      resource === 'settings' &&
+      !id
+    ) {
       if (req.method === 'GET') {
         return res.status(200).json(
           await listCollection('settings')
@@ -97,7 +119,9 @@ export default async function handler(req, res) {
 
       if (req.method === 'PATCH') {
         return res.status(200).json(
-          await saveSettings(req.body || {})
+          await saveSettings(
+            req.body || {}
+          )
         );
       }
 
@@ -106,7 +130,10 @@ export default async function handler(req, res) {
       });
     }
 
-    if (resource === 'users' && id) {
+    if (
+      resource === 'users' &&
+      id
+    ) {
       if (req.method !== 'PATCH') {
         return res.status(405).json({
           error: 'Method not allowed.'
@@ -121,30 +148,35 @@ export default async function handler(req, res) {
       );
     }
 
+    const statusResources = [
+      'sellers',
+      'products',
+      'orders',
+      'payments',
+      'rooms'
+    ];
+
     if (
-      [
-        'sellers',
-        'products',
-        'orders',
-        'payments',
-        'rooms'
-      ].includes(resource)
+      statusResources.includes(resource)
     ) {
-      if (!id && req.method === 'GET') {
+      if (
+        !id &&
+        req.method === 'GET'
+      ) {
         return res.status(200).json(
           await listCollection(resource)
         );
       }
 
-      if (id && req.method === 'PATCH') {
-        const status =
-          req.body?.status;
-
+      if (
+        id &&
+        req.method === 'PATCH'
+      ) {
         return res.status(200).json(
           await setStatus(
             resource,
             id,
-            status
+            req.body?.status
           )
         );
       }
