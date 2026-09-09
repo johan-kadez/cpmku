@@ -7,7 +7,7 @@ Vercel serverless backend untuk Johan Marketplace. Firebase Admin SDK dipakai un
 2. Import repository ke Vercel.
 3. Set environment variables dari `.env.example`.
 4. `FIREBASE_PRIVATE_KEY` harus memakai newline escaped `\n` jika ditempel satu baris.
-5. `ADMIN_EMAILS` berisi email Google admin, dipisahkan koma.
+5. `adminEmails` berisi email Google admin, dipisahkan koma.
 6. Tambahkan `VITE_API_BASE_URL=https://DOMAIN-BACKEND.vercel.app/api` di project frontend.
 
 Tidak ada custom claim admin. Admin diverifikasi dari email yang ada di `ADMIN_EMAILS` pada backend.
