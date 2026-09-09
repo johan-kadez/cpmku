@@ -12,7 +12,7 @@ Monorepo marketplace React + Vite + Firebase Authentication + Firestore + Fireba
 - Google Sign-In untuk Buyer.
 - Seller Sign Up dengan nama, WhatsApp, email akun, tujuan, dan URL foto profile.
 - Seller hanya dapat dashboard setelah approval Admin.
-- Admin ditentukan server-side melalui `ADMIN_EMAILS`.
+- Admin ditentukan server-side melalui `adminEmails`.
 - Produk pending sampai Admin approve.
 - Favorite tersimpan per akun di Firestore.
 - Riwayat transaksi realtime per akun.
@@ -36,7 +36,7 @@ Tambahkan Environment Variables:
 FIREBASE_PROJECT_ID=cartier-syndicate
 FIREBASE_CLIENT_EMAIL=SERVICE_ACCOUNT_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"
-ADMIN_EMAILS=email-admin-anda@gmail.com
+adminEmails=email-admin-anda@gmail.com
 PUBLIC_APP_ORIGIN=https://DOMAIN-FRONTEND.vercel.app
 CRON_SECRET=buat-random-secret-panjang
 ```
