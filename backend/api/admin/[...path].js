@@ -1,68 +1,11 @@
 import {
   dashboard,
   listCollection,
-  setStatus,
-  updateUser,
   saveSettings
 } from '../../src/services/admin.js';
 
 import { requireAuth } from '../../src/middleware/auth.js';
 import { requireAdmin } from '../../src/middleware/admin.js';
-
-function getSegments(req) {
-  const url = String(req.url || '');
-
-  let pathname = url;
-
-  const questionIndex = pathname.indexOf('?');
-
-  if (questionIndex !== -1) {
-    pathname = pathname.slice(0, questionIndex);
-  }
-
-  try {
-    pathname = decodeURIComponent(pathname);
-  } catch {
-    pathname = pathname;
-  }
-
-  const markers = [
-    '/api/admin/',
-    '/admin/'
-  ];
-
-  for (const marker of markers) {
-    const index = pathname.indexOf(marker);
-
-    if (index !== -1) {
-      return pathname
-        .slice(index + marker.length)
-        .split('/')
-        .filter(Boolean);
-    }
-  }
-
-  const queryPath =
-    req.query?.path ??
-    req.query?.['...path'];
-
-  if (Array.isArray(queryPath)) {
-    return queryPath
-      .map((value) => String(value))
-      .filter(Boolean);
-  }
-
-  if (
-    typeof queryPath === 'string' &&
-    queryPath
-  ) {
-    return queryPath
-      .split('/')
-      .filter(Boolean);
-  }
-
-  return [];
-}
 
 function setCors(req, res) {
   const origin = req.headers.origin;
@@ -104,6 +47,52 @@ async function authenticate(req, res) {
   );
 }
 
+function getSegments(req) {
+  const queryPath =
+    req.query?.path ??
+    req.query?.['...path'];
+
+  if (Array.isArray(queryPath)) {
+    return queryPath
+      .map((value) => String(value))
+      .filter(Boolean);
+  }
+
+  if (
+    typeof queryPath === 'string' &&
+    queryPath
+  ) {
+    return queryPath
+      .split('/')
+      .filter(Boolean);
+  }
+
+  const url = String(req.url || '');
+
+  const pathname = url.split('?')[0];
+
+  const markers = [
+    '/api/admin/',
+    '/admin/'
+  ];
+
+  for (const marker of markers) {
+    const markerIndex =
+      pathname.indexOf(marker);
+
+    if (markerIndex === -1) {
+      continue;
+    }
+
+    return pathname
+      .slice(markerIndex + marker.length)
+      .split('/')
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
 
@@ -122,9 +111,14 @@ export default async function handler(req, res) {
     const resource = segments[0] || '';
     const id = segments[1] || '';
 
+    if (id) {
+      return res.status(404).json({
+        error: 'Endpoint tidak ditemukan.'
+      });
+    }
+
     if (
       resource === 'dashboard' &&
-      !id &&
       req.method === 'GET'
     ) {
       const result = await dashboard();
@@ -133,8 +127,7 @@ export default async function handler(req, res) {
     }
 
     if (
-      resource === 'settings' &&
-      !id
+      resource === 'settings'
     ) {
       if (req.method === 'GET') {
         const result =
@@ -157,42 +150,8 @@ export default async function handler(req, res) {
       });
     }
 
-    if (
-      resource === 'users' &&
-      !id
-    ) {
-      if (req.method !== 'GET') {
-        return res.status(405).json({
-          error: 'Method not allowed.'
-        });
-      }
-
-      const result =
-        await listCollection('users');
-
-      return res.status(200).json(result);
-    }
-
-    if (
-      resource === 'users' &&
-      id
-    ) {
-      if (req.method !== 'PATCH') {
-        return res.status(405).json({
-          error: 'Method not allowed.'
-        });
-      }
-
-      const result =
-        await updateUser(
-          id,
-          req.body || {}
-        );
-
-      return res.status(200).json(result);
-    }
-
-    const statusResources = [
+    const listableResources = [
+      'users',
       'sellers',
       'products',
       'orders',
@@ -201,38 +160,13 @@ export default async function handler(req, res) {
     ];
 
     if (
-      statusResources.includes(resource)
+      listableResources.includes(resource) &&
+      req.method === 'GET'
     ) {
-      if (
-        !id &&
-        req.method === 'GET'
-      ) {
-        const result =
-          await listCollection(resource);
+      const result =
+        await listCollection(resource);
 
-        return res.status(200).json(result);
-      }
-
-      if (
-        id &&
-        req.method === 'PATCH'
-      ) {
-        const requestedStatus =
-          req.body?.status;
-
-        const result =
-          await setStatus(
-            resource,
-            id,
-            requestedStatus
-          );
-
-        return res.status(200).json(result);
-      }
-
-      return res.status(405).json({
-        error: 'Method not allowed.'
-      });
+      return res.status(200).json(result);
     }
 
     return res.status(404).json({
@@ -244,14 +178,14 @@ export default async function handler(req, res) {
       error
     );
 
-    const status =
+    const statusCode =
       Number.isInteger(error?.statusCode)
         ? error.statusCode
         : Number.isInteger(error?.status)
           ? error.status
           : 500;
 
-    return res.status(status).json({
+    return res.status(statusCode).json({
       error:
         error?.message ||
         'Internal server error.'
