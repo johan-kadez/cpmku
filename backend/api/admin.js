@@ -58,16 +58,28 @@ async function handler(req, res) {
   setCors(req, res);
 
   if (req.method === "OPTIONS") {
-    return res.status(200).end();
+    return res
+      .status(200)
+      .end();
   }
 
   try {
-    await requireAuth(req, res, () => {});
-    await requireAdmin(req, res, () => {});
+    await requireAuth(
+      req,
+      res,
+      () => {}
+    );
+
+    await requireAdmin(
+      req,
+      res,
+      () => {}
+    );
 
     const segments = getSegments(req);
 
     const resource = segments[0] || "";
+
     const id = segments[1] || "";
 
     if (
@@ -75,45 +87,88 @@ async function handler(req, res) {
       !id &&
       req.method === "GET"
     ) {
-      return res.status(200).json(
-        await dashboard()
-      );
-    }
-
-    if (resource === "settings" && !id) {
-      if (req.method === "GET") {
-        return res.status(200).json(
-          await listCollection("settings")
+      return res
+        .status(200)
+        .json(
+          await dashboard()
         );
-      }
-
-      if (req.method === "PATCH") {
-        return res.status(200).json(
-          await saveSettings(req.body || {})
-        );
-      }
-
-      return res.status(405).json({
-        error: "Method not allowed."
-      });
     }
 
     if (
-      resource === "users" &&
-      id
+      resource === "settings" &&
+      !id
     ) {
-      if (req.method !== "PATCH") {
-        return res.status(405).json({
-          error: "Method not allowed."
-        });
+      if (req.method === "GET") {
+        return res
+          .status(200)
+          .json(
+            await listCollection(
+              "settings"
+            )
+          );
       }
 
-      return res.status(200).json(
-        await updateUser(
-          id,
-          req.body || {}
-        )
-      );
+      if (req.method === "PATCH") {
+        return res
+          .status(200)
+          .json(
+            await saveSettings(
+              req.body || {}
+            )
+          );
+      }
+
+      return res
+        .status(405)
+        .json({
+          error: "Method not allowed."
+        });
+    }
+
+    if (resource === "users") {
+      if (
+        req.method === "GET" &&
+        !id
+      ) {
+        return res
+          .status(200)
+          .json(
+            await listCollection(
+              "users"
+            )
+          );
+      }
+
+      if (req.method === "PATCH") {
+        const userId =
+          id ||
+          req.query?.id ||
+          "";
+
+        if (!userId) {
+          return res
+            .status(400)
+            .json({
+              error:
+                "ID user wajib diisi."
+            });
+        }
+
+        return res
+          .status(200)
+          .json(
+            await updateUser(
+              userId,
+              req.body || {}
+            )
+          );
+      }
+
+      return res
+        .status(405)
+        .json({
+          error: "Method not allowed."
+        });
     }
 
     const statusResources = [
@@ -124,33 +179,52 @@ async function handler(req, res) {
       "rooms"
     ];
 
-    if (statusResources.includes(resource)) {
+    if (
+      statusResources.includes(
+        resource
+      )
+    ) {
       if (
         !id &&
         req.method === "GET"
       ) {
-        return res.status(200).json(
-          await listCollection(resource)
-        );
+        return res
+          .status(200)
+          .json(
+            await listCollection(
+              resource
+            )
+          );
       }
 
       if (
         id &&
         req.method === "PATCH"
       ) {
-        return res.status(200).json(
-          await setStatus(
-            resource,
-            id,
-            req.body?.status
-          )
-        );
+        return res
+          .status(200)
+          .json(
+            await setStatus(
+              resource,
+              id,
+              req.body?.status
+            )
+          );
       }
+
+      return res
+        .status(405)
+        .json({
+          error: "Method not allowed."
+        });
     }
 
-    return res.status(404).json({
-      error: "Endpoint tidak ditemukan."
-    });
+    return res
+      .status(404)
+      .json({
+        error:
+          "Endpoint tidak ditemukan."
+      });
   } catch (error) {
     console.error(
       "ADMIN API ERROR:",
@@ -158,17 +232,23 @@ async function handler(req, res) {
     );
 
     const status =
-      Number.isInteger(error?.statusCode)
+      Number.isInteger(
+        error?.statusCode
+      )
         ? error.statusCode
-        : Number.isInteger(error?.status)
+        : Number.isInteger(
+            error?.status
+          )
           ? error.status
           : 500;
 
-    return res.status(status).json({
-      error:
-        error?.message ||
-        "Internal server error."
-    });
+    return res
+      .status(status)
+      .json({
+        error:
+          error?.message ||
+          "Internal server error."
+      });
   }
 }
 
