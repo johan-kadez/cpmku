@@ -10,12 +10,46 @@ import { requireAuth } from '../../src/middleware/auth.js';
 import { requireAdmin } from '../../src/middleware/admin.js';
 
 function getSegments(req) {
+  const url = String(req.url || '');
+
+  let pathname = url;
+
+  const questionIndex = pathname.indexOf('?');
+
+  if (questionIndex !== -1) {
+    pathname = pathname.slice(0, questionIndex);
+  }
+
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch {
+    pathname = pathname;
+  }
+
+  const markers = [
+    '/api/admin/',
+    '/admin/'
+  ];
+
+  for (const marker of markers) {
+    const index = pathname.indexOf(marker);
+
+    if (index !== -1) {
+      return pathname
+        .slice(index + marker.length)
+        .split('/')
+        .filter(Boolean);
+    }
+  }
+
   const queryPath =
     req.query?.path ??
     req.query?.['...path'];
 
   if (Array.isArray(queryPath)) {
-    return queryPath.filter(Boolean);
+    return queryPath
+      .map((value) => String(value))
+      .filter(Boolean);
   }
 
   if (
@@ -23,20 +57,6 @@ function getSegments(req) {
     queryPath
   ) {
     return queryPath
-      .split('/')
-      .filter(Boolean);
-  }
-
-  const pathname = new URL(
-    req.url || '/',
-    `https://${req.headers.host || 'localhost'}`
-  ).pathname;
-
-  const marker = '/api/admin/';
-
-  if (pathname.startsWith(marker)) {
-    return pathname
-      .slice(marker.length)
       .split('/')
       .filter(Boolean);
   }
@@ -70,41 +90,46 @@ function setCors(req, res) {
   );
 }
 
+async function authenticate(req, res) {
+  await requireAuth(
+    req,
+    res,
+    () => {}
+  );
+
+  await requireAdmin(
+    req,
+    res,
+    () => {}
+  );
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
 
   if (
-    (req.method || '').toUpperCase() ===
+    String(req.method || '').toUpperCase() ===
     'OPTIONS'
   ) {
-    return res.status(200).end();
+    return res.status(204).end();
   }
 
   try {
-    await requireAuth(
-      req,
-      res,
-      () => {}
-    );
-
-    await requireAdmin(
-      req,
-      res,
-      () => {}
-    );
+    await authenticate(req, res);
 
     const segments = getSegments(req);
-    const resource = segments[0];
-    const id = segments[1];
+
+    const resource = segments[0] || '';
+    const id = segments[1] || '';
 
     if (
       resource === 'dashboard' &&
       !id &&
       req.method === 'GET'
     ) {
-      return res.status(200).json(
-        await dashboard()
-      );
+      const result = await dashboard();
+
+      return res.status(200).json(result);
     }
 
     if (
@@ -112,22 +137,40 @@ export default async function handler(req, res) {
       !id
     ) {
       if (req.method === 'GET') {
-        return res.status(200).json(
-          await listCollection('settings')
-        );
+        const result =
+          await listCollection('settings');
+
+        return res.status(200).json(result);
       }
 
       if (req.method === 'PATCH') {
-        return res.status(200).json(
+        const result =
           await saveSettings(
             req.body || {}
-          )
-        );
+          );
+
+        return res.status(200).json(result);
       }
 
       return res.status(405).json({
         error: 'Method not allowed.'
       });
+    }
+
+    if (
+      resource === 'users' &&
+      !id
+    ) {
+      if (req.method !== 'GET') {
+        return res.status(405).json({
+          error: 'Method not allowed.'
+        });
+      }
+
+      const result =
+        await listCollection('users');
+
+      return res.status(200).json(result);
     }
 
     if (
@@ -140,12 +183,13 @@ export default async function handler(req, res) {
         });
       }
 
-      return res.status(200).json(
+      const result =
         await updateUser(
           id,
           req.body || {}
-        )
-      );
+        );
+
+      return res.status(200).json(result);
     }
 
     const statusResources = [
@@ -163,23 +207,32 @@ export default async function handler(req, res) {
         !id &&
         req.method === 'GET'
       ) {
-        return res.status(200).json(
-          await listCollection(resource)
-        );
+        const result =
+          await listCollection(resource);
+
+        return res.status(200).json(result);
       }
 
       if (
         id &&
         req.method === 'PATCH'
       ) {
-        return res.status(200).json(
+        const requestedStatus =
+          req.body?.status;
+
+        const result =
           await setStatus(
             resource,
             id,
-            req.body?.status
-          )
-        );
+            requestedStatus
+          );
+
+        return res.status(200).json(result);
       }
+
+      return res.status(405).json({
+        error: 'Method not allowed.'
+      });
     }
 
     return res.status(404).json({
