@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+
 import { api } from '../../services/api';
 
 const ACTIONS = {
@@ -52,7 +53,10 @@ export default function Manage({ type, title }) {
     load();
   }, [type]);
 
-  const action = async (id, status) => {
+  const action = async (
+    id,
+    status
+  ) => {
     if (type === 'orders') {
       const confirmed = window.confirm(
         'Batalkan transaksi ini?'
@@ -98,6 +102,14 @@ export default function Manage({ type, title }) {
         return id;
       }
     );
+  };
+
+  const shouldShowActions = (row) => {
+    if (type === 'sellers') {
+      return row.status === 'pending';
+    }
+
+    return true;
   };
 
   return (
@@ -217,8 +229,10 @@ export default function Manage({ type, title }) {
               </span>
 
               <div>
-                {
-                  (ACTIONS[type] || []).map(
+                {shouldShowActions(row) &&
+                  (
+                    ACTIONS[type] || []
+                  ).map(
                     ([status, label]) => (
                       <button
                         type="button"
@@ -233,8 +247,7 @@ export default function Manage({ type, title }) {
                         {label}
                       </button>
                     )
-                  )
-                }
+                  )}
               </div>
             </article>
           )
