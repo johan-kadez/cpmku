@@ -2,10 +2,24 @@ import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 
 const ACTIONS = {
-  sellers: [['approved', 'Approve'], ['rejected', 'Reject']],
-  products: [['approved', 'Approve'], ['rejected', 'Reject']],
-  orders: [['cancelled', 'Batalkan']],
-  payments: [['verified', 'Verifikasi'], ['rejected', 'Tolak']]
+  sellers: [
+    ['approved', 'Approve'],
+    ['rejected', 'Reject']
+  ],
+
+  products: [
+    ['approved', 'Approve'],
+    ['rejected', 'Reject']
+  ],
+
+  orders: [
+    ['cancelled', 'Batalkan']
+  ],
+
+  payments: [
+    ['verified', 'Verifikasi'],
+    ['rejected', 'Tolak']
+  ]
 };
 
 export default function Manage({ type, title }) {
@@ -16,77 +30,222 @@ export default function Manage({ type, title }) {
   const load = async () => {
     try {
       setError('');
-      const r = await api(`/admin/${type}`);
-      setRows(r.items || []);
-    } catch (e) {
-      setError(e.message);
+
+      const response = await api(
+        `/admin/${type}`
+      );
+
+      setRows(
+        response?.items || []
+      );
+    } catch (error) {
+      setRows([]);
+
+      setError(
+        error?.message ||
+        'Gagal memuat data.'
+      );
     }
   };
 
-  useEffect(() => { load(); }, [type]);
+  useEffect(() => {
+    load();
+  }, [type]);
 
   const action = async (id, status) => {
-    if (type === 'orders' && !window.confirm('Batalkan transaksi ini?')) return;
+    if (type === 'orders') {
+      const confirmed = window.confirm(
+        'Batalkan transaksi ini?'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
-      await api(`/admin/${type}/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-      });
+      setError('');
+
+      await api(
+        `/admin/${type}/${id}`,
+        {
+          method: 'PATCH',
+
+          body: JSON.stringify(
+            {
+              status
+            }
+          )
+        }
+      );
+
       await load();
-    } catch (e) {
-      alert(e.message);
+    } catch (error) {
+      alert(
+        error?.message ||
+        'Gagal memperbarui status.'
+      );
     }
   };
 
   const toggleExpand = (id) => {
-    setExpandedId((current) => (current === id ? null : id));
+    setExpandedId(
+      (currentId) => {
+        if (currentId === id) {
+          return null;
+        }
+
+        return id;
+      }
+    );
   };
 
   return (
     <section>
       <div className="section-head">
-        <h2>{title}</h2>
-        <button onClick={load}>Refresh</button>
+        <h2>
+          {title}
+        </h2>
+
+        <button
+          type="button"
+          onClick={load}
+        >
+          Refresh
+        </button>
       </div>
-      {error && <div className="notice error">{error}</div>}
+
+      {error && (
+        <div className="notice error">
+          {error}
+        </div>
+      )}
+
       <div className="admin-table">
-        {rows.map(r => (
-          <article key={r.id}>
-            <div>
-              <b>{r.name || r.title || r.productId || r.orderId || r.id}</b>
-              {type === 'sellers' && (
-                <button
-                  onClick={() => toggleExpand(r.id)}
-                  style={{ marginLeft: 8 }}
-                >
-                  {expandedId === r.id ? 'Sembunyikan' : 'Lihat Detail'}
-                </button>
-              )}
-              {type === 'sellers' && expandedId === r.id && (
-                <div className="detail-box" style={{ marginTop: 10, display: 'grid', gap: 6 }}>
-                  {r.photoUrl && (
-                    <img
-                      src={r.photoUrl}
-                      alt="Foto profil"
-                      style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }}
-                    />
+        {rows.map(
+          (row) => (
+            <article
+              key={row.id}
+            >
+              <div>
+                <b>
+                  {
+                    row.name ||
+                    row.title ||
+                    row.productId ||
+                    row.orderId ||
+                    row.id
+                  }
+                </b>
+
+                {type === 'sellers' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleExpand(
+                        row.id
+                      );
+                    }}
+                    style={{
+                      marginLeft: 8
+                    }}
+                  >
+                    {
+                      expandedId === row.id
+                        ? 'Sembunyikan'
+                        : 'Lihat Detail'
+                    }
+                  </button>
+                )}
+
+                {type === 'sellers' &&
+                  expandedId === row.id && (
+                    <div
+                      className="detail-box"
+                      style={{
+                        marginTop: 10,
+                        display: 'grid',
+                        gap: 6
+                      }}
+                    >
+                      {row.photoUrl && (
+                        <img
+                          src={row.photoUrl}
+                          alt="Foto profil"
+                          style={{
+                            width: 80,
+                            height: 80,
+                            borderRadius: '50%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      )}
+
+                      <p>
+                        <b>
+                          Nama:
+                        </b>{' '}
+                        {row.name || '-'}
+                      </p>
+
+                      <p>
+                        <b>
+                          Email:
+                        </b>{' '}
+                        {row.email || '-'}
+                      </p>
+
+                      <p>
+                        <b>
+                          Nomor WhatsApp:
+                        </b>{' '}
+                        {row.phone || '-'}
+                      </p>
+
+                      <p>
+                        <b>
+                          Tujuan menjadi Seller:
+                        </b>{' '}
+                        {row.reason || '-'}
+                      </p>
+                    </div>
                   )}
-                  <p><b>Nama:</b> {r.name || '-'}</p>
-                  <p><b>Email:</b> {r.email || '-'}</p>
-                  <p><b>Nomor WhatsApp:</b> {r.phone || '-'}</p>
-                  <p><b>Tujuan menjadi Seller:</b> {r.reason || '-'}</p>
-                </div>
-              )}
+              </div>
+
+              <span>
+                {row.status || '-'}
+              </span>
+
+              <div>
+                {
+                  (ACTIONS[type] || []).map(
+                    ([status, label]) => (
+                      <button
+                        type="button"
+                        key={status}
+                        onClick={() => {
+                          action(
+                            row.id,
+                            status
+                          );
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  )
+                }
+              </div>
+            </article>
+          )
+        )}
+
+        {!rows.length &&
+          !error && (
+            <div className="state">
+              Tidak ada data.
             </div>
-            <span>{r.status}</span>
-            <div>
-              {(ACTIONS[type] || []).map(([status, label]) => (
-                <button key={status} onClick={() => action(r.id, status)}>{label}</button>
-              ))}
-            </div>
-          </article>
-        ))}
-        {!rows.length && !error && <div className="state">Tidak ada data.</div>}
+          )}
       </div>
     </section>
   );
