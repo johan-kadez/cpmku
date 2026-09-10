@@ -83,7 +83,7 @@ export default function Users() {
 
         {!rows.length && (
           <div className="state">
-            Belum ada profil user tersimpan.
+            Belum ada profil user tersimpan saat ini.
           </div>
         )}
       </div>
