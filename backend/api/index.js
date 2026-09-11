@@ -1,42 +1,12 @@
-import { health, bad } from "../src/controllers/index.js";
+import { HttpError, asyncHandler } from "../src/utils/errors.js";
 
-import { requireAuth } from "../src/middleware/auth.js";
-import { requireAdmin } from "../src/middleware/admin.js";
-import { asyncHandler } from "../src/utils/errors.js";
-
-import {
-  me,
-  profilePhotoSignature,
-  profilePhotoUpdate,
-  sellerApply,
-  productCreate,
-  orderCreate,
-  orderDone,
-  messageCreate,
-  sellerCall,
-  dashboard,
-  list,
-  status,
-  settings,
-  updateUser
-} from "../src/controllers/index.js";
-
-const LISTABLE = [
-  "orders",
-  "payments",
-  "products",
-  "rooms",
-  "sellers",
-  "users"
-];
-
-const STATUSABLE = [
-  "orders",
-  "payments",
-  "products",
-  "rooms",
-  "sellers"
-];
+function setHealthResponse(res) {
+  return res.status(200).json({
+    ok: true,
+    service: "johan-marketplace-backend",
+    time: new Date().toISOString()
+  });
+}
 
 function getPath(req) {
   const url = req.url || "";
@@ -79,15 +49,68 @@ async function router(req, res) {
   const id = segments[2] || "";
 
   if (!resource) {
-    return health(req, res);
+    return setHealthResponse(res);
   }
 
   if (
     resource === "health" &&
     req.method === "GET"
   ) {
-    return health(req, res);
+    return setHealthResponse(res);
   }
+
+  const [
+    controllers,
+    authMiddleware,
+    adminMiddleware
+  ] = await Promise.all([
+    import("../src/controllers/index.js"),
+    import("../src/middleware/auth.js"),
+    import("../src/middleware/admin.js")
+  ]);
+
+  const {
+    me,
+    profilePhotoSignature,
+    profilePhotoUpdate,
+    sellerApply,
+    productCreate,
+    orderCreate,
+    orderDone,
+    messageCreate,
+    sellerCall,
+    dashboard,
+    list,
+    status,
+    settings,
+    updateUser,
+    bad
+  } = controllers;
+
+  const {
+    requireAuth
+  } = authMiddleware;
+
+  const {
+    requireAdmin
+  } = adminMiddleware;
+
+  const LISTABLE = [
+    "orders",
+    "payments",
+    "products",
+    "rooms",
+    "sellers",
+    "users"
+  ];
+
+  const STATUSABLE = [
+    "orders",
+    "payments",
+    "products",
+    "rooms",
+    "sellers"
+  ];
 
   if (
     resource === "me" &&
