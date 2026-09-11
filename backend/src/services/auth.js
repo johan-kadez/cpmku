@@ -1,4 +1,3 @@
-import { env } from '../config/env.js';
 import { db, auth, FieldValue } from '../firebase/admin.js';
 
 export async function currentUser(user) {
@@ -42,7 +41,7 @@ export async function currentUser(user) {
 
   let role = 'buyer';
 
-  if (env.adminEmails.includes(email)) {
+  if (user.admin === true) {
     role = 'admin';
   } else if (
     seller.exists &&
@@ -62,13 +61,11 @@ export async function currentUser(user) {
     role,
     banned: Boolean(profileData?.banned),
 
-    // Firestore field
     photoUrl:
       profileData?.photoUrl ||
       user.picture ||
       '',
 
-    // Firebase Auth-compatible field
     photoURL:
       profileData?.photoUrl ||
       user.picture ||
