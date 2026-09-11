@@ -11,15 +11,28 @@ export const env = {
 
   origin: process.env.PUBLIC_APP_ORIGIN || '*',
 
+  adminBootstrapSecret:
+    process.env.ADMIN_BOOTSTRAP_SECRET || '',
+
+  adminBootstrapUid:
+    process.env.ADMIN_BOOTSTRAP_UID || '',
+
   cloudinary: {
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
-    apiKey: process.env.CLOUDINARY_API_KEY || '',
-    apiSecret: process.env.CLOUDINARY_API_SECRET || ''
+    cloudName:
+      process.env.CLOUDINARY_CLOUD_NAME || '',
+
+    apiKey:
+      process.env.CLOUDINARY_API_KEY || '',
+
+    apiSecret:
+      process.env.CLOUDINARY_API_SECRET || ''
   }
 };
 
 export function assertEnv() {
-  const missing = requiredEnv.filter((key) => !process.env[key]);
+  const missing = requiredEnv.filter(
+    (key) => !process.env[key]
+  );
 
   if (missing.length) {
     throw new Error(
