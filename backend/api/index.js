@@ -1,3 +1,9 @@
+import { health, bad } from "../src/controllers/index.js";
+
+import { requireAuth } from "../src/middleware/auth.js";
+import { requireAdmin } from "../src/middleware/admin.js";
+import { asyncHandler } from "../src/utils/errors.js";
+
 import {
   me,
   profilePhotoSignature,
@@ -12,14 +18,8 @@ import {
   list,
   status,
   settings,
-  updateUser,
-  health,
-  bad
+  updateUser
 } from "../src/controllers/index.js";
-
-import { requireAuth } from "../src/middleware/auth.js";
-import { requireAdmin } from "../src/middleware/admin.js";
-import { asyncHandler } from "../src/utils/errors.js";
 
 const LISTABLE = [
   "orders",
@@ -48,14 +48,14 @@ function getPath(req) {
       ? url
       : url.slice(0, questionIndex);
 
+  if (pathname === "/api") {
+    return "";
+  }
+
   const apiIndex = pathname.indexOf("/api/");
 
   if (apiIndex !== -1) {
     return pathname.slice(apiIndex + 5);
-  }
-
-  if (pathname === "/api") {
-    return "";
   }
 
   return pathname.replace(/^\/+/, "");
@@ -68,21 +68,24 @@ function getSegments(req) {
 }
 
 async function router(req, res) {
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
   const segments = getSegments(req);
 
   const resource = segments[0] || "";
   const action = segments[1] || "";
   const id = segments[2] || "";
 
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-
-  if (resource === "health") {
+  if (!resource) {
     return health(req, res);
   }
 
-  if (!resource) {
+  if (
+    resource === "health" &&
+    req.method === "GET"
+  ) {
     return health(req, res);
   }
 
@@ -307,8 +310,8 @@ async function router(req, res) {
       () => status(resource)(req, res)
     );
   }
+
   return bad();
 }
 
 export default asyncHandler(router);
-```
