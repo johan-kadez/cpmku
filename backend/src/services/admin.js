@@ -1,5 +1,11 @@
-import { db, FieldValue } from '../firebase/admin.js';
+import {
+  db,
+  auth,
+  FieldValue
+} from '../firebase/admin.js';
+
 import { HttpError } from '../utils/errors.js';
+import { env } from '../config/env.js';
 
 const COLLECTIONS = {
   sellers: 'registrations',
@@ -11,18 +17,23 @@ const COLLECTIONS = {
 };
 
 export async function dashboard() {
-  const [sellers, products, orders, payments, rooms] =
-    await Promise.all(
-      [
-        'registrations',
-        'products',
-        'orders',
-        'payments',
-        'rooms'
-      ].map(collection =>
-        db.collection(collection).get()
-      )
-    );
+  const [
+    sellers,
+    products,
+    orders,
+    payments,
+    rooms
+  ] = await Promise.all(
+    [
+      'registrations',
+      'products',
+      'orders',
+      'payments',
+      'rooms'
+    ].map((collection) =>
+      db.collection(collection).get()
+    )
+  );
 
   return {
     stats: {
@@ -45,7 +56,7 @@ export async function listCollection(name) {
     .get();
 
   return {
-    items: snap.docs.map(doc => ({
+    items: snap.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }))
@@ -224,7 +235,7 @@ export async function setStatus(
     status === 'cancelled'
   ) {
     return db.runTransaction(
-      async transaction => {
+      async (transaction) => {
         const fresh =
           await transaction.get(ref);
 
@@ -512,6 +523,66 @@ export async function updateUser(
   }
 
   return result;
+}
+
+export async function setAdminClaim(
+  uid,
+  isAdmin = true
+) {
+  if (!uid) {
+    throw new HttpError(
+      400,
+      'UID pengguna wajib diisi.'
+    );
+  }
+
+  let user;
+
+  try {
+    user = await auth.getUser(uid);
+  } catch {
+    throw new HttpError(
+      404,
+      'Pengguna Firebase tidak ditemukan.'
+    );
+  }
+
+  const currentClaims =
+    user.customClaims || {};
+
+  const nextClaims = {
+    ...currentClaims,
+    admin: Boolean(isAdmin)
+  };
+
+  await auth.setCustomUserClaims(
+    uid,
+    nextClaims
+  );
+
+  return {
+    ok: true,
+    uid,
+    email: user.email || '',
+    admin: Boolean(isAdmin)
+  };
+}
+
+export async function bootstrapAdmin() {
+  if (
+    !env.adminBootstrapSecret ||
+    !env.adminBootstrapUid
+  ) {
+    throw new HttpError(
+      503,
+      'Admin bootstrap belum dikonfigurasi.'
+    );
+  }
+
+  return setAdminClaim(
+    env.adminBootstrapUid,
+    true
+  );
 }
 
 export async function saveSettings(data) {
