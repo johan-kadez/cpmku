@@ -1,34 +1,49 @@
-import { HttpError, asyncHandler } from "../src/utils/errors.js";
+import {
+  HttpError,
+  asyncHandler
+} from "../src/utils/errors.js";
 
 function setHealthResponse(res) {
   return res.status(200).json({
     ok: true,
-    service: "johan-marketplace-backend",
-    time: new Date().toISOString()
+    service:
+      "johan-marketplace-backend",
+    time:
+      new Date().toISOString()
   });
 }
 
 function getPath(req) {
   const url = req.url || "";
 
-  const questionIndex = url.indexOf("?");
+  const questionIndex =
+    url.indexOf("?");
 
   const pathname =
     questionIndex === -1
       ? url
-      : url.slice(0, questionIndex);
+      : url.slice(
+          0,
+          questionIndex
+        );
 
   if (pathname === "/api") {
     return "";
   }
 
-  const apiIndex = pathname.indexOf("/api/");
+  const apiIndex =
+    pathname.indexOf("/api/");
 
   if (apiIndex !== -1) {
-    return pathname.slice(apiIndex + 5);
+    return pathname.slice(
+      apiIndex + 5
+    );
   }
 
-  return pathname.replace(/^\/+/, "");
+  return pathname.replace(
+    /^\/+/,
+    ""
+  );
 }
 
 function getSegments(req) {
@@ -42,11 +57,17 @@ async function router(req, res) {
     return res.status(204).end();
   }
 
-  const segments = getSegments(req);
+  const segments =
+    getSegments(req);
 
-  const resource = segments[0] || "";
-  const action = segments[1] || "";
-  const id = segments[2] || "";
+  const resource =
+    segments[0] || "";
+
+  const action =
+    segments[1] || "";
+
+  const id =
+    segments[2] || "";
 
   if (!resource) {
     return setHealthResponse(res);
@@ -64,9 +85,15 @@ async function router(req, res) {
     authMiddleware,
     adminMiddleware
   ] = await Promise.all([
-    import("../src/controllers/index.js"),
-    import("../src/middleware/auth.js"),
-    import("../src/middleware/admin.js")
+    import(
+      "../src/controllers/index.js"
+    ),
+    import(
+      "../src/middleware/auth.js"
+    ),
+    import(
+      "../src/middleware/admin.js"
+    )
   ]);
 
   const {
@@ -84,6 +111,8 @@ async function router(req, res) {
     status,
     settings,
     updateUser,
+    setAdminClaim,
+    bootstrapAdmin,
     bad
   } = controllers;
 
@@ -131,7 +160,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => profilePhotoSignature(req, res)
+      () =>
+        profilePhotoSignature(
+          req,
+          res
+        )
     );
   }
 
@@ -142,7 +175,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => profilePhotoUpdate(req, res)
+      () =>
+        profilePhotoUpdate(
+          req,
+          res
+        )
     );
   }
 
@@ -154,7 +191,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => sellerApply(req, res)
+      () =>
+        sellerApply(
+          req,
+          res
+        )
     );
   }
 
@@ -166,7 +207,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => productCreate(req, res)
+      () =>
+        productCreate(
+          req,
+          res
+        )
     );
   }
 
@@ -178,7 +223,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => orderCreate(req, res)
+      () =>
+        orderCreate(
+          req,
+          res
+        )
     );
   }
 
@@ -190,7 +239,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => orderDone(req, res)
+      () =>
+        orderDone(
+          req,
+          res
+        )
     );
   }
 
@@ -202,7 +255,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => messageCreate(req, res)
+      () =>
+        messageCreate(
+          req,
+          res
+        )
     );
   }
 
@@ -214,7 +271,22 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => sellerCall(req, res)
+      () =>
+        sellerCall(
+          req,
+          res
+        )
+    );
+  }
+
+  if (
+    resource === "admin" &&
+    action === "bootstrap" &&
+    req.method === "POST"
+  ) {
+    return bootstrapAdmin(
+      req,
+      res
     );
   }
 
@@ -230,7 +302,11 @@ async function router(req, res) {
         requireAdmin(
           req,
           res,
-          () => dashboard(req, res)
+          () =>
+            dashboard(
+              req,
+              res
+            )
         )
     );
   }
@@ -247,9 +323,42 @@ async function router(req, res) {
         requireAdmin(
           req,
           res,
-          () => settings(req, res)
+          () =>
+            settings(
+              req,
+              res
+            )
         )
     );
+  }
+
+  if (
+    resource === "admin" &&
+    action === "users" &&
+    id &&
+    req.method === "POST"
+  ) {
+    req.query.id = id;
+
+    if (
+      segments[3] ===
+      "admin-claim"
+    ) {
+      return requireAuth(
+        req,
+        res,
+        () =>
+          requireAdmin(
+            req,
+            res,
+            () =>
+              setAdminClaim(
+                req,
+                res
+              )
+          )
+      );
+    }
   }
 
   if (
@@ -264,7 +373,11 @@ async function router(req, res) {
         requireAdmin(
           req,
           res,
-          () => list(action)(req, res)
+          () =>
+            list(action)(
+              req,
+              res
+            )
         )
     );
   }
@@ -284,7 +397,11 @@ async function router(req, res) {
         requireAdmin(
           req,
           res,
-          () => updateUser(req, res)
+          () =>
+            updateUser(
+              req,
+              res
+            )
         )
     );
   }
@@ -304,7 +421,11 @@ async function router(req, res) {
         requireAdmin(
           req,
           res,
-          () => status(action)(req, res)
+          () =>
+            status(action)(
+              req,
+              res
+            )
         )
     );
   }
@@ -316,7 +437,11 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => list(resource)(req, res)
+      () =>
+        list(resource)(
+          req,
+          res
+        )
     );
   }
 
@@ -330,11 +455,17 @@ async function router(req, res) {
     return requireAuth(
       req,
       res,
-      () => status(resource)(req, res)
+      () =>
+        status(resource)(
+          req,
+          res
+        )
     );
   }
 
   return bad();
 }
 
-export default asyncHandler(router);
+export default asyncHandler(
+  router
+);
