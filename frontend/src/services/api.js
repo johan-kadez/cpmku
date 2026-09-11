@@ -1,8 +1,7 @@
 import { auth } from './firebase';
 
-const base = import.meta.env.PROD
-  ? '/api'
-  : (import.meta.env.VITE_API_BASE_URL || '/api');
+const base =
+  import.meta.env.VITE_API_BASE_URL || '/api';
 
 function getAuthUser() {
   return new Promise(resolve => {
