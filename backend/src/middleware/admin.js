@@ -1,1 +1,14 @@
-import {env} from '../config/env.js';import {HttpError} from '../utils/errors.js';export function requireAdmin(req,res,next){if(!req.user?.email||!env.adminEmails.includes(req.user.email.toLowerCase()))throw new HttpError(403,'Akses admin ditolak.');req.userRole='admin';return next()}
+import { HttpError } from '../utils/errors.js';
+
+export function requireAdmin(req, res, next) {
+  if (req.user?.admin !== true) {
+    throw new HttpError(
+      403,
+      'Akses admin ditolak.'
+    );
+  }
+
+  req.userRole = 'admin';
+
+  return next();
+}
