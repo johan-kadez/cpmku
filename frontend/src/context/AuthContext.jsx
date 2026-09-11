@@ -55,7 +55,7 @@ const off = onAuthStateChanged(
     try {
       await current.getIdToken();
 
-      const result = await api('/auth/me');
+      const result = await api('/me');
 
       if (!alive) return;
 
