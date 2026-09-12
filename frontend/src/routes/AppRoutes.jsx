@@ -1,4 +1,7 @@
-import { Routes, Route } from 'react-router-dom';
+import {
+  Routes,
+  Route
+} from 'react-router-dom';
 
 import AppLayout from '../components/layout/AppLayout';
 
@@ -8,6 +11,7 @@ import ProductDetail from '../pages/public/ProductDetail';
 import Profile from '../pages/public/Profile';
 import Transactions from '../pages/public/Transactions';
 import Favorites from '../pages/public/Favorites';
+import Help from '../pages/public/Help';
 
 import ProtectedRoute from './ProtectedRoute';
 
@@ -24,7 +28,9 @@ export default function AppRoutes() {
   return (
     <Routes>
 
-      {/* PUBLIC + BUYER */}
+      {/* =========================
+          PUBLIC + BUYER
+          ========================= */}
 
       <Route element={<AppLayout />}>
 
@@ -46,6 +52,11 @@ export default function AppRoutes() {
         <Route
           path="/login"
           element={<Login />}
+        />
+
+        <Route
+          path="/help"
+          element={<Help />}
         />
 
         <Route
@@ -77,7 +88,10 @@ export default function AppRoutes() {
 
       </Route>
 
-      {/* ADMIN */}
+
+      {/* =========================
+          ADMIN
+          ========================= */}
 
       <Route
         path="/admin/login"
@@ -94,10 +108,49 @@ export default function AppRoutes() {
       />
 
       <Route
-        path="/admin/manage"
+        path="/admin/sellers"
         element={
           <ProtectedRoute>
-            <Manage />
+            <Manage
+              type="sellers"
+              title="Seller"
+            />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/products"
+        element={
+          <ProtectedRoute>
+            <Manage
+              type="products"
+              title="Produk"
+            />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/orders"
+        element={
+          <ProtectedRoute>
+            <Manage
+              type="orders"
+              title="Order"
+            />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/payments"
+        element={
+          <ProtectedRoute>
+            <Manage
+              type="payments"
+              title="Pembayaran"
+            />
           </ProtectedRoute>
         }
       />
@@ -111,7 +164,27 @@ export default function AppRoutes() {
         }
       />
 
-      {/* SELLER */}
+
+      {/* =========================
+          ADMIN LEGACY
+          ========================= */}
+
+      <Route
+        path="/admin/manage"
+        element={
+          <ProtectedRoute>
+            <Manage
+              type="products"
+              title="Kelola Produk"
+            />
+          </ProtectedRoute>
+        }
+      />
+
+
+      {/* =========================
+          SELLER
+          ========================= */}
 
       <Route
         path="/seller"
@@ -122,7 +195,10 @@ export default function AppRoutes() {
         }
       />
 
-      {/* 404 */}
+
+      {/* =========================
+          404
+          ========================= */}
 
       <Route
         path="*"
