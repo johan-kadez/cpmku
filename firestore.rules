@@ -1,4 +1,5 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -8,15 +9,24 @@ service cloud.firestore {
     match /products/{id} {
       allow read: if (
         resource.data.visibility == 'public' &&
-        (resource.data.status == 'available' || resource.data.status == 'in_transaction')
+        (
+          resource.data.status == 'available' ||
+          resource.data.status == 'in_transaction'
+        )
       ) || (
-        signedIn() && resource.data.sellerUid == request.auth.uid
+        signedIn() &&
+        resource.data.sellerUid == request.auth.uid
       );
+
       allow write: if false;
     }
 
     match /sellers/{uid} {
-      allow read: if resource.data.status == 'approved' && resource.data.banned != true;
+      allow read: if (
+        resource.data.status == 'approved' &&
+        resource.data.banned != true
+      );
+
       allow write: if false;
     }
 
@@ -33,32 +43,62 @@ service cloud.firestore {
     }
 
     match /rooms/{id} {
-      allow read: if signedIn() && request.auth.uid in resource.data.participantUids;
+      allow read: if (
+        signedIn() &&
+        request.auth.uid in resource.data.participantUids
+      );
+
       allow write: if false;
 
       match /messages/{mid} {
-        allow read: if signedIn() &&
-          request.auth.uid in get(/databases/$(database)/documents/rooms/$(id)).data.participantUids;
-        allow create: if signedIn() &&
-          request.auth.uid in get(/databases/$(database)/documents/rooms/$(id)).data.participantUids &&
-          request.resource.data.senderUid == request.auth.uid;
+        allow read: if (
+          signedIn() &&
+          request.auth.uid in
+          get(
+            /databases/$(database)/documents/rooms/$(id)
+          ).data.participantUids
+        );
+
+        allow create: if (
+          signedIn() &&
+          request.auth.uid in
+          get(
+            /databases/$(database)/documents/rooms/$(id)
+          ).data.participantUids &&
+          request.resource.data.senderUid ==
+          request.auth.uid
+        );
+
         allow update, delete: if false;
       }
     }
 
     match /notifications/{id} {
-      allow read: if signedIn() && resource.data.toUid == request.auth.uid;
+      allow read: if (
+        signedIn() &&
+        resource.data.toUid == request.auth.uid
+      );
+
       allow write: if false;
     }
 
     match /settings/{id} {
       allow read: if id == 'main';
+
       allow write: if false;
     }
 
     match /users/{uid} {
-      allow read: if signedIn() && request.auth.uid == uid;
+      allow read: if (
+        signedIn() &&
+        request.auth.uid == uid
+      );
+
       allow write: if false;
+    }
+
+    match /admins/{uid} {
+      allow read, write: if false;
     }
   }
 }
