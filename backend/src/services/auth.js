@@ -120,6 +120,51 @@ export async function currentUser(user) {
   };
 }
 
+export async function updateProfileNickname({
+  uid,
+  nickname
+}) {
+  const profileRef = db
+    .collection('users')
+    .doc(uid);
+
+  const cleanNickname =
+    String(nickname || '')
+      .trim();
+
+  if (!cleanNickname) {
+    throw new Error(
+      'Nickname tidak boleh kosong.'
+    );
+  }
+
+  if (cleanNickname.length > 50) {
+    throw new Error(
+      'Nickname maksimal 50 karakter.'
+    );
+  }
+
+  await profileRef.set(
+    {
+      name: cleanNickname,
+
+      nickname: cleanNickname,
+
+      updatedAt:
+        FieldValue.serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+
+  return {
+    nickname: cleanNickname,
+
+    name: cleanNickname
+  };
+}
+
 export async function updateProfilePhoto({
   uid,
   secureUrl,
