@@ -1,7 +1,7 @@
 import {
   HttpError,
   asyncHandler
-} from '../../src/utils/errors.js';
+} from '../src/utils/errors.js';
 
 function setCors(res) {
   res.setHeader(
@@ -64,19 +64,19 @@ function getSegments(req) {
 
 async function getControllers() {
   return import(
-    '../../src/controllers/index.js'
+    '../src/controllers/index.js'
   );
 }
 
 async function getAuthMiddleware() {
   return import(
-    '../../src/middleware/auth.js'
+    '../src/middleware/auth.js'
   );
 }
 
 async function getAdminMiddleware() {
   return import(
-    '../../src/middleware/admin.js'
+    '../src/middleware/admin.js'
   );
 }
 
