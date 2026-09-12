@@ -1,39 +1,79 @@
-import { useEffect, useState } from 'react';
+import {
+  useEffect,
+  useState
+} from 'react';
 
-import { api } from '../../services/api';
+import {
+  api
+} from '../../services/api';
 
 const ACTIONS = {
   sellers: [
-    ['approved', 'Approve'],
-    ['rejected', 'Reject']
+    [
+      'approved',
+      'Approve'
+    ],
+    [
+      'rejected',
+      'Reject'
+    ]
   ],
 
   products: [
-    ['approved', 'Approve'],
-    ['rejected', 'Reject']
+    [
+      'approved',
+      'Approve'
+    ],
+    [
+      'rejected',
+      'Reject'
+    ]
   ],
 
   orders: [
-    ['cancelled', 'Batalkan']
+    [
+      'cancelled',
+      'Batalkan'
+    ]
   ],
 
   payments: [
-    ['verified', 'Verifikasi'],
-    ['rejected', 'Tolak']
+    [
+      'verified',
+      'Verifikasi'
+    ],
+    [
+      'rejected',
+      'Tolak'
+    ]
   ]
 };
 
-export default function Manage({ type, title }) {
-  const [rows, setRows] = useState([]);
-  const [error, setError] = useState('');
-  const [expandedId, setExpandedId] = useState(null);
+export default function Manage({
+  type,
+  title
+}) {
+  const [
+    rows,
+    setRows
+  ] = useState([]);
+
+  const [
+    error,
+    setError
+  ] = useState('');
+
+  const [
+    expandedId,
+    setExpandedId
+  ] = useState(null);
 
   const load = async () => {
     try {
       setError('');
 
       const response = await api(
-        `/admin/${type}`
+        `/admin/list/${type}`
       );
 
       setRows(
@@ -57,10 +97,13 @@ export default function Manage({ type, title }) {
     id,
     status
   ) => {
-    if (type === 'orders') {
-      const confirmed = window.confirm(
-        'Batalkan transaksi ini?'
-      );
+    if (
+      type === 'orders'
+    ) {
+      const confirmed =
+        window.confirm(
+          'Batalkan transaksi ini?'
+        );
 
       if (!confirmed) {
         return;
@@ -71,15 +114,13 @@ export default function Manage({ type, title }) {
       setError('');
 
       await api(
-        `/admin/${type}/${id}`,
+        `/admin/status/${type}/${id}`,
         {
           method: 'PATCH',
 
-          body: JSON.stringify(
-            {
-              status
-            }
-          )
+          body: JSON.stringify({
+            status
+          })
         }
       );
 
@@ -92,10 +133,14 @@ export default function Manage({ type, title }) {
     }
   };
 
-  const toggleExpand = (id) => {
+  const toggleExpand = (
+    id
+  ) => {
     setExpandedId(
       (currentId) => {
-        if (currentId === id) {
+        if (
+          currentId === id
+        ) {
           return null;
         }
 
@@ -104,9 +149,16 @@ export default function Manage({ type, title }) {
     );
   };
 
-  const shouldShowActions = (row) => {
-    if (type === 'sellers') {
-      return row.status === 'pending';
+  const shouldShowActions = (
+    row
+  ) => {
+    if (
+      type === 'sellers'
+    ) {
+      return (
+        row.status ===
+        'pending'
+      );
     }
 
     return true;
@@ -150,7 +202,8 @@ export default function Manage({ type, title }) {
                   }
                 </b>
 
-                {type === 'sellers' && (
+                {type ===
+                  'sellers' && (
                   <button
                     type="button"
                     onClick={() => {
@@ -163,15 +216,18 @@ export default function Manage({ type, title }) {
                     }}
                   >
                     {
-                      expandedId === row.id
+                      expandedId ===
+                      row.id
                         ? 'Sembunyikan'
                         : 'Lihat Detail'
                     }
                   </button>
                 )}
 
-                {type === 'sellers' &&
-                  expandedId === row.id && (
+                {type ===
+                  'sellers' &&
+                  expandedId ===
+                    row.id && (
                     <div
                       className="detail-box"
                       style={{
@@ -182,13 +238,17 @@ export default function Manage({ type, title }) {
                     >
                       {row.photoUrl && (
                         <img
-                          src={row.photoUrl}
+                          src={
+                            row.photoUrl
+                          }
                           alt="Foto profil"
                           style={{
                             width: 80,
                             height: 80,
-                            borderRadius: '50%',
-                            objectFit: 'cover'
+                            borderRadius:
+                              '50%',
+                            objectFit:
+                              'cover'
                           }}
                         />
                       )}
@@ -197,43 +257,64 @@ export default function Manage({ type, title }) {
                         <b>
                           Nama:
                         </b>{' '}
-                        {row.name || '-'}
+                        {
+                          row.name ||
+                          '-'
+                        }
                       </p>
 
                       <p>
                         <b>
                           Email:
                         </b>{' '}
-                        {row.email || '-'}
+                        {
+                          row.email ||
+                          '-'
+                        }
                       </p>
 
                       <p>
                         <b>
                           Nomor WhatsApp:
                         </b>{' '}
-                        {row.phone || '-'}
+                        {
+                          row.phone ||
+                          '-'
+                        }
                       </p>
 
                       <p>
                         <b>
                           Tujuan menjadi Seller:
                         </b>{' '}
-                        {row.reason || '-'}
+                        {
+                          row.reason ||
+                          '-'
+                        }
                       </p>
                     </div>
                   )}
               </div>
 
               <span>
-                {row.status || '-'}
+                {
+                  row.status ||
+                  '-'
+                }
               </span>
 
               <div>
-                {shouldShowActions(row) &&
+                {shouldShowActions(
+                  row
+                ) &&
                   (
-                    ACTIONS[type] || []
+                    ACTIONS[type] ||
+                    []
                   ).map(
-                    ([status, label]) => (
+                    ([
+                      status,
+                      label
+                    ]) => (
                       <button
                         type="button"
                         key={status}
