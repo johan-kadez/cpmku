@@ -1,6 +1,5 @@
 import {
   db,
-  auth,
   FieldValue
 } from '../firebase/admin.js';
 
