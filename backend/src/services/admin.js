@@ -3,8 +3,13 @@ import {
   FieldValue
 } from '../firebase/admin.js';
 
-import { HttpError } from '../utils/errors.js';
-import { env } from '../config/env.js';
+import {
+  HttpError
+} from '../utils/errors.js';
+
+import {
+  env
+} from '../config/env.js';
 
 const COLLECTIONS = {
   sellers: 'registrations',
@@ -33,36 +38,55 @@ export async function dashboard() {
       'orders',
       'payments',
       'rooms'
-    ].map((collection) =>
-      db.collection(collection).get()
+    ].map(
+      (collection) =>
+        db
+          .collection(collection)
+          .get()
     )
   );
 
   return {
     stats: {
-      registrations: sellers.size,
-      products: products.size,
-      orders: orders.size,
-      payments: payments.size,
-      rooms: rooms.size
+      registrations:
+        sellers.size,
+
+      products:
+        products.size,
+
+      orders:
+        orders.size,
+
+      payments:
+        payments.size,
+
+      rooms:
+        rooms.size
     }
   };
 }
 
-export async function listCollection(name) {
+export async function listCollection(
+  name
+) {
   const collection =
-    COLLECTIONS[name] || name;
+    COLLECTIONS[name] ||
+    name;
 
-  const snap = await db
-    .collection(collection)
-    .limit(200)
-    .get();
+  const snap =
+    await db
+      .collection(collection)
+      .limit(200)
+      .get();
 
   return {
-    items: snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    items:
+      snap.docs.map(
+        (doc) => ({
+          id: doc.id,
+          ...doc.data()
+        })
+      )
   };
 }
 
@@ -71,7 +95,8 @@ export async function setStatus(
   id,
   status
 ) {
-  const collection = COLLECTIONS[type];
+  const collection =
+    COLLECTIONS[type];
 
   if (!collection) {
     throw new HttpError(
@@ -85,24 +110,30 @@ export async function setStatus(
       'approved',
       'rejected'
     ],
+
     products: [
       'approved',
       'rejected'
     ],
+
     orders: [
       'cancelled'
     ],
+
     payments: [
       'verified',
       'rejected'
     ],
+
     rooms: [
       'cancelled'
     ]
   };
 
   if (
-    !allowed[type]?.includes(status)
+    !allowed[type]?.includes(
+      status
+    )
   ) {
     throw new HttpError(
       400,
@@ -117,11 +148,13 @@ export async function setStatus(
     );
   }
 
-  const ref = db
-    .collection(collection)
-    .doc(id);
+  const ref =
+    db
+      .collection(collection)
+      .doc(id);
 
-  const snap = await ref.get();
+  const snap =
+    await ref.get();
 
   if (!snap.exists) {
     throw new HttpError(
@@ -130,11 +163,15 @@ export async function setStatus(
     );
   }
 
-  if (type === 'sellers') {
-    const registration = snap.data();
+  if (
+    type === 'sellers'
+  ) {
+    const registration =
+      snap.data();
 
     if (
-      registration.status !== 'pending'
+      registration.status !==
+      'pending'
     ) {
       throw new HttpError(
         409,
@@ -142,29 +179,63 @@ export async function setStatus(
       );
     }
 
-    if (status === 'approved') {
-      const sellerRef = db
-        .collection('sellers')
-        .doc(id);
+    if (
+      status === 'approved'
+    ) {
+      const sellerRef =
+        db
+          .collection('sellers')
+          .doc(
+            registration.uid ||
+              id
+          );
 
-      const batch = db.batch();
+      const sellerUid =
+        registration.uid ||
+        id;
+
+      const batch =
+        db.batch();
 
       batch.set(
         sellerRef,
         {
-          uid: registration.uid || id,
-          email: registration.email || '',
-          name: registration.name || '',
-          phone: registration.phone || '',
-          reason: registration.reason || '',
+          uid:
+            sellerUid,
+
+          email:
+            registration.email ||
+            '',
+
+          name:
+            registration.name ||
+            '',
+
+          phone:
+            registration.phone ||
+            '',
+
+          reason:
+            registration.reason ||
+            '',
+
           description:
-            registration.reason || '',
+            registration.reason ||
+            '',
+
           photoUrl:
-            registration.photoUrl || '',
-          status: 'approved',
-          banned: false,
+            registration.photoUrl ||
+            '',
+
+          status:
+            'approved',
+
+          banned:
+            false,
+
           approvedAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         },
@@ -176,9 +247,12 @@ export async function setStatus(
       batch.update(
         ref,
         {
-          status: 'approved',
+          status:
+            'approved',
+
           approvedAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -188,40 +262,59 @@ export async function setStatus(
 
       return {
         ok: true,
-        status: 'approved'
+        status:
+          'approved'
       };
     }
 
     await ref.update({
-      status: 'rejected',
+      status:
+        'rejected',
+
       rejectedAt:
         FieldValue.serverTimestamp(),
+
       updatedAt:
         FieldValue.serverTimestamp()
     });
 
     return {
       ok: true,
-      status: 'rejected'
+      status:
+        'rejected'
     };
   }
 
-  if (type === 'products') {
-    if (status === 'approved') {
+  if (
+    type === 'products'
+  ) {
+    if (
+      status === 'approved'
+    ) {
       await ref.update({
-        status: 'available',
-        visibility: 'public',
+        status:
+          'available',
+
+        visibility:
+          'public',
+
         approvedAt:
           FieldValue.serverTimestamp(),
+
         updatedAt:
           FieldValue.serverTimestamp()
       });
     } else {
       await ref.update({
-        status: 'rejected',
-        visibility: 'private',
+        status:
+          'rejected',
+
+        visibility:
+          'private',
+
         rejectedAt:
           FieldValue.serverTimestamp(),
+
         updatedAt:
           FieldValue.serverTimestamp()
       });
@@ -240,7 +333,9 @@ export async function setStatus(
     return db.runTransaction(
       async (transaction) => {
         const fresh =
-          await transaction.get(ref);
+          await transaction.get(
+            ref
+          );
 
         if (!fresh.exists) {
           throw new HttpError(
@@ -249,10 +344,12 @@ export async function setStatus(
           );
         }
 
-        const order = fresh.data();
+        const order =
+          fresh.data();
 
         if (
-          order.status !== 'in_transaction'
+          order.status !==
+          'in_transaction'
         ) {
           throw new HttpError(
             409,
@@ -260,34 +357,60 @@ export async function setStatus(
           );
         }
 
-        const productRef = db
-          .collection('products')
-          .doc(order.productId);
+        const productRef =
+          db
+            .collection(
+              'products'
+            )
+            .doc(
+              order.productId
+            );
 
-        const roomRef = db
-          .collection('rooms')
-          .doc(order.roomId || id);
+        const roomRef =
+          db
+            .collection(
+              'rooms'
+            )
+            .doc(
+              order.roomId ||
+                id
+            );
 
-        const paymentRef = db
-          .collection('payments')
-          .doc(id);
+        const paymentRef =
+          db
+            .collection(
+              'payments'
+            )
+            .doc(id);
 
         const [
           product,
           room,
           payment
-        ] = await Promise.all([
-          transaction.get(productRef),
-          transaction.get(roomRef),
-          transaction.get(paymentRef)
-        ]);
+        ] =
+          await Promise.all([
+            transaction.get(
+              productRef
+            ),
+
+            transaction.get(
+              roomRef
+            ),
+
+            transaction.get(
+              paymentRef
+            )
+          ]);
 
         transaction.update(
           ref,
           {
-            status: 'cancelled',
+            status:
+              'cancelled',
+
             cancelledAt:
               FieldValue.serverTimestamp(),
+
             updatedAt:
               FieldValue.serverTimestamp()
           }
@@ -295,27 +418,37 @@ export async function setStatus(
 
         if (
           product.exists &&
-          product.data().status ===
+          product.data()
+            .status ===
             'in_transaction'
         ) {
           transaction.update(
             productRef,
             {
-              status: 'available',
-              visibility: 'public',
+              status:
+                'available',
+
+              visibility:
+                'public',
+
               updatedAt:
                 FieldValue.serverTimestamp()
             }
           );
         }
 
-        if (room.exists) {
+        if (
+          room.exists
+        ) {
           transaction.update(
             roomRef,
             {
-              status: 'cancelled',
+              status:
+                'cancelled',
+
               cancelledAt:
                 FieldValue.serverTimestamp(),
+
               updatedAt:
                 FieldValue.serverTimestamp()
             }
@@ -324,12 +457,16 @@ export async function setStatus(
 
         if (
           payment.exists &&
-          payment.data().status === 'pending'
+          payment.data()
+            .status ===
+            'pending'
         ) {
           transaction.update(
             paymentRef,
             {
-              status: 'rejected',
+              status:
+                'rejected',
+
               updatedAt:
                 FieldValue.serverTimestamp()
             }
@@ -338,44 +475,63 @@ export async function setStatus(
 
         return {
           ok: true,
-          status: 'cancelled'
+          status:
+            'cancelled'
         };
       }
     );
   }
 
-  if (type === 'payments') {
-    const payment = snap.data();
+  if (
+    type === 'payments'
+  ) {
+    const payment =
+      snap.data();
 
-    const orderRef = db
-      .collection('orders')
-      .doc(payment.orderId);
+    const orderRef =
+      db
+        .collection('orders')
+        .doc(
+          payment.orderId
+        );
 
-    if (status === 'verified') {
+    if (
+      status === 'verified'
+    ) {
       await ref.update({
-        status: 'verified',
+        status:
+          'verified',
+
         verifiedAt:
           FieldValue.serverTimestamp(),
+
         updatedAt:
           FieldValue.serverTimestamp()
       });
 
       await orderRef.update({
-        paymentStatus: 'verified',
+        paymentStatus:
+          'verified',
+
         updatedAt:
           FieldValue.serverTimestamp()
       });
     } else {
       await ref.update({
-        status: 'rejected',
+        status:
+          'rejected',
+
         rejectedAt:
           FieldValue.serverTimestamp(),
+
         updatedAt:
           FieldValue.serverTimestamp()
       });
 
       await orderRef.update({
-        paymentStatus: 'rejected',
+        paymentStatus:
+          'rejected',
+
         updatedAt:
           FieldValue.serverTimestamp()
       });
@@ -387,9 +543,12 @@ export async function setStatus(
     };
   }
 
-  if (type === 'rooms') {
+  if (
+    type === 'rooms'
+  ) {
     await ref.update({
       status,
+
       updatedAt:
         FieldValue.serverTimestamp()
     });
@@ -410,38 +569,77 @@ export async function setBan(
   uid,
   banned
 ) {
-  const value = Boolean(banned);
-
-  await db
-    .collection('users')
-    .doc(uid)
-    .set(
-      {
-        uid,
-        banned: value,
-        updatedAt:
-          FieldValue.serverTimestamp()
-      },
-      {
-        merge: true
-      }
+  if (!uid) {
+    throw new HttpError(
+      400,
+      'UID user wajib diisi.'
     );
+  }
 
-  const seller = await db
-    .collection('sellers')
-    .doc(uid)
-    .get();
+  if (
+    isAdminUid(uid)
+  ) {
+    throw new HttpError(
+      403,
+      'Akun admin utama tidak dapat diban.'
+    );
+  }
 
-  if (seller.exists) {
+  const value =
+    Boolean(banned);
+
+  const userRef =
+    db
+      .collection('users')
+      .doc(uid);
+
+  const userSnap =
+    await userRef.get();
+
+  if (!userSnap.exists) {
+    throw new HttpError(
+      404,
+      'User tidak ditemukan.'
+    );
+  }
+
+  await userRef.set(
+    {
+      uid,
+
+      banned:
+        value,
+
+      updatedAt:
+        FieldValue.serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+
+  const seller =
+    await db
+      .collection('sellers')
+      .doc(uid)
+      .get();
+
+  if (
+    seller.exists
+  ) {
     await seller.ref.update({
-      banned: value,
+      banned:
+        value,
+
       updatedAt:
         FieldValue.serverTimestamp()
     });
   }
 
   return {
-    ok: true
+    ok: true,
+    banned:
+      value
   };
 }
 
@@ -452,24 +650,65 @@ export async function updateUser(
     role
   } = {}
 ) {
+  if (!uid) {
+    throw new HttpError(
+      400,
+      'UID user wajib diisi.'
+    );
+  }
+
+  if (
+    isAdminUid(uid)
+  ) {
+    throw new HttpError(
+      403,
+      'Akun admin utama tidak dapat diubah.'
+    );
+  }
+
+  const userRef =
+    db
+      .collection('users')
+      .doc(uid);
+
+  const userSnap =
+    await userRef.get();
+
+  if (!userSnap.exists) {
+    throw new HttpError(
+      404,
+      'User tidak ditemukan.'
+    );
+  }
+
+  const user =
+    userSnap.data() || {};
+
   const result = {
     ok: true
   };
 
   if (
-    typeof banned === 'boolean'
+    typeof banned ===
+    'boolean'
   ) {
     await setBan(
       uid,
       banned
     );
 
-    result.banned = banned;
+    result.banned =
+      banned;
   }
 
-  if (role) {
+  if (
+    role !== undefined
+  ) {
     if (
-      !['buyer', 'seller'].includes(role)
+      ![
+        'buyer',
+        'seller'
+      ].includes(role)
     ) {
       throw new HttpError(
         400,
@@ -477,31 +716,54 @@ export async function updateUser(
       );
     }
 
-    const sellerRef = db
-      .collection('sellers')
-      .doc(uid);
+    const sellerRef =
+      db
+        .collection('sellers')
+        .doc(uid);
 
-    if (role === 'seller') {
-      const userSnap = await db
-        .collection('users')
-        .doc(uid)
-        .get();
-
-      const user = userSnap.exists
-        ? userSnap.data()
-        : {};
-
+    if (
+      role === 'seller'
+    ) {
       await sellerRef.set(
         {
           uid,
-          email: user.email || '',
-          name: user.name || '',
+
+          email:
+            user.email ||
+            '',
+
+          name:
+            user.name ||
+            '',
+
+          phone:
+            user.phone ||
+            '',
+
+          reason:
+            user.reason ||
+            '',
+
+          description:
+            user.reason ||
+            '',
+
           photoUrl:
-            user.photoUrl || '',
-          status: 'approved',
-          banned: false,
+            user.photoUrl ||
+            user.photoURL ||
+            '',
+
+          status:
+            'approved',
+
+          banned:
+            Boolean(
+              user.banned
+            ),
+
           approvedAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         },
@@ -509,53 +771,107 @@ export async function updateUser(
           merge: true
         }
       );
-    } else {
-      const existing =
+
+      await userRef.set(
+        {
+          role:
+            'seller',
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+    }
+
+    if (
+      role === 'buyer'
+    ) {
+      const sellerSnap =
         await sellerRef.get();
 
-      if (existing.exists) {
+      if (
+        sellerSnap.exists
+      ) {
         await sellerRef.update({
-          status: 'revoked',
+          status:
+            'revoked',
+
           updatedAt:
             FieldValue.serverTimestamp()
         });
       }
+
+      await userRef.set(
+        {
+          role:
+            'buyer',
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
     }
 
-    result.role = role;
+    result.role =
+      role;
   }
 
   return result;
 }
 
-export function isAdminUid(uid) {
-  if (!uid || !ADMIN_UID) {
+export function isAdminUid(
+  uid
+) {
+  if (
+    !uid ||
+    !ADMIN_UID
+  ) {
     return false;
   }
 
-  return String(uid) === ADMIN_UID;
+  return (
+    String(uid) ===
+    ADMIN_UID
+  );
 }
 
-export async function saveSettings(data) {
-  const qrisUrl = String(
-    data?.qrisUrl || ''
-  ).trim();
+export async function saveSettings(
+  data
+) {
+  const qrisUrl =
+    String(
+      data?.qrisUrl ||
+        ''
+    ).trim();
 
-  const maintenanceMode = Boolean(
-    data?.maintenanceMode
-  );
+  const maintenanceMode =
+    Boolean(
+      data?.maintenanceMode
+    );
 
-  const maintenanceTitle = String(
-    data?.maintenanceTitle || ''
-  ).trim();
+  const maintenanceTitle =
+    String(
+      data?.maintenanceTitle ||
+        ''
+    ).trim();
 
-  const maintenanceMessage = String(
-    data?.maintenanceMessage || ''
-  ).trim();
+  const maintenanceMessage =
+    String(
+      data?.maintenanceMessage ||
+        ''
+    ).trim();
 
   if (qrisUrl) {
     try {
-      new URL(qrisUrl);
+      new URL(
+        qrisUrl
+      );
     } catch {
       throw new HttpError(
         400,
@@ -565,14 +881,20 @@ export async function saveSettings(data) {
   }
 
   await db
-    .collection('settings')
+    .collection(
+      'settings'
+    )
     .doc('main')
     .set(
       {
         qrisUrl,
+
         maintenanceMode,
+
         maintenanceTitle,
+
         maintenanceMessage,
+
         updatedAt:
           FieldValue.serverTimestamp()
       },
@@ -584,4 +906,4 @@ export async function saveSettings(data) {
   return {
     ok: true
   };
-}
+      }
