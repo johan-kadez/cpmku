@@ -1,21 +1,25 @@
 const requiredEnv = [
   'FIREBASE_PROJECT_ID',
   'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY'
+  'FIREBASE_PRIVATE_KEY',
+  'ADMIN_UID'
 ];
 
 export const env = {
   projectId: process.env.FIREBASE_PROJECT_ID || '',
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
-  privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
 
-  origin: process.env.PUBLIC_APP_ORIGIN || '*',
+  clientEmail:
+    process.env.FIREBASE_CLIENT_EMAIL || '',
 
-  adminBootstrapSecret:
-    process.env.ADMIN_BOOTSTRAP_SECRET || '',
+  privateKey:
+    (process.env.FIREBASE_PRIVATE_KEY || '')
+      .replace(/\\n/g, '\n'),
 
-  adminBootstrapUid:
-    process.env.ADMIN_BOOTSTRAP_UID || '',
+  origin:
+    process.env.PUBLIC_APP_ORIGIN || '*',
+
+  adminUid:
+    process.env.ADMIN_UID || '',
 
   cloudinary: {
     cloudName:
