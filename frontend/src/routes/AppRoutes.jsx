@@ -1,200 +1,77 @@
-import {
-  Routes,
-  Route,
-  Navigate
-} from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 
-import AppLayout from '../components/layout/AppLayout';
-
-import Home from '../pages/public/Home';
-import Products from '../pages/public/Products';
-import Favorites from '../pages/public/Favorites';
-import Transactions from '../pages/public/Transactions';
-import Profile from '../pages/public/Profile';
-import Help from '../pages/public/Help';
-import ProductDetail from '../pages/public/ProductDetail';
-import SellerPage from '../pages/public/SellerPage';
-
+import Home from '../pages/Home';
+import Products from '../pages/Products';
+import ProductDetail from '../pages/ProductDetail';
 import Login from '../pages/auth/Login';
-import SellerApply from '../pages/auth/SellerApply';
-import SellerLogin from '../pages/auth/SellerLogin';
+import Profile from '../pages/Profile';
+import Transactions from '../pages/Transactions';
+import Favorites from '../pages/Favorites';
 
-import SellerDashboard from '../pages/seller/SellerDashboard';
-import ChatPage from '../pages/chat/ChatPage';
+import ProtectedRoute from './ProtectedRoute';
 
-import AdminLogin from '../pages/admin/AdminLogin';
-import AdminShell from '../pages/admin/AdminShell';
-import Dashboard from '../pages/admin/Dashboard';
+import AdminLogin from '../pages/admin/Login';
+import AdminDashboard from '../pages/admin/Dashboard';
 import Manage from '../pages/admin/Manage';
 import Settings from '../pages/admin/Settings';
-import Rooms from '../pages/admin/Rooms';
-import Users from '../pages/admin/Users';
 
-import { useAuth } from '../context/AuthContext';
-
-function Private({
-  children,
-  roles,
-  loginPath = '/profile'
-}) {
-  const {
-    user,
-    role,
-    loading
-  } = useAuth();
-
-  if (loading) {
-    return null;
-  }
-
-  if (!user) {
-    return (
-      <Navigate
-        to={loginPath}
-        replace
-      />
-    );
-  }
-
-  if (
-    roles &&
-    !roles.includes(role)
-  ) {
-    if (
-      roles.includes('admin')
-    ) {
-      return (
-        <Navigate
-          to="/admin/login"
-          replace
-        />
-      );
-    }
-
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
-    );
-  }
-
-  return children;
-}
+import SellerDashboard from '../pages/seller/Dashboard';
 
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
+
       <Route
-        element={<AppLayout />}
-      >
-        <Route
-          path="/"
-          element={<Home />}
-        />
+        path="/products"
+        element={<Products />}
+      />
 
-        <Route
-          path="/products"
-          element={<Products />}
-        />
+      <Route
+        path="/products/:id"
+        element={<ProductDetail />}
+      />
 
-        <Route
-          path="/favorites"
-          element={<Favorites />}
-        />
+      <Route
+        path="/login"
+        element={<Login />}
+      />
 
-        <Route
-          path="/transactions"
-          element={<Transactions />}
-        />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/profile"
-          element={<Profile />}
-        />
+      <Route
+        path="/transactions"
+        element={
+          <ProtectedRoute>
+            <Transactions />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/help"
-          element={<Help />}
-        />
+      <Route
+        path="/favorites"
+        element={
+          <ProtectedRoute>
+            <Favorites />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/login"
-          element={<Login />}
-        />
-
-        <Route
-          path="/seller/login"
-          element={<SellerLogin />}
-        />
-
-        <Route
-          path="/seller/apply"
-          element={<SellerApply />}
-        />
-
-        <Route
-          path="/seller/dashboard"
-          element={
-            <Private
-              roles={['seller']}
-            >
-              <SellerDashboard />
-            </Private>
-          }
-        />
-
-        <Route
-          path="/product/:id"
-          element={<ProductDetail />}
-        />
-
-        <Route
-          path="/seller/:uid"
-          element={<SellerPage />}
-        />
-
-        <Route
-          path="/chat"
-          element={
-            <Private>
-              <ChatPage />
-            </Private>
-          }
-        />
-
-        <Route
-          path="/chat/:roomId"
-          element={
-            <Private>
-              <ChatPage />
-            </Private>
-          }
-        />
-
-        <Route
-          path="/maintenance"
-          element={
-            <div className="maintenance">
-              <div>
-                <h1>
-                  WEBSITE SEDANG DALAM PEMELIHARAN
-                </h1>
-              </div>
-            </div>
-          }
-        />
-
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to="/"
-              replace
-            />
-          }
-        />
-      </Route>
+      <Route
+        path="/seller/dashboard"
+        element={
+          <ProtectedRoute role="seller">
+            <SellerDashboard />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/admin/login"
@@ -204,74 +81,92 @@ export default function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <Private
-            roles={['admin']}
-            loginPath="/admin/login"
-          >
-            <AdminShell />
-          </Private>
+          <ProtectedRoute role="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
         }
-      >
-        <Route
-          index
-          element={<Dashboard />}
-        />
+      />
 
-        <Route
-          path="sellers"
-          element={
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute role="admin">
             <Manage
-              type="sellers"
-              title="Seller Applications"
+              type="users"
+              title="Users"
             />
-          }
-        />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="products"
-          element={
+      <Route
+        path="/admin/products"
+        element={
+          <ProtectedRoute role="admin">
             <Manage
               type="products"
               title="Products"
             />
-          }
-        />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="orders"
-          element={
+      <Route
+        path="/admin/orders"
+        element={
+          <ProtectedRoute role="admin">
             <Manage
               type="orders"
               title="Orders"
             />
-          }
-        />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="payments"
-          element={
+      <Route
+        path="/admin/payments"
+        element={
+          <ProtectedRoute role="admin">
             <Manage
               type="payments"
               title="Payments"
             />
-          }
-        />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="rooms"
-          element={<Rooms />}
-        />
+      <Route
+        path="/admin/rooms"
+        element={
+          <ProtectedRoute role="admin">
+            <Manage
+              type="rooms"
+              title="Rooms"
+            />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="users"
-          element={<Users />}
-        />
+      <Route
+        path="/admin/sellers"
+        element={
+          <ProtectedRoute role="admin">
+            <Manage
+              type="sellers"
+              title="Seller Applications"
+            />
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="settings"
-          element={<Settings />}
-        />
-      </Route>
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute role="admin">
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }
