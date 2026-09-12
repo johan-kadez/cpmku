@@ -3,6 +3,23 @@ import {
   asyncHandler
 } from '../../src/utils/errors.js';
 
+function setCors(res) {
+  res.setHeader(
+    'Access-Control-Allow-Origin',
+    '*'
+  );
+
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,POST,PATCH,OPTIONS'
+  );
+
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Authorization, Content-Type'
+  );
+}
+
 function setHealthResponse(
   res
 ) {
@@ -69,8 +86,18 @@ async function router(
   req,
   res
 ) {
+  setCors(res);
+
   const method =
     req.method?.toUpperCase();
+
+  if (
+    method === 'OPTIONS'
+  ) {
+    return res
+      .status(204)
+      .end();
+  }
 
   const path =
     getPath(req);
