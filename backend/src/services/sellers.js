@@ -1,109 +1,187 @@
-import { db, FieldValue } from '../firebase/admin.js';
-import { HttpError } from '../utils/errors.js';
+import {
+  db,
+  FieldValue
+} from '../firebase/admin.js';
 
-export async function applySeller(uid, authEmail, data) {
-const seller = await db.collection('sellers').doc(uid).get();
+import {
+  HttpError
+} from '../utils/errors.js';
 
-if (
-seller.exists &&
-seller.data().status === 'approved'
+export async function applySeller(
+  uid,
+  authEmail,
+  data
 ) {
-throw new HttpError(
-409,
-'Akun ini sudah menjadi seller.'
-);
-}
+  if (!uid) {
+    throw new HttpError(
+      401,
+      'Login diperlukan.'
+    );
+  }
 
-const ref = db.collection('registrations').doc(uid);
-const old = await ref.get();
+  const email =
+    String(
+      authEmail || ''
+    )
+      .trim()
+      .toLowerCase();
 
-if (
-old.exists &&
-old.data().status === 'pending'
-) {
-throw new HttpError(
-409,
-'Pengajuan seller masih pending.'
-);
-}
+  if (!email) {
+    throw new HttpError(
+      400,
+      'Email akun Google tidak tersedia.'
+    );
+  }
 
-const name = String(
-data?.name || ''
-).trim();
+  const sellerRef =
+    db
+      .collection('sellers')
+      .doc(uid);
 
-const phone = String(
-data?.phone || ''
-).trim();
+  const registrationRef =
+    db
+      .collection('registrations')
+      .doc(uid);
 
-const email = String(
-data?.email || authEmail || ''
-)
-.trim()
-.toLowerCase();
+  const [
+    sellerSnap,
+    registrationSnap
+  ] = await Promise.all([
+    sellerRef.get(),
+    registrationRef.get()
+  ]);
 
-const reason = String(
-data?.reason || ''
-).trim();
+  if (
+    sellerSnap.exists &&
+    sellerSnap.data()?.status ===
+      'approved'
+  ) {
+    throw new HttpError(
+      409,
+      'Akun ini sudah menjadi seller.'
+    );
+  }
 
-const photoUrl = String(
-data?.photoUrl || ''
-).trim();
+  if (
+    registrationSnap.exists &&
+    registrationSnap.data()?.status ===
+      'pending'
+  ) {
+    throw new HttpError(
+      409,
+      'Pengajuan seller masih pending.'
+    );
+  }
 
-if (
-!name ||
-!phone ||
-!email ||
-!reason ||
-!photoUrl
-) {
-throw new HttpError(
-400,
-'Nama, WhatsApp, email, tujuan, dan URL foto wajib diisi.'
-);
-}
+  const name =
+    String(
+      data?.name || ''
+    ).trim();
 
-try {
-new URL(photoUrl);
-} catch {
-throw new HttpError(
-400,
-'URL foto profile tidak valid.'
-);
-}
+  const phone =
+    String(
+      data?.phone || ''
+    ).trim();
 
-if (
-authEmail &&
-email !== authEmail.toLowerCase()
-) {
-throw new HttpError(
-403,
-'Email seller harus sesuai dengan akun Google yang login.'
-);
-}
+  const reason =
+    String(
+      data?.reason || ''
+    ).trim();
 
-await ref.set(
-{
-uid,
-email,
-name,
-phone,
-reason,
-photoUrl,
-status: 'pending',
-createdAt:
-old.exists
-? old.data().createdAt
-: FieldValue.serverTimestamp(),
-updatedAt:
-FieldValue.serverTimestamp()
-},
-{
-merge: true
-}
-);
+  if (!name) {
+    throw new HttpError(
+      400,
+      'Nama seller wajib diisi.'
+    );
+  }
 
-return {
-ok: true,
-status: 'pending'
-};
+  if (!phone) {
+    throw new HttpError(
+      400,
+      'Nomor WhatsApp wajib diisi.'
+    );
+  }
+
+  if (!reason) {
+    throw new HttpError(
+      400,
+      'Alasan menjadi seller wajib diisi.'
+    );
+  }
+
+  if (name.length > 100) {
+    throw new HttpError(
+      400,
+      'Nama seller maksimal 100 karakter.'
+    );
+  }
+
+  if (phone.length > 30) {
+    throw new HttpError(
+      400,
+      'Nomor WhatsApp maksimal 30 karakter.'
+    );
+  }
+
+  if (reason.length > 1000) {
+    throw new HttpError(
+      400,
+      'Alasan menjadi seller maksimal 1000 karakter.'
+    );
+  }
+
+  const profileSnap =
+    await db
+      .collection('users')
+      .doc(uid)
+      .get();
+
+  const profileData =
+    profileSnap.exists
+      ? profileSnap.data()
+      : {};
+
+  const photoUrl =
+    String(
+      profileData?.photoUrl ||
+      ''
+    ).trim();
+
+  await registrationRef.set(
+    {
+      uid,
+
+      email,
+
+      name,
+
+      phone,
+
+      reason,
+
+      photoUrl,
+
+      status:
+        'pending',
+
+      createdAt:
+        registrationSnap.exists
+          ? registrationSnap.data()
+              ?.createdAt
+          : FieldValue.serverTimestamp(),
+
+      updatedAt:
+        FieldValue.serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+
+  return {
+    ok: true,
+
+    status:
+      'pending'
+  };
 }
