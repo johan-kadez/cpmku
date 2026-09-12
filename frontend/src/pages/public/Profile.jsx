@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../services/api';
 
 export default function Profile() {
@@ -399,4 +399,4 @@ export default function Profile() {
       </div>
     </section>
   );
-        }
+}
