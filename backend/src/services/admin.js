@@ -15,6 +15,10 @@ const COLLECTIONS = {
   users: 'users'
 };
 
+const ADMIN_UID = String(
+  env.adminUid || ''
+).trim();
+
 export async function dashboard() {
   const [
     sellers,
@@ -524,64 +528,12 @@ export async function updateUser(
   return result;
 }
 
-export async function setAdminClaim(
-  uid,
-  isAdmin = true
-) {
-  if (!uid) {
-    throw new HttpError(
-      400,
-      'UID pengguna wajib diisi.'
-    );
+export function isAdminUid(uid) {
+  if (!uid || !ADMIN_UID) {
+    return false;
   }
 
-  let user;
-
-  try {
-    user = await auth.getUser(uid);
-  } catch {
-    throw new HttpError(
-      404,
-      'Pengguna Firebase tidak ditemukan.'
-    );
-  }
-
-  const currentClaims =
-    user.customClaims || {};
-
-  const nextClaims = {
-    ...currentClaims,
-    admin: Boolean(isAdmin)
-  };
-
-  await auth.setCustomUserClaims(
-    uid,
-    nextClaims
-  );
-
-  return {
-    ok: true,
-    uid,
-    email: user.email || '',
-    admin: Boolean(isAdmin)
-  };
-}
-
-export async function bootstrapAdmin() {
-  if (
-    !env.adminBootstrapSecret ||
-    !env.adminBootstrapUid
-  ) {
-    throw new HttpError(
-      503,
-      'Admin bootstrap belum dikonfigurasi.'
-    );
-  }
-
-  return setAdminClaim(
-    env.adminBootstrapUid,
-    true
-  );
+  return String(uid) === ADMIN_UID;
 }
 
 export async function saveSettings(data) {
