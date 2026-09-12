@@ -11,7 +11,7 @@ import ProtectedRoute from './ProtectedRoute';
 
 import Login from '../pages/auth/Login';
 
-import AdminLogin from '../pages/admin/Login';
+import AdminLogin from '../pages/admin/AdminLogin';
 import AdminDashboard from '../pages/admin/Dashboard';
 import Manage from '../pages/admin/Manage';
 import Settings from '../pages/admin/Settings';
