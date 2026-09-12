@@ -2,8 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/api/admin/:path*",
-      "destination": "/api/admin"
+      "source": "/api/cron/cleanup",
+      "destination": "/api/cron/cleanup"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?path=:path*"
     }
   ],
   "crons": [
