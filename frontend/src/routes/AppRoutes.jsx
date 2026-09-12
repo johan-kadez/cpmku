@@ -1,11 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 
-import Home from '../pages/public/Home';
-import Products from '../pages/public/Product';
-import ProductDetail from '../pages/public/ProductDetail';
-import Profile from '../pages/public/Profile';
-import Transactions from '../pages/public/Transactions';
-import Favorites from '../pages/public/Favorite';
+import Home from '../pages/public/home';
+import Products from '../pages/public/product';
+import ProductDetail from '../pages/public/productdetail';
+import Profile from '../pages/public/profile';
+import Transactions from '../pages/public/transactions';
+import Favorites from '../pages/public/favorite';
 
 import ProtectedRoute from './ProtectedRoute';
 
