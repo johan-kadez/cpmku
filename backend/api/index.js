@@ -22,8 +22,10 @@ function setCors(res) {
 function setHealthResponse(res) {
   res.status(200).json({
     ok: true,
+
     service:
       'johan-marketplace-backend',
+
     time:
       new Date().toISOString()
   });
@@ -135,6 +137,7 @@ async function router(
     me,
     profilePhotoSignature,
     profilePhotoUpdate,
+    profileNickname,
     sellerApply,
     productCreate,
     orderCreate,
@@ -166,6 +169,21 @@ async function router(
       res,
       () =>
         me(
+          req,
+          res
+        )
+    );
+  }
+
+  if (
+    path === 'profile/nickname' &&
+    method === 'PATCH'
+  ) {
+    return requireAuth(
+      req,
+      res,
+      () =>
+        profileNickname(
           req,
           res
         )
