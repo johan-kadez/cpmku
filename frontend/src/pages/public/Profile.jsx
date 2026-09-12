@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 
 export default function Profile() {
   const {
@@ -55,10 +55,13 @@ export default function Profile() {
       setNicknameLoading(true);
 
       const result =
-        await api.patch(
+        await api(
           '/profile/nickname',
           {
-            name: value
+            method: 'PATCH',
+            body: JSON.stringify({
+              name: value
+            })
           }
         );
 
@@ -130,12 +133,15 @@ export default function Profile() {
       try {
         setSellerLoading(true);
 
-        await api.post(
+        await api(
           '/sellers/apply',
           {
-            name,
-            phone,
-            reason
+            method: 'POST',
+            body: JSON.stringify({
+              name,
+              phone,
+              reason
+            })
           }
         );
 
