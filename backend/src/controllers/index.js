@@ -1,12 +1,21 @@
-import { ok, created } from '../utils/response.js';
+import {
+  ok,
+  created
+} from '../utils/response.js';
 
 import {
   currentUser,
-  updateProfilePhoto
+  updateProfilePhoto,
+  updateProfileNickname
 } from '../services/auth.js';
 
-import { applySeller } from '../services/sellers.js';
-import { createProduct } from '../services/products.js';
+import {
+  applySeller
+} from '../services/sellers.js';
+
+import {
+  createProduct
+} from '../services/products.js';
 
 import {
   createOrder,
@@ -20,7 +29,9 @@ import {
 
 import * as A from '../services/admin.js';
 
-import { HttpError } from '../utils/errors.js';
+import {
+  HttpError
+} from '../utils/errors.js';
 
 import {
   env,
@@ -35,23 +46,25 @@ const PROFILE_TRANSFORMATION =
 function createCloudinarySignature(
   parameters
 ) {
-  const serialized = Object.entries(
-    parameters
-  )
-    .filter(
-      ([, value]) =>
-        value !== undefined &&
-        value !== null &&
-        value !== ''
+  const serialized =
+    Object.entries(
+      parameters
     )
-    .sort(([a], [b]) =>
-      a.localeCompare(b)
-    )
-    .map(
-      ([key, value]) =>
-        `${key}=${value}`
-    )
-    .join('&');
+      .filter(
+        ([, value]) =>
+          value !== undefined &&
+          value !== null &&
+          value !== ''
+      )
+      .sort(
+        ([a], [b]) =>
+          a.localeCompare(b)
+      )
+      .map(
+        ([key, value]) =>
+          `${key}=${value}`
+      )
+      .join('&');
 
   return crypto
     .createHash('sha1')
@@ -61,15 +74,32 @@ function createCloudinarySignature(
     .digest('hex');
 }
 
-export const me = async (
-  req,
-  res
-) =>
-  ok(res, {
-    user: await currentUser(
-      req.user
-    )
-  });
+export const me =
+  async (req, res) => {
+    return ok(
+      res,
+      {
+        user:
+          await currentUser(
+            req.user
+          )
+      }
+    );
+  };
+
+export const profileNickname =
+  async (req, res) => {
+    const result =
+      await updateProfileNickname(
+        req.user.uid,
+        req.body?.name
+      );
+
+    return ok(
+      res,
+      result
+    );
+  };
 
 export const profilePhotoSignature =
   async (req, res) => {
@@ -97,17 +127,25 @@ export const profilePhotoSignature =
         parameters
       );
 
-    return ok(res, {
-      cloudName:
-        env.cloudinary.cloudName,
-      apiKey:
-        env.cloudinary.apiKey,
-      timestamp,
-      signature,
-      publicId,
-      transformation:
-        PROFILE_TRANSFORMATION
-    });
+    return ok(
+      res,
+      {
+        cloudName:
+          env.cloudinary.cloudName,
+
+        apiKey:
+          env.cloudinary.apiKey,
+
+        timestamp,
+
+        signature,
+
+        publicId,
+
+        transformation:
+          PROFILE_TRANSFORMATION
+      }
+    );
   };
 
 export const profilePhotoUpdate =
@@ -193,15 +231,21 @@ export const profilePhotoUpdate =
 
     const result =
       await updateProfilePhoto({
-        uid: req.user.uid,
+        uid:
+          req.user.uid,
+
         secureUrl,
+
         publicId
       });
 
-    return ok(res, {
-      ok: true,
-      ...result
-    });
+    return ok(
+      res,
+      {
+        ok: true,
+        ...result
+      }
+    );
   };
 
 export const sellerApply =
@@ -254,6 +298,7 @@ export const messageCreate =
         req.query.id,
         {
           ...req.user,
+
           isAdmin:
             req.userRole === 'admin'
         },
@@ -277,23 +322,27 @@ export const dashboard =
       await A.dashboard()
     );
 
-export const list = (type) =>
-  async (req, res) =>
-    ok(
-      res,
-      await A.listCollection(type)
-    );
+export const list =
+  (type) =>
+    async (req, res) =>
+      ok(
+        res,
+        await A.listCollection(
+          type
+        )
+      );
 
-export const status = (type) =>
-  async (req, res) =>
-    ok(
-      res,
-      await A.setStatus(
-        type,
-        req.query.id,
-        req.body?.status
-      )
-    );
+export const status =
+  (type) =>
+    async (req, res) =>
+      ok(
+        res,
+        await A.setStatus(
+          type,
+          req.query.id,
+          req.body?.status
+        )
+      );
 
 export const settings =
   async (req, res) =>
@@ -316,13 +365,18 @@ export const updateUser =
 
 export const health =
   async (req, res) =>
-    ok(res, {
-      ok: true,
-      service:
-        'johan-marketplace-backend',
-      time:
-        new Date().toISOString()
-    });
+    ok(
+      res,
+      {
+        ok: true,
+
+        service:
+          'johan-marketplace-backend',
+
+        time:
+          new Date().toISOString()
+      }
+    );
 
 export const bad = () => {
   throw new HttpError(
