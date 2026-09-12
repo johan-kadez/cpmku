@@ -1,100 +1,88 @@
 import {
   HttpError,
   asyncHandler
-} from "../src/utils/errors.js";
+} from '../../src/utils/errors.js';
 
-function setHealthResponse(res) {
-  return res.status(200).json({
+function setHealthResponse(
+  res
+) {
+  res.status(200).json({
     ok: true,
     service:
-      "johan-marketplace-backend",
+      'johan-marketplace-backend',
     time:
       new Date().toISOString()
   });
 }
 
 function getPath(req) {
-  const url = req.url || "";
+  const rawPath =
+    req.query?.path;
 
-  const questionIndex =
-    url.indexOf("?");
-
-  const pathname =
-    questionIndex === -1
-      ? url
-      : url.slice(
-          0,
-          questionIndex
-        );
-
-  if (pathname === "/api") {
-    return "";
+  if (
+    Array.isArray(rawPath)
+  ) {
+    return rawPath.join('/');
   }
 
-  const apiIndex =
-    pathname.indexOf("/api/");
-
-  if (apiIndex !== -1) {
-    return pathname.slice(
-      apiIndex + 5
-    );
+  if (
+    typeof rawPath === 'string'
+  ) {
+    return rawPath;
   }
 
-  return pathname.replace(
-    /^\/+/,
-    ""
-  );
+  return '';
 }
 
 function getSegments(req) {
-  return getPath(req)
-    .split("/")
+  const path =
+    getPath(req);
+
+  return path
+    .split('/')
+    .map(
+      (segment) =>
+        segment.trim()
+    )
     .filter(Boolean);
 }
 
-async function router(req, res) {
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
+async function getControllers() {
+  return import(
+    '../../src/controllers/index.js'
+  );
+}
+
+async function getAuthMiddleware() {
+  return import(
+    '../../src/middleware/auth.js'
+  );
+}
+
+async function getAdminMiddleware() {
+  return import(
+    '../../src/middleware/admin.js'
+  );
+}
+
+async function router(
+  req,
+  res
+) {
+  const method =
+    req.method?.toUpperCase();
+
+  const path =
+    getPath(req);
 
   const segments =
     getSegments(req);
 
   const resource =
-    segments[0] || "";
-
-  const action =
-    segments[1] || "";
+    segments[0];
 
   const id =
-    segments[2] || "";
-
-  if (!resource) {
-    return setHealthResponse(res);
-  }
-
-  if (
-    resource === "health" &&
-    req.method === "GET"
-  ) {
-    return setHealthResponse(res);
-  }
-
-  const [
-    controllers,
-    authMiddleware,
-    adminMiddleware
-  ] = await Promise.all([
-    import(
-      "../src/controllers/index.js"
-    ),
-    import(
-      "../src/middleware/auth.js"
-    ),
-    import(
-      "../src/middleware/admin.js"
-    )
-  ]);
+    segments[1];
 
   const {
     me,
@@ -111,51 +99,46 @@ async function router(req, res) {
     status,
     settings,
     updateUser,
-    setAdminClaim,
-    bootstrapAdmin,
+    health,
     bad
-  } = controllers;
+  } = await getControllers();
 
   const {
     requireAuth
-  } = authMiddleware;
+  } = await getAuthMiddleware();
 
   const {
     requireAdmin
-  } = adminMiddleware;
-
-  const LISTABLE = [
-    "orders",
-    "payments",
-    "products",
-    "rooms",
-    "sellers",
-    "users"
-  ];
-
-  const STATUSABLE = [
-    "orders",
-    "payments",
-    "products",
-    "rooms",
-    "sellers"
-  ];
+  } = await getAdminMiddleware();
 
   if (
-    resource === "me" &&
-    req.method === "GET"
+    path === 'health' &&
+    method === 'GET'
   ) {
-    return requireAuth(
-      req,
-      res,
-      () => me(req, res)
+    return setHealthResponse(
+      res
     );
   }
 
   if (
-    resource === "profile-photo" &&
-    action === "signature" &&
-    req.method === "GET"
+    path === 'me' &&
+    method === 'GET'
+  ) {
+    return requireAuth(
+      req,
+      res,
+      () =>
+        me(
+          req,
+          res
+        )
+    );
+  }
+
+  if (
+    path ===
+      'profile/photo/signature' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -169,8 +152,9 @@ async function router(req, res) {
   }
 
   if (
-    resource === "profile-photo" &&
-    req.method === "POST"
+    path ===
+      'profile/photo/update' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -184,9 +168,9 @@ async function router(req, res) {
   }
 
   if (
-    resource === "seller" &&
-    action === "apply" &&
-    req.method === "POST"
+    path ===
+      'seller/apply' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -200,9 +184,9 @@ async function router(req, res) {
   }
 
   if (
-    resource === "products" &&
-    req.method === "POST" &&
-    !action
+    path ===
+      'products' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -216,9 +200,9 @@ async function router(req, res) {
   }
 
   if (
-    resource === "orders" &&
-    req.method === "POST" &&
-    !action
+    path ===
+      'orders' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -232,9 +216,9 @@ async function router(req, res) {
   }
 
   if (
-    resource === "orders" &&
-    action === "done" &&
-    req.method === "POST"
+    path ===
+      'orders/done' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -248,9 +232,11 @@ async function router(req, res) {
   }
 
   if (
-    resource === "rooms" &&
-    action === "message" &&
-    req.method === "POST"
+    resource === 'rooms' &&
+    id &&
+    segments[2] ===
+      'messages' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -264,9 +250,11 @@ async function router(req, res) {
   }
 
   if (
-    resource === "rooms" &&
-    action === "call" &&
-    req.method === "POST"
+    resource === 'rooms' &&
+    id &&
+    segments[2] ===
+      'call' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -280,20 +268,9 @@ async function router(req, res) {
   }
 
   if (
-    resource === "admin" &&
-    action === "bootstrap" &&
-    req.method === "POST"
-  ) {
-    return bootstrapAdmin(
-      req,
-      res
-    );
-  }
-
-  if (
-    resource === "admin" &&
-    action === "dashboard" &&
-    req.method === "GET"
+    path ===
+      'admin/dashboard' &&
+    method === 'GET'
   ) {
     return requireAuth(
       req,
@@ -312,9 +289,9 @@ async function router(req, res) {
   }
 
   if (
-    resource === "admin" &&
-    action === "settings" &&
-    req.method === "POST"
+    path ===
+      'admin/settings' &&
+    method === 'POST'
   ) {
     return requireAuth(
       req,
@@ -332,40 +309,35 @@ async function router(req, res) {
     );
   }
 
-  if (
-    resource === "admin" &&
-    action === "users" &&
-    id &&
-    req.method === "POST"
-  ) {
-    req.query.id = id;
+  const LISTABLE = [
+    'orders',
+    'payments',
+    'products',
+    'rooms',
+    'sellers',
+    'users'
+  ];
 
-    if (
-      segments[3] ===
-      "admin-claim"
-    ) {
-      return requireAuth(
-        req,
-        res,
-        () =>
-          requireAdmin(
-            req,
-            res,
-            () =>
-              setAdminClaim(
-                req,
-                res
-              )
-          )
-      );
-    }
-  }
+  const STATUSABLE = [
+    'orders',
+    'payments',
+    'products',
+    'rooms',
+    'sellers'
+  ];
 
   if (
-    resource === "admin" &&
-    LISTABLE.includes(action) &&
-    req.method === "GET"
+    resource === 'admin' &&
+    segments[1] ===
+      'list' &&
+    LISTABLE.includes(
+      segments[2]
+    ) &&
+    method === 'GET'
   ) {
+    const type =
+      segments[2];
+
     return requireAuth(
       req,
       res,
@@ -374,7 +346,7 @@ async function router(req, res) {
           req,
           res,
           () =>
-            list(action)(
+            list(type)(
               req,
               res
             )
@@ -383,13 +355,40 @@ async function router(req, res) {
   }
 
   if (
-    resource === "admin" &&
-    action === "users" &&
-    id &&
-    req.method === "PATCH"
+    resource === 'admin' &&
+    segments[1] ===
+      'status' &&
+    STATUSABLE.includes(
+      segments[2]
+    ) &&
+    method === 'PATCH'
   ) {
-    req.query.id = id;
+    const type =
+      segments[2];
 
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireAdmin(
+          req,
+          res,
+          () =>
+            status(type)(
+              req,
+              res
+            )
+        )
+    );
+  }
+
+  if (
+    resource === 'admin' &&
+    segments[1] ===
+      'users' &&
+    id &&
+    method === 'PATCH'
+  ) {
     return requireAuth(
       req,
       res,
@@ -407,32 +406,10 @@ async function router(req, res) {
   }
 
   if (
-    resource === "admin" &&
-    STATUSABLE.includes(action) &&
-    id &&
-    req.method === "PATCH"
-  ) {
-    req.query.id = id;
-
-    return requireAuth(
-      req,
-      res,
-      () =>
-        requireAdmin(
-          req,
-          res,
-          () =>
-            status(action)(
-              req,
-              res
-            )
-        )
-    );
-  }
-
-  if (
-    LISTABLE.includes(resource) &&
-    req.method === "GET"
+    LISTABLE.includes(
+      resource
+    ) &&
+    method === 'GET'
   ) {
     return requireAuth(
       req,
@@ -446,12 +423,11 @@ async function router(req, res) {
   }
 
   if (
-    STATUSABLE.includes(resource) &&
-    action &&
-    req.method === "PATCH"
+    STATUSABLE.includes(
+      resource
+    ) &&
+    method === 'PATCH'
   ) {
-    req.query.id = action;
-
     return requireAuth(
       req,
       res,
@@ -463,7 +439,10 @@ async function router(req, res) {
     );
   }
 
-  return bad();
+  return bad(
+    req,
+    res
+  );
 }
 
 export default asyncHandler(
