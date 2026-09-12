@@ -1,5 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 
+import AppLayout from '../components/layout/AppLayout';
+
 import Home from '../pages/public/Home';
 import Products from '../pages/public/Products';
 import ProductDetail from '../pages/public/ProductDetail';
@@ -22,56 +24,58 @@ export default function AppRoutes() {
   return (
     <Routes>
 
-      {/* PUBLIC */}
+      {/* PUBLIC + BUYER */}
 
-      <Route
-        path="/"
-        element={<Home />}
-      />
+      <Route element={<AppLayout />}>
 
-      <Route
-        path="/products"
-        element={<Products />}
-      />
+        <Route
+          path="/"
+          element={<Home />}
+        />
 
-      <Route
-        path="/products/:id"
-        element={<ProductDetail />}
-      />
+        <Route
+          path="/products"
+          element={<Products />}
+        />
 
-      {/* BUYER */}
+        <Route
+          path="/products/:id"
+          element={<ProductDetail />}
+        />
 
-      <Route
-        path="/login"
-        element={<Login />}
-      />
+        <Route
+          path="/login"
+          element={<Login />}
+        />
 
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/transactions"
-        element={
-          <ProtectedRoute>
-            <Transactions />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute>
+              <Transactions />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/favorites"
-        element={
-          <ProtectedRoute>
-            <Favorites />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/favorites"
+          element={
+            <ProtectedRoute>
+              <Favorites />
+            </ProtectedRoute>
+          }
+        />
+
+      </Route>
 
       {/* ADMIN */}
 
