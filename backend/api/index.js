@@ -1,5 +1,4 @@
 import {
-  HttpError,
   asyncHandler
 } from '../src/utils/errors.js';
 
@@ -62,7 +61,14 @@ function getSegments(req) {
     .filter(Boolean);
 }
 
-function setQueryId(req, id) {
+function setQueryId(
+  req,
+  id
+) {
+  if (!id) {
+    return;
+  }
+
   req.query = {
     ...(req.query || {}),
     id
@@ -140,7 +146,6 @@ async function router(
     status,
     settings,
     updateUser,
-    health,
     bad
   } = await getControllers();
 
@@ -216,8 +221,7 @@ async function router(
   }
 
   if (
-    path ===
-      'products' &&
+    path === 'products' &&
     method === 'POST'
   ) {
     return requireAuth(
@@ -232,8 +236,7 @@ async function router(
   }
 
   if (
-    path ===
-      'orders' &&
+    path === 'orders' &&
     method === 'POST'
   ) {
     return requireAuth(
@@ -337,7 +340,10 @@ async function router(
   if (
     path ===
       'admin/settings' &&
-    method === 'POST'
+    (
+      method === 'POST' ||
+      method === 'PATCH'
+    )
   ) {
     return requireAuth(
       req,
@@ -439,6 +445,15 @@ async function router(
     const type =
       segments[2];
 
+    const statusId =
+      segments[3] ||
+      req.query?.id;
+
+    setQueryId(
+      req,
+      statusId
+    );
+
     return requireAuth(
       req,
       res,
@@ -506,6 +521,12 @@ async function router(
     ) &&
     method === 'PATCH'
   ) {
+    setQueryId(
+      req,
+      id ||
+        req.query?.id
+    );
+
     return requireAuth(
       req,
       res,
