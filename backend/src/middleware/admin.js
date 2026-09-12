@@ -1,5 +1,5 @@
-import { db } from '../firebase/admin.js';
 import { HttpError } from '../utils/errors.js';
+import { env } from '../config/env.js';
 
 export async function requireAdmin(
   req,
@@ -15,15 +15,18 @@ export async function requireAdmin(
     );
   }
 
-  const adminDoc = await db
-    .collection('admins')
-    .doc(uid)
-    .get();
+  const adminUid = String(
+    env.adminUid || ''
+  ).trim();
 
-  if (
-    !adminDoc.exists ||
-    adminDoc.data()?.enabled !== true
-  ) {
+  if (!adminUid) {
+    throw new HttpError(
+      500,
+      'ADMIN_UID belum dikonfigurasi.'
+    );
+  }
+
+  if (String(uid) !== adminUid) {
     throw new HttpError(
       403,
       'Akses admin ditolak.'
