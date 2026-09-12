@@ -62,6 +62,11 @@ export async function currentUser(user) {
     profile.exists
       ? profile.data()
       : {
+          name:
+            user.name ||
+            email.split('@')[0] ||
+            'User',
+
           photoUrl:
             user.picture || '',
 
@@ -82,15 +87,20 @@ export async function currentUser(user) {
     role = 'seller';
   }
 
+  const nickname =
+    profileData?.name ||
+    user.name ||
+    email.split('@')[0] ||
+    'User';
+
   return {
     uid: user.uid,
 
     email,
 
-    name:
-      user.name ||
-      email.split('@')[0] ||
-      'User',
+    name: nickname,
+
+    nickname,
 
     role,
 
