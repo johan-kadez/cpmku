@@ -62,6 +62,13 @@ function getSegments(req) {
     .filter(Boolean);
 }
 
+function setQueryId(req, id) {
+  req.query = {
+    ...(req.query || {}),
+    id
+  };
+}
+
 async function getControllers() {
   return import(
     '../src/controllers/index.js'
@@ -263,6 +270,11 @@ async function router(
       'messages' &&
     method === 'POST'
   ) {
+    setQueryId(
+      req,
+      id
+    );
+
     return requireAuth(
       req,
       res,
@@ -277,10 +289,19 @@ async function router(
   if (
     resource === 'rooms' &&
     id &&
-    segments[2] ===
-      'call' &&
+    (
+      segments[2] ===
+        'call' ||
+      segments[2] ===
+        'call-seller'
+    ) &&
     method === 'POST'
   ) {
+    setQueryId(
+      req,
+      id
+    );
+
     return requireAuth(
       req,
       res,
@@ -381,6 +402,33 @@ async function router(
 
   if (
     resource === 'admin' &&
+    LISTABLE.includes(
+      segments[1]
+    ) &&
+    !segments[2] &&
+    method === 'GET'
+  ) {
+    const type =
+      segments[1];
+
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireAdmin(
+          req,
+          res,
+          () =>
+            list(type)(
+              req,
+              res
+            )
+        )
+    );
+  }
+
+  if (
+    resource === 'admin' &&
     segments[1] ===
       'status' &&
     STATUSABLE.includes(
@@ -414,6 +462,11 @@ async function router(
     id &&
     method === 'PATCH'
   ) {
+    setQueryId(
+      req,
+      id
+    );
+
     return requireAuth(
       req,
       res,
