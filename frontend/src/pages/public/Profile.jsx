@@ -134,7 +134,7 @@ export default function Profile() {
         setSellerLoading(true);
 
         await api(
-          '/sellers/apply',
+          '/seller/apply',
           {
             method: 'POST',
             body: JSON.stringify({
