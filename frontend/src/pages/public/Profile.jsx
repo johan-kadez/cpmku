@@ -37,9 +37,7 @@ export default function Profile() {
   const isSeller =
     role === 'seller';
 
-  const saveNickname = async (
-    event
-  ) => {
+  const saveNickname = async (event) => {
     event.preventDefault();
 
     const value =
@@ -74,6 +72,10 @@ export default function Profile() {
         user.name =
           result.name;
       }
+
+      setNickname(
+        result?.name || value
+      );
 
       alert(
         'Nickname berhasil diubah.'
@@ -158,6 +160,10 @@ export default function Profile() {
     <section className="profile-page">
       <div className="profile-card">
 
+        {/* ========================= */}
+        {/* PROFILE HEADER */}
+        {/* ========================= */}
+
         <div className="profile-header">
 
           <img
@@ -223,6 +229,8 @@ export default function Profile() {
                     'Gagal mengubah profile photo.'
                   );
                 }
+
+                event.target.value = '';
               }}
             />
           </label>
@@ -260,6 +268,7 @@ export default function Profile() {
                   }
                   maxLength={30}
                   placeholder="Masukkan nickname"
+                  required
                 />
               </label>
 
@@ -316,6 +325,7 @@ export default function Profile() {
                     )
                   }
                   required
+                  maxLength={100}
                   placeholder="Nama seller"
                 />
               </label>
@@ -332,6 +342,7 @@ export default function Profile() {
                     )
                   }
                   required
+                  maxLength={30}
                   placeholder="08xxxxxxxxxx"
                 />
               </label>
@@ -347,6 +358,7 @@ export default function Profile() {
                     )
                   }
                   required
+                  maxLength={1000}
                   placeholder="Jelaskan alasan ingin menjadi seller"
                   rows={5}
                 />
@@ -370,7 +382,7 @@ export default function Profile() {
         )}
 
         {/* ========================= */}
-        {/* SELLER */}
+        {/* SELLER PROFILE */}
         {/* ========================= */}
 
         {isSeller && (
