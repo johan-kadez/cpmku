@@ -21,6 +21,7 @@ import {
 import * as A from '../services/admin.js';
 
 import { HttpError } from '../utils/errors.js';
+
 import {
   env,
   assertCloudinaryEnv
@@ -312,51 +313,6 @@ export const updateUser =
         req.body || {}
       )
     );
-
-export const setAdminClaim =
-  async (req, res) =>
-    ok(
-      res,
-      await A.setAdminClaim(
-        req.query.id,
-        req.body?.admin !== false
-      )
-    );
-
-export const bootstrapAdmin =
-  async (req, res) => {
-    const suppliedSecret =
-      String(
-        req.headers[
-          'x-admin-bootstrap-secret'
-        ] || ''
-      );
-
-    if (
-      !env.adminBootstrapSecret ||
-      !suppliedSecret
-    ) {
-      throw new HttpError(
-        403,
-        'Admin bootstrap ditolak.'
-      );
-    }
-
-    if (
-      suppliedSecret !==
-      env.adminBootstrapSecret
-    ) {
-      throw new HttpError(
-        403,
-        'Admin bootstrap ditolak.'
-      );
-    }
-
-    return ok(
-      res,
-      await A.bootstrapAdmin()
-    );
-  };
 
 export const health =
   async (req, res) =>
