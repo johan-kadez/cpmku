@@ -1,11 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 
-import Home from '../pages/public/home';
-import Products from '../pages/public/product';
-import ProductDetail from '../pages/public/productdetail';
-import Profile from '../pages/public/profile';
-import Transactions from '../pages/public/transactions';
-import Favorites from '../pages/public/favorite';
+import Home from '../pages/public/Home';
+import Products from '../pages/public/Products';
+import ProductDetail from '../pages/public/ProductDetail';
+import Profile from '../pages/public/Profile';
+import Transactions from '../pages/public/Transactions';
+import Favorites from '../pages/public/Favorites';
 
 import ProtectedRoute from './ProtectedRoute';
 
@@ -16,13 +16,14 @@ import AdminDashboard from '../pages/admin/Dashboard';
 import Manage from '../pages/admin/Manage';
 import Settings from '../pages/admin/Settings';
 
-import SellerDashboard from '../pages/seller/Dashboard';
+import SellerDashboard from '../pages/seller/SellerDashboard';
 
 export default function AppRoutes() {
   return (
     <Routes>
 
       {/* PUBLIC */}
+
       <Route
         path="/"
         element={<Home />}
@@ -39,6 +40,7 @@ export default function AppRoutes() {
       />
 
       {/* BUYER */}
+
       <Route
         path="/login"
         element={<Login />}
@@ -72,6 +74,7 @@ export default function AppRoutes() {
       />
 
       {/* ADMIN */}
+
       <Route
         path="/admin/login"
         element={<AdminLogin />}
@@ -105,6 +108,7 @@ export default function AppRoutes() {
       />
 
       {/* SELLER */}
+
       <Route
         path="/seller"
         element={
@@ -115,6 +119,7 @@ export default function AppRoutes() {
       />
 
       {/* 404 */}
+
       <Route
         path="*"
         element={
