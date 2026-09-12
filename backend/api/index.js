@@ -20,9 +20,7 @@ function setCors(res) {
   );
 }
 
-function setHealthResponse(
-  res
-) {
+function setHealthResponse(res) {
   res.status(200).json({
     ok: true,
     service:
@@ -102,6 +100,15 @@ async function router(
   const path =
     getPath(req);
 
+  if (
+    path === 'health' &&
+    method === 'GET'
+  ) {
+    return setHealthResponse(
+      res
+    );
+  }
+
   const segments =
     getSegments(req);
 
@@ -137,15 +144,6 @@ async function router(
   const {
     requireAdmin
   } = await getAdminMiddleware();
-
-  if (
-    path === 'health' &&
-    method === 'GET'
-  ) {
-    return setHealthResponse(
-      res
-    );
-  }
 
   if (
     path === 'me' &&
