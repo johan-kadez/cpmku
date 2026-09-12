@@ -5,38 +5,83 @@ const requiredEnv = [
   'ADMIN_UID'
 ];
 
+function normalizePrivateKey(value) {
+  let key = String(value || '').trim();
+
+  if (
+    key.startsWith('"') &&
+    key.endsWith('"')
+  ) {
+    key = key.slice(1, -1);
+  }
+
+  if (
+    key.startsWith("'") &&
+    key.endsWith("'")
+  ) {
+    key = key.slice(1, -1);
+  }
+
+  key = key
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r');
+
+  return key.trim();
+}
+
 export const env = {
-  projectId: process.env.FIREBASE_PROJECT_ID || '',
+  projectId:
+    String(
+      process.env.FIREBASE_PROJECT_ID || ''
+    ).trim(),
 
   clientEmail:
-    process.env.FIREBASE_CLIENT_EMAIL || '',
+    String(
+      process.env.FIREBASE_CLIENT_EMAIL || ''
+    ).trim(),
 
   privateKey:
-    (process.env.FIREBASE_PRIVATE_KEY || '')
-      .replace(/\\n/g, '\n'),
+    normalizePrivateKey(
+      process.env.FIREBASE_PRIVATE_KEY
+    ),
 
   origin:
-    process.env.PUBLIC_APP_ORIGIN || '*',
+    String(
+      process.env.PUBLIC_APP_ORIGIN || '*'
+    ).trim(),
 
   adminUid:
-    process.env.ADMIN_UID || '',
+    String(
+      process.env.ADMIN_UID || ''
+    ).trim(),
 
   cloudinary: {
     cloudName:
-      process.env.CLOUDINARY_CLOUD_NAME || '',
+      String(
+        process.env.CLOUDINARY_CLOUD_NAME || ''
+      ).trim(),
 
     apiKey:
-      process.env.CLOUDINARY_API_KEY || '',
+      String(
+        process.env.CLOUDINARY_API_KEY || ''
+      ).trim(),
 
     apiSecret:
-      process.env.CLOUDINARY_API_SECRET || ''
+      String(
+        process.env.CLOUDINARY_API_SECRET || ''
+      ).trim()
   }
 };
 
 export function assertEnv() {
-  const missing = requiredEnv.filter(
-    (key) => !process.env[key]
-  );
+  const missing =
+    requiredEnv.filter(
+      (key) =>
+        !String(
+          process.env[key] || ''
+        ).trim()
+    );
 
   if (missing.length) {
     throw new Error(
@@ -49,15 +94,21 @@ export function assertCloudinaryEnv() {
   const missing = [];
 
   if (!env.cloudinary.cloudName) {
-    missing.push('CLOUDINARY_CLOUD_NAME');
+    missing.push(
+      'CLOUDINARY_CLOUD_NAME'
+    );
   }
 
   if (!env.cloudinary.apiKey) {
-    missing.push('CLOUDINARY_API_KEY');
+    missing.push(
+      'CLOUDINARY_API_KEY'
+    );
   }
 
   if (!env.cloudinary.apiSecret) {
-    missing.push('CLOUDINARY_API_SECRET');
+    missing.push(
+      'CLOUDINARY_API_SECRET'
+    );
   }
 
   if (missing.length) {
