@@ -68,6 +68,11 @@ export default function Manage({
     setExpandedId
   ] = useState(null);
 
+  const [
+    confirmState,
+    setConfirmState
+  ] = useState(null);
+
   const load = async () => {
     try {
       setError('');
@@ -97,19 +102,18 @@ export default function Manage({
     id,
     status
   ) => {
-    if (
-      type === 'orders'
-    ) {
-      const confirmed =
-        window.confirm(
-          'Batalkan transaksi ini?'
-        );
-
-      if (!confirmed) {
-        return;
-      }
+    if (type === 'orders') {
+      setConfirmState({ id, status });
+      return;
     }
 
+    await executeAction(id, status);
+  };
+
+  const executeAction = async (
+    id,
+    status
+  ) => {
     try {
       setError('');
 
@@ -126,11 +130,25 @@ export default function Manage({
 
       await load();
     } catch (error) {
-      alert(
+      setError(
         error?.message ||
         'Gagal memperbarui status.'
       );
     }
+  };
+
+  const closeConfirm = () => {
+    setConfirmState(null);
+  };
+
+  const confirmAction = async () => {
+    if (!confirmState) {
+      return;
+    }
+
+    const { id, status } = confirmState;
+    setConfirmState(null);
+    await executeAction(id, status);
   };
 
   const toggleExpand = (
@@ -182,6 +200,56 @@ export default function Manage({
       {error && (
         <div className="notice error">
           {error}
+        </div>
+      )}
+
+      {confirmState && (
+        <div
+          role="presentation"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            background: 'rgba(0,0,0,0.68)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)'
+          }}
+          onClick={closeConfirm}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manage-confirm-title"
+            style={{
+              width: 'min(100%, 420px)',
+              boxSizing: 'border-box',
+              padding: 22,
+              borderRadius: 18,
+              background: 'rgba(20,24,32,0.96)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.45)'
+            }}
+            onClick={event => event.stopPropagation()}
+          >
+            <h3 id="manage-confirm-title" style={{ margin: '0 0 8px' }}>
+              Konfirmasi
+            </h3>
+            <p style={{ margin: '0 0 20px', opacity: 0.72 }}>
+              Batalkan transaksi ini?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" onClick={closeConfirm}>
+                Batal
+              </button>
+              <button type="button" onClick={confirmAction}>
+                Ya, batalkan
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
