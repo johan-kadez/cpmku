@@ -15,6 +15,36 @@ import {
   rupiah
 } from '../../utils/format';
 
+function getProductImages(
+  product
+) {
+  if (
+    Array.isArray(
+      product?.images
+    ) &&
+    product.images.length > 0
+  ) {
+    return product.images
+      .map(
+        image =>
+          typeof image === 'string'
+            ? image
+            : image?.url
+      )
+      .filter(Boolean);
+  }
+
+  if (
+    product?.imageUrl
+  ) {
+    return [
+      product.imageUrl
+    ];
+  }
+
+  return [];
+}
+
 export default function ProductCard({
   product
 }) {
@@ -32,9 +62,17 @@ export default function ProductCard({
       product.id
     );
 
+  const images =
+    getProductImages(
+      product
+    );
+
+  const cover =
+    images[0] || '';
+
   const fav =
-    async (e) => {
-      e.preventDefault();
+    async event => {
+      event.preventDefault();
 
       if (!user) {
         return alert(
@@ -48,9 +86,9 @@ export default function ProductCard({
           product,
           saved
         );
-      } catch (err) {
+      } catch (error) {
         alert(
-          err.message
+          error.message
         );
       }
     };
@@ -60,10 +98,26 @@ export default function ProductCard({
       <Link
         to={`/products/${product.id}`}
       >
-        <img
-          src={product.imageUrl}
-          alt={product.title}
-        />
+        {cover ? (
+          <img
+            src={cover}
+            alt={product.title}
+            loading="lazy"
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              aspectRatio: '1.15',
+              display: 'grid',
+              placeItems: 'center',
+              background: '#222',
+              color: '#888'
+            }}
+          >
+            Foto tidak tersedia
+          </div>
+        )}
       </Link>
 
       <div className="product-body">
@@ -73,7 +127,8 @@ export default function ProductCard({
               product.status ===
               'in_transaction'
                 ? 'Ordered'
-                : product.status === 'sold'
+                : product.status ===
+                    'sold'
                   ? 'Sold'
                   : `Stock ${product.stock}`
             }
@@ -81,7 +136,9 @@ export default function ProductCard({
 
           <button
             className={`heart ${
-              saved ? 'saved' : ''
+              saved
+                ? 'saved'
+                : ''
             }`}
             onClick={fav}
             aria-label="Favorite"
@@ -91,16 +148,32 @@ export default function ProductCard({
         </div>
 
         <h3>
-          {product.title}
+          {
+            product.title
+          }
         </h3>
 
         <strong>
-          {rupiah(product.price)}
+          {
+            rupiah(
+              product.price
+            )
+          }
         </strong>
 
         <p className="muted">
-          {product.sellerName || 'Seller'}
+          {
+            product.sellerName ||
+            'Seller'
+          }
         </p>
+
+        {images.length >
+          1 && (
+          <p className="muted">
+            {images.length} foto
+          </p>
+        )}
 
         <Link
           className="button"
