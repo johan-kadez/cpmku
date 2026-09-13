@@ -14,7 +14,10 @@ import {
 } from '../services/sellers.js';
 
 import {
-  createProduct
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  PRODUCT_IMAGE_PREFIX
 } from '../services/products.js';
 
 import {
@@ -251,6 +254,48 @@ export const profilePhotoUpdate =
     );
   };
 
+export const productPhotoSignature =
+  async (req, res) => {
+    assertCloudinaryEnv();
+
+    const timestamp =
+      Math.floor(
+        Date.now() / 1000
+      );
+
+    const publicId =
+      `${PRODUCT_IMAGE_PREFIX}${req.user.uid}/${crypto.randomUUID()}`;
+
+    const parameters = {
+      public_id:
+        publicId,
+
+      timestamp
+    };
+
+    const signature =
+      createCloudinarySignature(
+        parameters
+      );
+
+    return ok(
+      res,
+      {
+        cloudName:
+          env.cloudinary.cloudName,
+
+        apiKey:
+          env.cloudinary.apiKey,
+
+        timestamp,
+
+        signature,
+
+        publicId
+      }
+    );
+  };
+
 export const sellerApply =
   async (req, res) =>
     created(
@@ -270,6 +315,28 @@ export const productCreate =
         req.user.uid,
         req.seller,
         req.body
+      )
+    );
+
+export const productUpdate =
+  async (req, res) =>
+    ok(
+      res,
+      await updateProduct(
+        req.user.uid,
+        req.seller,
+        req.query.id,
+        req.body || {}
+      )
+    );
+
+export const productDelete =
+  async (req, res) =>
+    ok(
+      res,
+      await deleteProduct(
+        req.user.uid,
+        req.query.id
       )
     );
 
