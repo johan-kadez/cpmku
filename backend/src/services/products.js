@@ -3,6 +3,7 @@ import {
   db,
   FieldValue
 } from '../firebase/admin.js';
+import { env } from '../config/env.js';
 import { HttpError } from '../utils/errors.js';
 import {
   destroyCloudinaryImages
@@ -33,6 +34,61 @@ function normalizeImages(product) {
   return [];
 }
 
+function verifyCloudinarySignature(
+  publicId,
+  version,
+  signature
+) {
+  if (
+    !/^\d+$/.test(version)
+  ) {
+    return false;
+  }
+
+  if (
+    !/^[a-f0-9]{40}$/i.test(signature)
+  ) {
+    return false;
+  }
+
+  if (
+    !env.cloudinary.apiSecret
+  ) {
+    return false;
+  }
+
+  const expected = crypto
+    .createHash('sha1')
+    .update(
+      `public_id=${publicId}&version=${version}${env.cloudinary.apiSecret}`
+    )
+    .digest('hex');
+
+  const expectedBuffer =
+    Buffer.from(
+      expected,
+      'utf8'
+    );
+
+  const receivedBuffer =
+    Buffer.from(
+      signature.toLowerCase(),
+      'utf8'
+    );
+
+  if (
+    expectedBuffer.length !==
+    receivedBuffer.length
+  ) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(
+    expectedBuffer,
+    receivedBuffer
+  );
+}
+
 function validateImages(
   uid,
   images
@@ -60,6 +116,9 @@ function validateImages(
 
   const prefix =
     `${PRODUCT_IMAGE_PREFIX}${uid}/`;
+
+  const cloudinaryUrlPrefix =
+    `https://res.cloudinary.com/${env.cloudinary.cloudName}/image/upload/`;
 
   return images.map(
     (image, index) => {
@@ -127,13 +186,45 @@ function validateImages(
       }
 
       if (
+        publicId.length <=
+        prefix.length
+      ) {
+        throw new HttpError(
+          400,
+          'Public ID foto produk tidak valid.'
+        );
+      }
+
+      if (
+        !env.cloudinary.cloudName
+      ) {
+        throw new HttpError(
+          500,
+          'Konfigurasi Cloudinary belum lengkap.'
+        );
+      }
+
+      if (
         !url.startsWith(
-          'https://res.cloudinary.com/'
+          cloudinaryUrlPrefix
         )
       ) {
         throw new HttpError(
           400,
-          'URL foto produk tidak valid.'
+          'URL foto produk tidak berasal dari Cloudinary yang valid.'
+        );
+      }
+
+      if (
+        !verifyCloudinarySignature(
+          publicId,
+          version,
+          signature
+        )
+      ) {
+        throw new HttpError(
+          400,
+          `Signature foto produk ke-${index + 1} tidak valid.`
         );
       }
 
@@ -422,16 +513,6 @@ export async function updateProduct(
       existing
     );
 
-  const oldPublicIds =
-    new Set(
-      oldImages
-        .map(
-          image =>
-            image?.publicId
-        )
-        .filter(Boolean)
-    );
-
   const newPublicIds =
     new Set(
       images
@@ -480,7 +561,9 @@ export async function updateProduct(
       productData.category,
 
     sellerName:
-      seller?.name || existing.sellerName || '',
+      seller?.name ||
+      existing.sellerName ||
+      '',
 
     sellerPhotoUrl:
       seller?.photoUrl ||
