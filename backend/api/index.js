@@ -10,7 +10,7 @@ function setCors(res) {
 
   res.setHeader(
     'Access-Control-Allow-Methods',
-    'GET,POST,PATCH,OPTIONS'
+    'GET,POST,PATCH,DELETE,OPTIONS'
   );
 
   res.setHeader(
@@ -95,6 +95,12 @@ async function getAdminMiddleware() {
   );
 }
 
+async function getSellerMiddleware() {
+  return import(
+    '../src/middleware/seller.js'
+  );
+}
+
 async function router(
   req,
   res
@@ -138,8 +144,11 @@ async function router(
     profilePhotoSignature,
     profilePhotoUpdate,
     profileNickname,
+    productPhotoSignature,
     sellerApply,
     productCreate,
+    productUpdate,
+    productDelete,
     orderCreate,
     orderDone,
     messageCreate,
@@ -159,6 +168,10 @@ async function router(
   const {
     requireAdmin
   } = await getAdminMiddleware();
+
+  const {
+    requireSeller
+  } = await getSellerMiddleware();
 
   if (
     path === 'me' &&
@@ -224,6 +237,27 @@ async function router(
 
   if (
     path ===
+      'products/images/signature' &&
+    method === 'POST'
+  ) {
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireSeller(
+          req,
+          res,
+          () =>
+            productPhotoSignature(
+              req,
+              res
+            )
+        )
+    );
+  }
+
+  if (
+    path ===
       'seller/apply' &&
     method === 'POST'
   ) {
@@ -246,9 +280,66 @@ async function router(
       req,
       res,
       () =>
-        productCreate(
+        requireSeller(
           req,
-          res
+          res,
+          () =>
+            productCreate(
+              req,
+              res
+            )
+        )
+    );
+  }
+
+  if (
+    resource === 'products' &&
+    id &&
+    method === 'PATCH'
+  ) {
+    setQueryId(
+      req,
+      id
+    );
+
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireSeller(
+          req,
+          res,
+          () =>
+            productUpdate(
+              req,
+              res
+            )
+        )
+    );
+  }
+
+  if (
+    resource === 'products' &&
+    id &&
+    method === 'DELETE'
+  ) {
+    setQueryId(
+      req,
+      id
+    );
+
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireSeller(
+          req,
+          res,
+          () =>
+            productDelete(
+              req,
+              res
+            )
         )
     );
   }
