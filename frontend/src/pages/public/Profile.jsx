@@ -1,20 +1,37 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+
+import './Profile.css';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp'
+];
 
 export default function Profile() {
   const {
     user,
     role,
+    login,
+    logout,
+    loading,
     updateUserPhoto
   } = useAuth();
 
-  const [nickname, setNickname] = useState(
-    user?.displayName ||
-    user?.name ||
-    ''
-  );
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState('');
+  const [error, setError] = useState('');
+
+  const [nickname, setNickname] = useState('');
 
   const [nicknameLoading, setNicknameLoading] =
     useState(false);
@@ -31,11 +48,214 @@ export default function Profile() {
   const [sellerLoading, setSellerLoading] =
     useState(false);
 
-  const isBuyer =
-    role === 'buyer';
+  useEffect(() => {
+    setNickname(
+      user?.displayName ||
+      user?.name ||
+      ''
+    );
+  }, [user]);
 
-  const isSeller =
-    role === 'seller';
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
+  const loginToProfile = async () => {
+    try {
+      await login();
+      navigate('/profile');
+    } catch (error) {
+      alert(
+        error?.message ||
+        'Login gagal.'
+      );
+    }
+  };
+
+  const openFilePicker = () => {
+    if (uploading) {
+      return;
+    }
+
+    setError('');
+
+    fileInputRef.current?.click();
+  };
+
+  const uploadProfilePhoto = async (file) => {
+    if (!file) {
+      return;
+    }
+
+    setError('');
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError(
+        'Format foto harus JPG, PNG, atau WEBP.'
+      );
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setError(
+        'Ukuran foto maksimal 5 MB.'
+      );
+      return;
+    }
+
+    const localPreview =
+      URL.createObjectURL(file);
+
+    setPreview(localPreview);
+    setUploading(true);
+
+    try {
+      const signature = await api(
+        '/profile/photo/signature',
+        {
+          method: 'POST'
+        }
+      );
+
+      const formData = new FormData();
+
+      formData.append(
+        'file',
+        file
+      );
+
+      formData.append(
+        'api_key',
+        signature.apiKey
+      );
+
+      formData.append(
+        'timestamp',
+        String(signature.timestamp)
+      );
+
+      formData.append(
+        'signature',
+        signature.signature
+      );
+
+      formData.append(
+        'public_id',
+        signature.publicId
+      );
+
+      formData.append(
+        'overwrite',
+        'true'
+      );
+
+      formData.append(
+        'invalidate',
+        'true'
+      );
+
+      formData.append(
+        'transformation',
+        signature.transformation
+      );
+
+      const cloudinaryResponse =
+        await fetch(
+          `https://api.cloudinary.com/v1_1/${signature.cloudName}/image/upload`,
+          {
+            method: 'POST',
+            body: formData
+          }
+        );
+
+      let cloudinaryData = {};
+
+      try {
+        cloudinaryData =
+          await cloudinaryResponse.json();
+      } catch {
+        cloudinaryData = {};
+      }
+
+      if (!cloudinaryResponse.ok) {
+        throw new Error(
+          cloudinaryData.error?.message ||
+          'Upload foto ke Cloudinary gagal.'
+        );
+      }
+
+      if (
+        !cloudinaryData.secure_url ||
+        !cloudinaryData.public_id ||
+        !cloudinaryData.version ||
+        !cloudinaryData.signature
+      ) {
+        throw new Error(
+          'Respons Cloudinary tidak lengkap.'
+        );
+      }
+
+      const saved = await api(
+        '/profile/photo/update',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            secureUrl:
+              cloudinaryData.secure_url,
+
+            publicId:
+              cloudinaryData.public_id,
+
+            version:
+              cloudinaryData.version,
+
+            signature:
+              cloudinaryData.signature
+          })
+        }
+      );
+
+      await updateUserPhoto(
+        saved.photoURL
+      );
+
+      URL.revokeObjectURL(
+        localPreview
+      );
+
+      setPreview('');
+
+      alert(
+        'Profile photo berhasil diubah.'
+      );
+    } catch (error) {
+      console.error(
+        'Profile photo upload error:',
+        error
+      );
+
+      URL.revokeObjectURL(
+        localPreview
+      );
+
+      setPreview('');
+
+      setError(
+        error?.message ||
+        'Gagal mengubah foto profil.'
+      );
+    } finally {
+      setUploading(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const saveNickname = async (event) => {
     event.preventDefault();
@@ -66,8 +286,8 @@ export default function Profile() {
         );
 
       if (
-        result?.name &&
-        user
+        user &&
+        result?.name
       ) {
         user.displayName =
           result.name;
@@ -77,7 +297,8 @@ export default function Profile() {
       }
 
       setNickname(
-        result?.name || value
+        result?.name ||
+        value
       );
 
       alert(
@@ -162,246 +383,309 @@ export default function Profile() {
       }
     };
 
+  if (loading) {
+    return (
+      <section className="profile-page">
+        <div className="state">
+          Memuat akun...
+        </div>
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="profile-page">
+        <div className="profile-card">
+          <h1>Profile</h1>
+
+          <div className="login-choices">
+            <div>
+              <span>
+                LOGIN AS BUYER
+              </span>
+
+              <h2>Buyer</h2>
+
+              <button
+                className="button primary"
+                onClick={loginToProfile}
+              >
+                Sign In dengan Google
+              </button>
+
+              <button
+                className="button"
+                onClick={loginToProfile}
+              >
+                Sign Up dengan Google
+              </button>
+            </div>
+
+            <div>
+              <span>
+                LOGIN AS SELLER
+              </span>
+
+              <h2>Seller</h2>
+
+              <Link
+                className="button primary"
+                to="/seller"
+              >
+                Sign In
+              </Link>
+
+              <Link
+                className="button"
+                to="/seller/apply"
+              >
+                Sign Up / Daftar
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const displayedPhoto =
+    preview ||
+    user.photoURL ||
+    user.photoUrl ||
+    '';
+
   return (
     <section className="profile-page">
       <div className="profile-card">
 
-        {/* ========================= */}
-        {/* PROFILE HEADER */}
-        {/* ========================= */}
-
         <div className="profile-header">
+          <div className="profile-avatar-wrap">
+            {displayedPhoto ? (
+              <img
+                src={displayedPhoto}
+                alt="Foto profil"
+                className="profile-avatar"
+              />
+            ) : (
+              <div className="profile-avatar profile-avatar-fallback">
+                {(
+                  user.displayName ||
+                  user.email ||
+                  'U'
+                )
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
+            )}
+          </div>
 
-          <img
-            src={
-              user?.photoURL ||
-              user?.photoUrl ||
-              '/avatar.png'
-            }
-            alt="Profile"
-            className="profile-avatar"
-          />
-
-          <div>
+          <div className="profile-info">
             <h1>
-              {user?.displayName ||
-                user?.name ||
+              {user.displayName ||
+                user.name ||
                 'User'}
             </h1>
 
             <p>
-              {user?.email || ''}
+              {user.email || ''}
             </p>
-          </div>
 
+            <span className="badge">
+              {role || 'buyer'}
+            </span>
+          </div>
         </div>
 
-        {/* ========================= */}
-        {/* CHANGE PROFILE PHOTO */}
-        {/* ========================= */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(event) =>
+            uploadProfilePhoto(
+              event.target.files?.[0]
+            )
+          }
+          hidden
+        />
 
-        <div className="profile-section">
+        <div className="profile-links">
+          <Link to="/favorites">
+            Favorite
+          </Link>
 
-          <h2>
-            Change Profile Photo
-          </h2>
+          <Link to="/transactions">
+            Transaksi
+          </Link>
 
-          <label className="button">
-            Choose Photo
+          {role === 'seller' && (
+            <Link to="/seller">
+              Seller Dashboard
+            </Link>
+          )}
 
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={async (event) => {
-                const file =
-                  event.target.files?.[0];
+          {role === 'admin' && (
+            <Link to="/admin">
+              Admin Panel
+            </Link>
+          )}
 
-                if (!file) {
-                  return;
-                }
+          <button
+            type="button"
+            onClick={openFilePicker}
+            disabled={uploading}
+          >
+            {uploading
+              ? 'Mengupload Foto...'
+              : 'Ganti Foto Profile'}
+          </button>
 
-                try {
-                  await updateUserPhoto(
-                    file
-                  );
+          {error && (
+            <div className="notice error">
+              {error}
+            </div>
+          )}
 
-                  alert(
-                    'Profile photo berhasil diubah.'
-                  );
-                } catch (error) {
-                  alert(
-                    error?.message ||
-                    'Gagal mengubah profile photo.'
-                  );
-                }
-
-                event.target.value = '';
-              }}
-            />
-          </label>
-
+          <button
+            type="button"
+            onClick={async () => {
+              await logout();
+              navigate('/');
+            }}
+          >
+            Logout
+          </button>
         </div>
 
-        {/* ========================= */}
-        {/* CHANGE NICKNAME */}
-        {/* BUYER ONLY */}
-        {/* ========================= */}
+        {role === 'buyer' && (
+          <>
+            <div className="profile-section">
+              <h2>
+                Change Nickname
+              </h2>
 
-        {isBuyer && (
-          <div className="profile-section">
+              <form
+                onSubmit={saveNickname}
+              >
+                <label>
+                  Nickname
 
-            <h2>
-              Change Nickname
-            </h2>
+                  <input
+                    type="text"
+                    value={nickname}
+                    onChange={(event) =>
+                      setNickname(
+                        event.target.value
+                      )
+                    }
+                    maxLength={50}
+                    placeholder="Masukkan nickname"
+                    required
+                  />
+                </label>
 
-            <form
-              onSubmit={
-                saveNickname
-              }
-            >
-
-              <label>
-                Nickname
-
-                <input
-                  type="text"
-                  value={nickname}
-                  onChange={(event) =>
-                    setNickname(
-                      event.target.value
-                    )
+                <button
+                  type="submit"
+                  className="button primary"
+                  disabled={
+                    nicknameLoading
                   }
-                  maxLength={30}
-                  placeholder="Masukkan nickname"
-                  required
-                />
-              </label>
+                >
+                  {nicknameLoading
+                    ? 'Menyimpan...'
+                    : 'Change Nickname'}
+                </button>
+              </form>
+            </div>
 
-              <button
-                type="submit"
-                className="button primary"
-                disabled={
-                  nicknameLoading
+            <div className="profile-section">
+              <h2>
+                Daftar Jadi Seller
+              </h2>
+
+              <p>
+                Isi data berikut untuk mengajukan pendaftaran sebagai seller.
+              </p>
+
+              <form
+                onSubmit={
+                  submitSellerApplication
                 }
               >
-                {nicknameLoading
-                  ? 'Menyimpan...'
-                  : 'Change Nickname'}
-              </button>
+                <label>
+                  Nama Seller
 
-            </form>
+                  <input
+                    type="text"
+                    value={sellerName}
+                    onChange={(event) =>
+                      setSellerName(
+                        event.target.value
+                      )
+                    }
+                    required
+                    maxLength={100}
+                    placeholder="Nama seller"
+                  />
+                </label>
 
-          </div>
+                <label>
+                  Nomor Telepon
+
+                  <input
+                    type="tel"
+                    value={sellerPhone}
+                    onChange={(event) =>
+                      setSellerPhone(
+                        event.target.value
+                      )
+                    }
+                    required
+                    maxLength={30}
+                    placeholder="08xxxxxxxxxx"
+                  />
+                </label>
+
+                <label>
+                  Alasan Jadi Seller
+
+                  <textarea
+                    value={sellerReason}
+                    onChange={(event) =>
+                      setSellerReason(
+                        event.target.value
+                      )
+                    }
+                    required
+                    maxLength={1000}
+                    placeholder="Jelaskan alasan ingin menjadi seller"
+                    rows={5}
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  className="button primary"
+                  disabled={
+                    sellerLoading
+                  }
+                >
+                  {sellerLoading
+                    ? 'Mengirim...'
+                    : 'Kirim Pendaftaran'}
+                </button>
+              </form>
+            </div>
+          </>
         )}
 
-        {/* ========================= */}
-        {/* SELLER APPLICATION */}
-        {/* BUYER ONLY */}
-        {/* ========================= */}
-
-        {isBuyer && (
-          <div className="profile-section">
-
-            <h2>
-              Daftar Jadi Seller
-            </h2>
-
+        {role === 'seller' && (
+          <div className="profile-section seller-profile-note">
             <p>
-              Isi data berikut untuk
-              mengajukan pendaftaran
-              sebagai seller.
+              Nama seller hanya dapat diubah oleh admin.
             </p>
-
-            <form
-              onSubmit={
-                submitSellerApplication
-              }
-            >
-
-              <label>
-                Nama Seller
-
-                <input
-                  type="text"
-                  value={sellerName}
-                  onChange={(event) =>
-                    setSellerName(
-                      event.target.value
-                    )
-                  }
-                  required
-                  maxLength={100}
-                  placeholder="Nama seller"
-                />
-              </label>
-
-              <label>
-                Nomor Telepon
-
-                <input
-                  type="tel"
-                  value={sellerPhone}
-                  onChange={(event) =>
-                    setSellerPhone(
-                      event.target.value
-                    )
-                  }
-                  required
-                  maxLength={30}
-                  placeholder="08xxxxxxxxxx"
-                />
-              </label>
-
-              <label>
-                Alasan Jadi Seller
-
-                <textarea
-                  value={sellerReason}
-                  onChange={(event) =>
-                    setSellerReason(
-                      event.target.value
-                    )
-                  }
-                  required
-                  maxLength={1000}
-                  placeholder="Jelaskan alasan ingin menjadi seller"
-                  rows={5}
-                />
-              </label>
-
-              <button
-                type="submit"
-                className="button primary"
-                disabled={
-                  sellerLoading
-                }
-              >
-                {sellerLoading
-                  ? 'Mengirim...'
-                  : 'Kirim Pendaftaran'}
-              </button>
-
-            </form>
-
           </div>
         )}
-
-        {/* ========================= */}
-        {/* SELLER PROFILE */}
-        {/* ========================= */}
-
-        {isSeller && (
-          <div className="profile-section">
-
-            <p>
-              Nama seller hanya dapat
-              diubah oleh admin.
-            </p>
-
-          </div>
-        )}
-
       </div>
     </section>
   );
