@@ -7,7 +7,7 @@ import {
   where
 } from 'firebase/firestore';
 
-import { auth, db } from '../../firebase';
+import { auth, db } from '../../firebase/firebase';
 import { api } from '../../api';
 import { rupiah } from '../../utils/rupiah';
 
@@ -86,9 +86,12 @@ export default function SellerDashboard() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, currentUser => {
-      setUser(currentUser);
-    });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      currentUser => {
+        setUser(currentUser);
+      }
+    );
 
     return unsubscribe;
   }, []);
@@ -108,7 +111,11 @@ export default function SellerDashboard() {
         const response = await api('/seller/me');
 
         if (!cancelled) {
-          setSeller(response?.seller || response || null);
+          setSeller(
+            response?.seller ||
+              response ||
+              null
+          );
         }
       } catch {
         if (!cancelled) {
@@ -129,34 +136,40 @@ export default function SellerDashboard() {
       return undefined;
     }
 
-    const productsRef = collection(db, 'products');
+    const productsRef =
+      collection(db, 'products');
 
     const productsQuery = query(
       productsRef,
-      where('sellerUid', '==', user.uid)
+      where(
+        'sellerUid',
+        '==',
+        user.uid
+      )
     );
 
     const unsubscribe = onSnapshot(
       productsQuery,
       snapshot => {
-        const nextProducts = snapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-          .sort((a, b) => {
-            const aTime =
-              a.updatedAt?.toMillis?.() ||
-              a.createdAt?.toMillis?.() ||
-              0;
+        const nextProducts =
+          snapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .sort((a, b) => {
+              const aTime =
+                a.updatedAt?.toMillis?.() ||
+                a.createdAt?.toMillis?.() ||
+                0;
 
-            const bTime =
-              b.updatedAt?.toMillis?.() ||
-              b.createdAt?.toMillis?.() ||
-              0;
+              const bTime =
+                b.updatedAt?.toMillis?.() ||
+                b.createdAt?.toMillis?.() ||
+                0;
 
-            return bTime - aTime;
-          });
+              return bTime - aTime;
+            });
 
         setProducts(nextProducts);
         setLoading(false);
@@ -183,15 +196,22 @@ export default function SellerDashboard() {
     };
   }, [images]);
 
-  const isEditing = Boolean(editingId);
+  const isEditing =
+    Boolean(editingId);
 
-  const editingProduct = useMemo(() => {
-    if (!editingId) {
-      return null;
-    }
+  const editingProduct =
+    useMemo(() => {
+      if (!editingId) {
+        return null;
+      }
 
-    return products.find(product => product.id === editingId) || null;
-  }, [editingId, products]);
+      return (
+        products.find(
+          product =>
+            product.id === editingId
+        ) || null
+      );
+    }, [editingId, products]);
 
   function resetForm() {
     images.forEach(image => {
@@ -216,29 +236,38 @@ export default function SellerDashboard() {
   function startEdit(product) {
     if (
       product.status === 'sold' ||
-      product.status === 'in_transaction'
+      product.status ===
+        'in_transaction'
     ) {
       return;
     }
 
-    const productImages = getProductImages(product);
+    const productImages =
+      getProductImages(product);
 
     setEditingId(product.id);
     setTitle(product.title || '');
-    setDescription(product.description || '');
+    setDescription(
+      product.description || ''
+    );
+
     setPrice(
       product.price !== undefined &&
-      product.price !== null
+        product.price !== null
         ? String(product.price)
         : ''
     );
+
     setStock(
       product.stock !== undefined &&
-      product.stock !== null
+        product.stock !== null
         ? String(product.stock)
         : ''
     );
-    setCategory(product.category || '');
+
+    setCategory(
+      product.category || ''
+    );
 
     setImages(
       productImages.map(image => ({
@@ -258,9 +287,10 @@ export default function SellerDashboard() {
   }
 
   function handleFilesSelected(event) {
-    const selectedFiles = Array.from(
-      event.target.files || []
-    );
+    const selectedFiles =
+      Array.from(
+        event.target.files || []
+      );
 
     event.target.value = '';
 
@@ -281,49 +311,59 @@ export default function SellerDashboard() {
       return;
     }
 
-    const files = selectedFiles.slice(
-      0,
-      remaining
-    );
+    const files =
+      selectedFiles.slice(
+        0,
+        remaining
+      );
 
     const rejected = [];
 
-    const validFiles = files.filter(file => {
-      const validType = [
-        'image/jpeg',
-        'image/png',
-        'image/webp'
-      ].includes(file.type);
+    const validFiles =
+      files.filter(file => {
+        const validType = [
+          'image/jpeg',
+          'image/png',
+          'image/webp'
+        ].includes(file.type);
 
-      const validSize =
-        file.size <= MAX_FILE_SIZE;
+        const validSize =
+          file.size <=
+          MAX_FILE_SIZE;
 
-      if (!validType) {
-        rejected.push(
-          `${file.name}: format harus JPG, PNG, atau WebP.`
-        );
-        return false;
-      }
+        if (!validType) {
+          rejected.push(
+            `${file.name}: format harus JPG, PNG, atau WebP.`
+          );
 
-      if (!validSize) {
-        rejected.push(
-          `${file.name}: ukuran maksimal 5 MB.`
-        );
-        return false;
-      }
+          return false;
+        }
 
-      return true;
-    });
+        if (!validSize) {
+          rejected.push(
+            `${file.name}: ukuran maksimal 5 MB.`
+          );
+
+          return false;
+        }
+
+        return true;
+      });
 
     if (rejected.length) {
-      setError(rejected.join(' '));
+      setError(
+        rejected.join(' ')
+      );
     }
 
     if (!validFiles.length) {
       return;
     }
 
-    const previews = validFiles.map(createPreview);
+    const previews =
+      validFiles.map(
+        createPreview
+      );
 
     setImages(current => [
       ...current,
@@ -331,17 +371,21 @@ export default function SellerDashboard() {
     ]);
   }
 
-  async function uploadImage(image, index) {
+  async function uploadImage(
+    image,
+    index
+  ) {
     if (!image?.file) {
       return image;
     }
 
-    const response = await api(
-      '/products/images/signature',
-      {
-        method: 'POST'
-      }
-    );
+    const response =
+      await api(
+        '/products/images/signature',
+        {
+          method: 'POST'
+        }
+      );
 
     const cloudName =
       response?.cloudName;
@@ -371,17 +415,19 @@ export default function SellerDashboard() {
     }
 
     setImages(current =>
-      current.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              uploading: true
-            }
-          : item
+      current.map(
+        (item, itemIndex) =>
+          itemIndex === index
+            ? {
+                ...item,
+                uploading: true
+              }
+            : item
       )
     );
 
-    const formData = new FormData();
+    const formData =
+      new FormData();
 
     formData.append(
       'file',
@@ -395,7 +441,7 @@ export default function SellerDashboard() {
 
     formData.append(
       'timestamp',
-      timestamp
+      String(timestamp)
     );
 
     formData.append(
@@ -420,17 +466,22 @@ export default function SellerDashboard() {
     const cloudinaryData =
       await cloudinaryResponse.json();
 
-    if (!cloudinaryResponse.ok) {
+    if (
+      !cloudinaryResponse.ok
+    ) {
       throw new Error(
-        cloudinaryData?.error?.message ||
+        cloudinaryData?.error
+          ?.message ||
           'Upload foto ke Cloudinary gagal.'
       );
     }
 
     return {
-      url: cloudinaryData.secure_url,
+      url:
+        cloudinaryData.secure_url,
       publicId:
-        cloudinaryData.public_id || publicId,
+        cloudinaryData.public_id ||
+        publicId,
       version:
         cloudinaryData.version ||
         timestamp,
@@ -443,14 +494,17 @@ export default function SellerDashboard() {
   }
 
   async function uploadPendingImages() {
-    const pending = images
-      .map((image, index) => ({
-        image,
-        index
-      }))
-      .filter(
-        item => item.image?.file
-      );
+    const pending =
+      images
+        .map(
+          (image, index) => ({
+            image,
+            index
+          })
+        )
+        .filter(
+          item => item.image?.file
+        );
 
     if (!pending.length) {
       return images;
@@ -459,7 +513,9 @@ export default function SellerDashboard() {
     setUploading(true);
 
     try {
-      const uploaded = [...images];
+      const uploaded = [
+        ...images
+      ];
 
       for (const item of pending) {
         uploaded[item.index] =
@@ -478,13 +534,16 @@ export default function SellerDashboard() {
   }
 
   function removeImage(index) {
-    const image = images[index];
+    const image =
+      images[index];
 
     if (
       image?.file &&
       image.url?.startsWith('blob:')
     ) {
-      URL.revokeObjectURL(image.url);
+      URL.revokeObjectURL(
+        image.url
+      );
     }
 
     setImages(current =>
@@ -495,7 +554,10 @@ export default function SellerDashboard() {
     );
   }
 
-  function moveImage(index, direction) {
+  function moveImage(
+    index,
+    direction
+  ) {
     const targetIndex =
       direction === 'left'
         ? index - 1
@@ -509,7 +571,9 @@ export default function SellerDashboard() {
     }
 
     setImages(current => {
-      const next = [...current];
+      const next = [
+        ...current
+      ];
 
       const temp =
         next[index];
@@ -541,7 +605,9 @@ export default function SellerDashboard() {
       return 'Nama produk wajib diisi.';
     }
 
-    if (cleanTitle.length > 150) {
+    if (
+      cleanTitle.length > 150
+    ) {
       return 'Nama produk maksimal 150 karakter.';
     }
 
@@ -549,19 +615,26 @@ export default function SellerDashboard() {
       return 'Deskripsi produk wajib diisi.';
     }
 
-    if (cleanDescription.length > 5000) {
+    if (
+      cleanDescription.length >
+      5000
+    ) {
       return 'Deskripsi produk maksimal 5000 karakter.';
     }
 
     if (
-      !Number.isFinite(numericPrice) ||
+      !Number.isFinite(
+        numericPrice
+      ) ||
       numericPrice <= 0
     ) {
       return 'Harga produk harus lebih dari 0.';
     }
 
     if (
-      !Number.isInteger(numericStock) ||
+      !Number.isInteger(
+        numericStock
+      ) ||
       numericStock < 0
     ) {
       return 'Stok produk harus berupa angka bulat 0 atau lebih.';
@@ -571,9 +644,7 @@ export default function SellerDashboard() {
       return 'Kategori produk wajib dipilih.';
     }
 
-    if (
-      images.length < 1
-    ) {
+    if (images.length < 1) {
       return 'Minimal 1 foto produk.';
     }
 
@@ -586,7 +657,9 @@ export default function SellerDashboard() {
     return '';
   }
 
-  async function handleSubmit(event) {
+  async function handleSubmit(
+    event
+  ) {
     event.preventDefault();
 
     if (!user) {
@@ -600,7 +673,9 @@ export default function SellerDashboard() {
       validateForm();
 
     if (validationError) {
-      setError(validationError);
+      setError(
+        validationError
+      );
       return;
     }
 
@@ -614,7 +689,8 @@ export default function SellerDashboard() {
 
       if (
         uploadedImages.length < 1 ||
-        uploadedImages.length > MAX_IMAGES
+        uploadedImages.length >
+          MAX_IMAGES
       ) {
         throw new Error(
           `Jumlah foto harus antara 1 sampai ${MAX_IMAGES}.`
@@ -641,7 +717,8 @@ export default function SellerDashboard() {
         price: Number(price),
         stock: Number(stock),
         category,
-        images: normalizedImages
+        images:
+          normalizedImages
       };
 
       if (isEditing) {
@@ -685,10 +762,13 @@ export default function SellerDashboard() {
     }
   }
 
-  async function handleDelete(product) {
+  async function handleDelete(
+    product
+  ) {
     if (
       product.status === 'sold' ||
-      product.status === 'in_transaction'
+      product.status ===
+        'in_transaction'
     ) {
       return;
     }
@@ -730,7 +810,9 @@ export default function SellerDashboard() {
     }
   }
 
-  function getStatusLabel(product) {
+  function getStatusLabel(
+    product
+  ) {
     if (
       product.status ===
       'in_transaction'
@@ -766,10 +848,15 @@ export default function SellerDashboard() {
       return 'Ditolak';
     }
 
-    return product.status || 'Tidak diketahui';
+    return (
+      product.status ||
+      'Tidak diketahui'
+    );
   }
 
-  function getVisibilityLabel(product) {
+  function getVisibilityLabel(
+    product
+  ) {
     if (
       product.visibility ===
       'public'
@@ -785,10 +872,14 @@ export default function SellerDashboard() {
       <main className="page">
         <section className="container">
           <div className="card">
-            <h1>Seller Dashboard</h1>
+            <h1>
+              Seller Dashboard
+            </h1>
+
             <p>
-              Login diperlukan untuk mengakses
-              dashboard seller.
+              Login diperlukan untuk
+              mengakses dashboard
+              seller.
             </p>
           </div>
         </section>
@@ -801,10 +892,14 @@ export default function SellerDashboard() {
       <main className="page">
         <section className="container">
           <div className="card">
-            <h1>Seller Dashboard</h1>
+            <h1>
+              Seller Dashboard
+            </h1>
+
             <p>
-              Akun seller belum tersedia atau
-              belum disetujui admin.
+              Akun seller belum
+              tersedia atau belum
+              disetujui admin.
             </p>
           </div>
         </section>
@@ -819,7 +914,8 @@ export default function SellerDashboard() {
           <div
             style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justifyContent:
+                'space-between',
               alignItems: 'center',
               gap: '16px',
               flexWrap: 'wrap'
@@ -833,8 +929,8 @@ export default function SellerDashboard() {
               </h1>
 
               <p>
-                Kelola produk yang kamu jual di
-                CPMKU.
+                Kelola produk yang
+                kamu jual di CPMKU.
               </p>
             </div>
 
@@ -872,7 +968,9 @@ export default function SellerDashboard() {
           )}
 
           <form
-            onSubmit={handleSubmit}
+            onSubmit={
+              handleSubmit
+            }
             style={{
               marginTop: '24px'
             }}
@@ -888,7 +986,8 @@ export default function SellerDashboard() {
                 value={title}
                 onChange={event =>
                   setTitle(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 maxLength={150}
@@ -907,7 +1006,8 @@ export default function SellerDashboard() {
                 value={description}
                 onChange={event =>
                   setDescription(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 maxLength={5000}
@@ -930,7 +1030,8 @@ export default function SellerDashboard() {
                 value={price}
                 onChange={event =>
                   setPrice(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 disabled={saving}
@@ -951,7 +1052,8 @@ export default function SellerDashboard() {
                 value={stock}
                 onChange={event =>
                   setStock(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 disabled={saving}
@@ -969,7 +1071,8 @@ export default function SellerDashboard() {
                 value={category}
                 onChange={event =>
                   setCategory(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 disabled={saving}
@@ -979,14 +1082,16 @@ export default function SellerDashboard() {
                   Pilih kategori
                 </option>
 
-                {CATEGORIES.map(item => (
-                  <option
-                    key={item}
-                    value={item}
-                  >
-                    {item}
-                  </option>
-                ))}
+                {CATEGORIES.map(
+                  item => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      {item}
+                    </option>
+                  )
+                )}
               </select>
             </div>
 
@@ -1000,8 +1105,10 @@ export default function SellerDashboard() {
               </label>
 
               <p>
-                Minimal 1 foto, maksimal{' '}
-                {MAX_IMAGES} foto. Maksimal 5 MB
+                Minimal 1 foto,
+                maksimal{' '}
+                {MAX_IMAGES}{' '}
+                foto. Maksimal 5 MB
                 per foto.
               </p>
 
@@ -1020,39 +1127,54 @@ export default function SellerDashboard() {
                 }
               />
 
-              {images.length > 0 && (
+              {images.length >
+                0 && (
                 <div
                   style={{
-                    display: 'grid',
+                    display:
+                      'grid',
                     gridTemplateColumns:
                       'repeat(auto-fill, minmax(140px, 1fr))',
                     gap: '12px',
-                    marginTop: '16px'
+                    marginTop:
+                      '16px'
                   }}
                 >
                   {images.map(
-                    (image, index) => (
+                    (
+                      image,
+                      index
+                    ) => (
                       <div
                         key={`${image.url}-${index}`}
                         style={{
-                          position: 'relative'
+                          position:
+                            'relative'
                         }}
                       >
                         <img
-                          src={image.url}
+                          src={
+                            image.url
+                          }
                           alt={`Foto produk ${index + 1}`}
                           style={{
-                            width: '100%',
-                            aspectRatio: '1 / 1',
-                            objectFit: 'cover',
-                            borderRadius: '12px'
+                            width:
+                              '100%',
+                            aspectRatio:
+                              '1 / 1',
+                            objectFit:
+                              'cover',
+                            borderRadius:
+                              '12px'
                           }}
                         />
 
-                        {index === 0 && (
+                        {index ===
+                          0 && (
                           <span
                             style={{
-                              position: 'absolute',
+                              position:
+                                'absolute',
                               top: '8px',
                               left: '8px'
                             }}
@@ -1064,9 +1186,11 @@ export default function SellerDashboard() {
                         {image.uploading && (
                           <span
                             style={{
-                              position: 'absolute',
+                              position:
+                                'absolute',
                               left: '8px',
-                              bottom: '8px'
+                              bottom:
+                                '8px'
                             }}
                           >
                             Uploading...
@@ -1075,9 +1199,11 @@ export default function SellerDashboard() {
 
                         <div
                           style={{
-                            display: 'flex',
+                            display:
+                              'flex',
                             gap: '6px',
-                            marginTop: '6px'
+                            marginTop:
+                              '6px'
                           }}
                         >
                           <button
@@ -1090,7 +1216,8 @@ export default function SellerDashboard() {
                             }
                             disabled={
                               saving ||
-                              index === 0
+                              index ===
+                                0
                             }
                           >
                             ←
@@ -1107,7 +1234,8 @@ export default function SellerDashboard() {
                             disabled={
                               saving ||
                               index ===
-                                images.length - 1
+                                images.length -
+                                  1
                             }
                           >
                             →
@@ -1120,7 +1248,9 @@ export default function SellerDashboard() {
                                 index
                               )
                             }
-                            disabled={saving}
+                            disabled={
+                              saving
+                            }
                           >
                             Hapus
                           </button>
@@ -1140,7 +1270,8 @@ export default function SellerDashboard() {
                   }
                   disabled={saving}
                   style={{
-                    marginTop: '12px'
+                    marginTop:
+                      '12px'
                   }}
                 >
                   Tambah Foto
@@ -1155,7 +1286,8 @@ export default function SellerDashboard() {
                 uploading
               }
               style={{
-                marginTop: '24px'
+                marginTop:
+                  '24px'
               }}
             >
               {saving
@@ -1183,7 +1315,8 @@ export default function SellerDashboard() {
             <p>
               Memuat produk...
             </p>
-          ) : products.length === 0 ? (
+          ) : products.length ===
+            0 ? (
             <p>
               Belum ada produk.
             </p>
@@ -1192,164 +1325,184 @@ export default function SellerDashboard() {
               style={{
                 display: 'grid',
                 gap: '16px',
-                marginTop: '16px'
+                marginTop:
+                  '16px'
               }}
             >
-              {products.map(product => {
-                const productImages =
-                  getProductImages(
-                    product
-                  );
+              {products.map(
+                product => {
+                  const productImages =
+                    getProductImages(
+                      product
+                    );
 
-                const locked =
-                  product.status ===
-                    'sold' ||
-                  product.status ===
-                    'in_transaction';
+                  const locked =
+                    product.status ===
+                      'sold' ||
+                    product.status ===
+                      'in_transaction';
 
-                return (
-                  <article
-                    key={product.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns:
-                        '120px 1fr',
-                      gap: '16px',
-                      alignItems: 'start'
-                    }}
-                  >
-                    <div>
-                      {productImages[0]
-                        ?.url ? (
-                        <img
-                          src={
-                            productImages[0]
-                              .url
-                          }
-                          alt={
-                            product.title ||
-                            'Produk'
-                          }
-                          style={{
-                            width: '120px',
-                            height: '120px',
-                            objectFit: 'cover',
-                            borderRadius: '12px'
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: '120px',
-                            height: '120px',
-                            display: 'flex',
-                            alignItems:
-                              'center',
-                            justifyContent:
-                              'center'
-                          }}
-                        >
-                          Tidak ada foto
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3>
-                        {product.title ||
-                          'Tanpa nama'}
-                      </h3>
-
-                      <p>
-                        {rupiah(
-                          product.price ||
-                            0
+                  return (
+                    <article
+                      key={
+                        product.id
+                      }
+                      style={{
+                        display:
+                          'grid',
+                        gridTemplateColumns:
+                          '120px 1fr',
+                        gap: '16px',
+                        alignItems:
+                          'start'
+                      }}
+                    >
+                      <div>
+                        {productImages[0]
+                          ?.url ? (
+                          <img
+                            src={
+                              productImages[0]
+                                .url
+                            }
+                            alt={
+                              product.title ||
+                              'Produk'
+                            }
+                            style={{
+                              width:
+                                '120px',
+                              height:
+                                '120px',
+                              objectFit:
+                                'cover',
+                              borderRadius:
+                                '12px'
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width:
+                                '120px',
+                              height:
+                                '120px',
+                              display:
+                                'flex',
+                              alignItems:
+                                'center',
+                              justifyContent:
+                                'center'
+                            }}
+                          >
+                            Tidak ada
+                            foto
+                          </div>
                         )}
-                      </p>
-
-                      <p>
-                        Stok:{' '}
-                        {product.stock ??
-                          0}
-                      </p>
-
-                      <p>
-                        Status:{' '}
-                        {getStatusLabel(
-                          product
-                        )}
-                      </p>
-
-                      <p>
-                        Visibility:{' '}
-                        {getVisibilityLabel(
-                          product
-                        )}
-                      </p>
-
-                      {productImages.length >
-                        1 && (
-                        <p>
-                          {productImages.length}{' '}
-                          foto
-                        </p>
-                      )}
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexWrap:
-                            'wrap'
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            startEdit(
-                              product
-                            )
-                          }
-                          disabled={
-                            locked ||
-                            saving
-                          }
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDelete(
-                              product
-                            )
-                          }
-                          disabled={
-                            locked ||
-                            saving
-                          }
-                        >
-                          Hapus
-                        </button>
                       </div>
 
-                      {locked && (
+                      <div>
+                        <h3>
+                          {product.title ||
+                            'Tanpa nama'}
+                        </h3>
+
                         <p>
-                          Produk tidak dapat
-                          diedit atau dihapus
-                          selama statusnya{' '}
-                          {product.status ===
-                          'in_transaction'
-                            ? 'sedang transaksi'
-                            : 'terjual'}
-                          .
+                          {rupiah(
+                            product.price ||
+                              0
+                          )}
                         </p>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+
+                        <p>
+                          Stok:{' '}
+                          {product.stock ??
+                            0}
+                        </p>
+
+                        <p>
+                          Status:{' '}
+                          {getStatusLabel(
+                            product
+                          )}
+                        </p>
+
+                        <p>
+                          Visibility:{' '}
+                          {getVisibilityLabel(
+                            product
+                          )}
+                        </p>
+
+                        {productImages.length >
+                          1 && (
+                          <p>
+                            {
+                              productImages.length
+                            }{' '}
+                            foto
+                          </p>
+                        )}
+
+                        <div
+                          style={{
+                            display:
+                              'flex',
+                            gap: '8px',
+                            flexWrap:
+                              'wrap'
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              startEdit(
+                                product
+                              )
+                            }
+                            disabled={
+                              locked ||
+                              saving
+                            }
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDelete(
+                                product
+                              )
+                            }
+                            disabled={
+                              locked ||
+                              saving
+                            }
+                          >
+                            Hapus
+                          </button>
+                        </div>
+
+                        {locked && (
+                          <p>
+                            Produk tidak
+                            dapat diedit
+                            atau dihapus
+                            selama
+                            statusnya{' '}
+                            {product.status ===
+                            'in_transaction'
+                              ? 'sedang transaksi'
+                              : 'terjual'}
+                            .
+                          </p>
+                        )}
+                      </div>
+                    </article>
+                  );
+                }
+              )}
             </div>
           )}
         </div>
@@ -1358,12 +1511,15 @@ export default function SellerDashboard() {
           editingProduct && (
             <div
               style={{
-                marginTop: '16px'
+                marginTop:
+                  '16px'
               }}
             >
               <small>
                 Sedang mengedit:{' '}
-                {editingProduct.title}
+                {
+                  editingProduct.title
+                }
               </small>
             </div>
           )}
