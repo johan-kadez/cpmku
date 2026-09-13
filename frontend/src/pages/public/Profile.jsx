@@ -682,7 +682,7 @@ export default function Profile() {
         {role === 'seller' && (
           <div className="profile-section seller-profile-note">
             <p>
-              Nama seller hanya dapat diubah oleh admin.
+              Contact admin for change Nickname
             </p>
           </div>
         )}
