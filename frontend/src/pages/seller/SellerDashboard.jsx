@@ -16,10 +16,8 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const CATEGORIES = [
   'Mobil',
-  'Motor',
-  'Akun',
-  'Item',
-  'Lainnya'
+  'Jasa',
+  'Builder'
 ];
 
 function getProductImages(product) {
@@ -167,6 +165,9 @@ export default function SellerDashboard() {
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [category, setCategory] = useState('');
+  const [categoryOpen, setCategoryOpen] = useState(false);
+
+  const [confirmProduct, setConfirmProduct] = useState(null);
 
   const [images, setImages] = useState([]);
 
@@ -329,8 +330,11 @@ export default function SellerDashboard() {
     );
 
     setCategory(
-      product.category || ''
+      CATEGORIES.includes(product.category)
+        ? product.category
+        : ''
     );
+    setCategoryOpen(false);
 
     clearImagePreviews();
 
@@ -879,7 +883,7 @@ export default function SellerDashboard() {
     }
   }
 
-  async function handleDelete(product) {
+  function handleDelete(product) {
     if (
       product.status ===
         'in_transaction'
@@ -890,15 +894,16 @@ export default function SellerDashboard() {
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        `Hapus produk "${product.title || 'ini'}"?`
-      );
+    setConfirmProduct(product);
+  }
 
-    if (!confirmed) {
+  async function confirmDeleteProduct() {
+    if (!confirmProduct?.id) {
       return;
     }
 
+    const product = confirmProduct;
+    setConfirmProduct(null);
     setError('');
     setSuccess('');
 
@@ -1163,6 +1168,83 @@ export default function SellerDashboard() {
         boxSizing: 'border-box'
       }}
     >
+      {confirmProduct && (
+        <div
+          role="presentation"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            background: 'rgba(0,0,0,0.68)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)'
+          }}
+          onClick={() => setConfirmProduct(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="seller-dashboard-confirm-title"
+            style={{
+              width: 'min(100%, 420px)',
+              boxSizing: 'border-box',
+              padding: 22,
+              borderRadius: 18,
+              background: 'rgba(20,24,32,0.96)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.45)'
+            }}
+            onClick={event => event.stopPropagation()}
+          >
+            <h3
+              id="seller-dashboard-confirm-title"
+              style={{ margin: '0 0 8px' }}
+            >
+              Hapus produk?
+            </h3>
+
+            <p
+              style={{
+                margin: '0 0 20px',
+                opacity: 0.72
+              }}
+            >
+              Hapus produk "{confirmProduct.title || 'ini'}"?
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 10
+              }}
+            >
+              <button
+                type="button"
+                className="seller-button seller-secondary"
+                onClick={() =>
+                  setConfirmProduct(null)
+                }
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                className="seller-button seller-danger"
+                onClick={confirmDeleteProduct}
+              >
+                Ya, hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>
         {`
           .seller-dashboard {
@@ -1509,35 +1591,137 @@ export default function SellerDashboard() {
                   Kategori
                 </div>
 
-                <select
-                  className="seller-input"
-                  value={category}
-                  onChange={event =>
-                    setCategory(
-                      event.target
-                        .value
-                    )
-                  }
-                  disabled={
-                    saving ||
-                    uploading
-                  }
+                <div
+                  style={{
+                    position: 'relative'
+                  }}
                 >
-                  <option value="">
-                    Pilih kategori
-                  </option>
+                  <button
+                    type="button"
+                    className="seller-input"
+                    onClick={() =>
+                      setCategoryOpen(
+                        current => !current
+                      )
+                    }
+                    disabled={
+                      saving ||
+                      uploading
+                    }
+                    aria-haspopup="listbox"
+                    aria-expanded={
+                      categoryOpen
+                    }
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      textAlign: 'left',
+                      cursor:
+                        saving ||
+                        uploading
+                          ? 'not-allowed'
+                          : 'pointer'
+                    }}
+                  >
+                    <span
+                      style={{
+                        opacity:
+                          category
+                            ? 1
+                            : 0.55
+                      }}
+                    >
+                      {category ||
+                        'Pilih kategori'}
+                    </span>
 
-                  {CATEGORIES.map(
-                    item => (
-                      <option
-                        key={item}
-                        value={item}
-                      >
-                        {item}
-                      </option>
-                    )
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        marginLeft: 10,
+                        fontSize: 12,
+                        transform:
+                          categoryOpen
+                            ? 'rotate(180deg)'
+                            : 'none',
+                        transition:
+                          'transform 0.15s ease'
+                      }}
+                    >
+                      ▼
+                    </span>
+                  </button>
+
+                  {categoryOpen && (
+                    <div
+                      role="listbox"
+                      aria-label="Kategori produk"
+                      style={{
+                        position: 'absolute',
+                        zIndex: 30,
+                        top: 'calc(100% + 6px)',
+                        left: 0,
+                        right: 0,
+                        padding: 6,
+                        borderRadius: 14,
+                        background:
+                          'rgba(20,24,32,0.98)',
+                        border:
+                          '1px solid rgba(255,255,255,0.12)',
+                        boxShadow:
+                          '0 18px 50px rgba(0,0,0,0.35)',
+                        backdropFilter:
+                          'blur(18px)',
+                        WebkitBackdropFilter:
+                          'blur(18px)'
+                      }}
+                    >
+                      {CATEGORIES.map(
+                        item => (
+                          <button
+                            key={item}
+                            type="button"
+                            role="option"
+                            aria-selected={
+                              category ===
+                              item
+                            }
+                            onClick={() => {
+                              setCategory(
+                                item
+                              );
+                              setCategoryOpen(
+                                false
+                              );
+                            }}
+                            style={{
+                              width: '100%',
+                              border: 0,
+                              borderRadius: 10,
+                              padding:
+                                '11px 12px',
+                              background:
+                                category ===
+                                item
+                                  ? 'rgba(22,131,255,0.16)'
+                                  : 'transparent',
+                              color:
+                                'inherit',
+                              textAlign:
+                                'left',
+                              font: 'inherit',
+                              cursor:
+                                'pointer'
+                            }}
+                          >
+                            {item}
+                          </button>
+                        )
+                      )}
+                    </div>
                   )}
-                </select>
+                </div>
               </label>
 
               <label>
