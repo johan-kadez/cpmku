@@ -1,37 +1,26 @@
-import crypto from 'node:crypto';
+import crypto from 'crypto';
+import { env } from '../config/env.js';
 
-import {
-  env,
-  assertCloudinaryEnv
-} from '../config/env.js';
-
-function createSignature(
-  parameters
-) {
-  const serialized =
-    Object.entries(
-      parameters
+function createSignature(parameters) {
+  const entries = Object.entries(parameters)
+    .filter(
+      ([, value]) =>
+        value !== undefined &&
+        value !== null &&
+        value !== ''
     )
-      .filter(
-        ([, value]) =>
-          value !== undefined &&
-          value !== null &&
-          value !== ''
-      )
-      .sort(
-        ([a], [b]) =>
-          a.localeCompare(b)
-      )
-      .map(
-        ([key, value]) =>
-          `${key}=${value}`
-      )
-      .join('&');
+    .sort(([a], [b]) =>
+      a.localeCompare(b)
+    );
+
+  const payload = entries
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&');
 
   return crypto
     .createHash('sha1')
     .update(
-      `${serialized}${env.cloudinary.apiSecret}`
+      `${payload}${env.cloudinary.apiSecret}`
     )
     .digest('hex');
 }
@@ -39,11 +28,17 @@ function createSignature(
 export async function destroyCloudinaryImage(
   publicId
 ) {
-  assertCloudinaryEnv();
+  if (!publicId) {
+    return {
+      ok: false,
+      skipped: true
+    };
+  }
 
   if (
-    !publicId ||
-    typeof publicId !== 'string'
+    !publicId.startsWith(
+      'cpmku/products/'
+    )
   ) {
     return {
       ok: false,
@@ -51,104 +46,104 @@ export async function destroyCloudinaryImage(
     };
   }
 
-  const timestamp =
-    Math.floor(
-      Date.now() / 1000
+  if (
+    !env.cloudinary.cloudName ||
+    !env.cloudinary.apiKey ||
+    !env.cloudinary.apiSecret
+  ) {
+    console.warn(
+      'Cloudinary belum dikonfigurasi lengkap. Asset tidak dihapus.'
     );
+
+    return {
+      ok: false,
+      skipped: true
+    };
+  }
+
+  const timestamp =
+    Math.floor(Date.now() / 1000);
 
   const signature =
     createSignature({
-      public_id:
-        publicId,
-
+      public_id: publicId,
       timestamp
     });
 
-  const body =
-    new URLSearchParams();
+  const body = new URLSearchParams();
 
-  body.append(
+  body.set(
     'public_id',
     publicId
   );
 
-  body.append(
+  body.set(
     'timestamp',
     String(timestamp)
   );
 
-  body.append(
+  body.set(
     'api_key',
     env.cloudinary.apiKey
   );
 
-  body.append(
+  body.set(
     'signature',
     signature
   );
 
-  const response =
-    await fetch(
-      `https://api.cloudinary.com/v1_1/${env.cloudinary.cloudName}/image/destroy`,
-      {
-        method: 'POST',
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${env.cloudinary.cloudName}/image/destroy`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type':
+          'application/x-www-form-urlencoded'
+      },
+      body
+    }
+  );
 
-        headers: {
-          'Content-Type':
-            'application/x-www-form-urlencoded'
-        },
-
-        body
-      }
+  const data =
+    await response.json().catch(
+      () => ({})
     );
 
-  let data = {};
-
-  try {
-    data =
-      await response.json();
-  } catch {
-    data = {};
-  }
-
-  if (
-    !response.ok
-  ) {
+  if (!response.ok) {
     throw new Error(
-      data.error?.message ||
-        'Gagal menghapus foto dari Cloudinary.'
+      data?.error?.message ||
+        'Gagal menghapus gambar dari Cloudinary.'
     );
   }
 
   return {
     ok: true,
-
-    result:
-      data.result ||
-      null
+    result: data?.result || null,
+    publicId
   };
 }
 
 export async function destroyCloudinaryImages(
-  images
+  images = []
 ) {
-  if (
-    !Array.isArray(images) ||
-    images.length === 0
-  ) {
+  if (!Array.isArray(images)) {
     return;
   }
 
-  for (
-    const image of images
-  ) {
+  for (const image of images) {
     const publicId =
       typeof image === 'string'
-        ? ''
+        ? image
         : image?.publicId;
 
+    if (!publicId) {
+      continue;
+    }
+
     if (
-      !publicId
+      !publicId.startsWith(
+        'cpmku/products/'
+      )
     ) {
       continue;
     }
@@ -157,11 +152,9 @@ export async function destroyCloudinaryImages(
       await destroyCloudinaryImage(
         publicId
       );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.error(
-        'Cloudinary destroy failed:',
+        'Gagal menghapus asset Cloudinary:',
         publicId,
         error
       );
