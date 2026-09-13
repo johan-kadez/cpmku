@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
@@ -7,8 +7,8 @@ import {
   where
 } from 'firebase/firestore';
 
-import { auth, db } from '../../firebase/firebase';
-import { api } from '../../api';
+import { auth, db } from '../../services/firebase';
+import { api } from '../../services/api';
 import { rupiah } from '../../utils/rupiah';
 
 const MAX_IMAGES = 7;
@@ -62,12 +62,101 @@ function createPreview(file) {
   };
 }
 
+function formatDate(value) {
+  if (!value) {
+    return '-';
+  }
+
+  try {
+    const date =
+      typeof value.toDate === 'function'
+        ? value.toDate()
+        : new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return '-';
+    }
+
+    return date.toLocaleDateString(
+      'id-ID',
+      {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }
+    );
+  } catch {
+    return '-';
+  }
+}
+
+function getStatusLabel(status) {
+  if (status === 'approved') {
+    return 'Disetujui';
+  }
+
+  if (status === 'pending') {
+    return 'Menunggu';
+  }
+
+  if (status === 'rejected') {
+    return 'Ditolak';
+  }
+
+  if (status === 'in_transaction') {
+    return 'Dalam Transaksi';
+  }
+
+  if (status === 'sold') {
+    return 'Terjual';
+  }
+
+  return status || 'Tidak diketahui';
+}
+
+function getVisibilityLabel(visibility) {
+  if (visibility === 'public') {
+    return 'Publik';
+  }
+
+  if (visibility === 'private') {
+    return 'Privat';
+  }
+
+  return visibility || '-';
+}
+
+function getStatusClass(status) {
+  if (status === 'approved') {
+    return 'seller-status seller-status-approved';
+  }
+
+  if (status === 'pending') {
+    return 'seller-status seller-status-pending';
+  }
+
+  if (status === 'rejected') {
+    return 'seller-status seller-status-rejected';
+  }
+
+  if (status === 'in_transaction') {
+    return 'seller-status seller-status-transaction';
+  }
+
+  if (status === 'sold') {
+    return 'seller-status seller-status-sold';
+  }
+
+  return 'seller-status';
+}
+
 export default function SellerDashboard() {
   const [user, setUser] = useState(null);
-  const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
 
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -80,6 +169,7 @@ export default function SellerDashboard() {
   const [category, setCategory] = useState('');
 
   const [images, setImages] = useState([]);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -90,6 +180,7 @@ export default function SellerDashboard() {
       auth,
       currentUser => {
         setUser(currentUser);
+        setAuthLoading(false);
       }
     );
 
@@ -98,46 +189,17 @@ export default function SellerDashboard() {
 
   useEffect(() => {
     if (!user) {
-      setSeller(null);
       setProducts([]);
-      setLoading(false);
+      setLoadingProducts(false);
       return undefined;
     }
 
-    let cancelled = false;
+    setLoadingProducts(true);
 
-    async function loadSeller() {
-      try {
-        const response = await api('/seller/me');
-
-        if (!cancelled) {
-          setSeller(
-            response?.seller ||
-              response ||
-              null
-          );
-        }
-      } catch {
-        if (!cancelled) {
-          setSeller(null);
-        }
-      }
-    }
-
-    loadSeller();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      return undefined;
-    }
-
-    const productsRef =
-      collection(db, 'products');
+    const productsRef = collection(
+      db,
+      'products'
+    );
 
     const productsQuery = query(
       productsRef,
@@ -172,11 +234,19 @@ export default function SellerDashboard() {
             });
 
         setProducts(nextProducts);
-        setLoading(false);
+        setLoadingProducts(false);
       },
-      () => {
+      snapshotError => {
+        console.error(
+          'Gagal mengambil produk seller:',
+          snapshotError
+        );
+
         setProducts([]);
-        setLoading(false);
+        setLoadingProducts(false);
+        setError(
+          'Produk tidak dapat dimuat. Periksa izin Firestore.'
+        );
       }
     );
 
@@ -196,24 +266,7 @@ export default function SellerDashboard() {
     };
   }, [images]);
 
-  const isEditing =
-    Boolean(editingId);
-
-  const editingProduct =
-    useMemo(() => {
-      if (!editingId) {
-        return null;
-      }
-
-      return (
-        products.find(
-          product =>
-            product.id === editingId
-        ) || null
-      );
-    }, [editingId, products]);
-
-  function resetForm() {
+  function clearImagePreviews() {
     images.forEach(image => {
       if (
         image?.file &&
@@ -222,6 +275,10 @@ export default function SellerDashboard() {
         URL.revokeObjectURL(image.url);
       }
     });
+  }
+
+  function resetForm() {
+    clearImagePreviews();
 
     setEditingId(null);
     setTitle('');
@@ -236,9 +293,11 @@ export default function SellerDashboard() {
   function startEdit(product) {
     if (
       product.status === 'sold' ||
-      product.status ===
-        'in_transaction'
+      product.status === 'in_transaction'
     ) {
+      setError(
+        'Produk ini sedang tidak dapat diedit.'
+      );
       return;
     }
 
@@ -246,7 +305,11 @@ export default function SellerDashboard() {
       getProductImages(product);
 
     setEditingId(product.id);
-    setTitle(product.title || '');
+
+    setTitle(
+      product.title || ''
+    );
+
     setDescription(
       product.description || ''
     );
@@ -268,6 +331,8 @@ export default function SellerDashboard() {
     setCategory(
       product.category || ''
     );
+
+    clearImagePreviews();
 
     setImages(
       productImages.map(image => ({
@@ -328,8 +393,7 @@ export default function SellerDashboard() {
         ].includes(file.type);
 
         const validSize =
-          file.size <=
-          MAX_FILE_SIZE;
+          file.size <= MAX_FILE_SIZE;
 
         if (!validType) {
           rejected.push(
@@ -379,6 +443,18 @@ export default function SellerDashboard() {
       return image;
     }
 
+    setImages(current =>
+      current.map(
+        (item, itemIndex) =>
+          itemIndex === index
+            ? {
+                ...item,
+                uploading: true
+              }
+            : item
+      )
+    );
+
     const response =
       await api(
         '/products/images/signature',
@@ -413,18 +489,6 @@ export default function SellerDashboard() {
         'Data upload Cloudinary tidak lengkap.'
       );
     }
-
-    setImages(current =>
-      current.map(
-        (item, itemIndex) =>
-          itemIndex === index
-            ? {
-                ...item,
-                uploading: true
-              }
-            : item
-      )
-    );
 
     const formData =
       new FormData();
@@ -463,8 +527,14 @@ export default function SellerDashboard() {
         }
       );
 
-    const cloudinaryData =
-      await cloudinaryResponse.json();
+    let cloudinaryData = {};
+
+    try {
+      cloudinaryData =
+        await cloudinaryResponse.json();
+    } catch {
+      cloudinaryData = {};
+    }
 
     if (
       !cloudinaryResponse.ok
@@ -503,7 +573,8 @@ export default function SellerDashboard() {
           })
         )
         .filter(
-          item => item.image?.file
+          item =>
+            item.image?.file
         );
 
     if (!pending.length) {
@@ -517,7 +588,9 @@ export default function SellerDashboard() {
         ...images
       ];
 
-      for (const item of pending) {
+      for (
+        const item of pending
+      ) {
         uploaded[item.index] =
           await uploadImage(
             item.image,
@@ -616,8 +689,7 @@ export default function SellerDashboard() {
     }
 
     if (
-      cleanDescription.length >
-      5000
+      cleanDescription.length > 5000
     ) {
       return 'Deskripsi produk maksimal 5000 karakter.';
     }
@@ -654,12 +726,23 @@ export default function SellerDashboard() {
       return `Maksimal ${MAX_IMAGES} foto produk.`;
     }
 
+    const incompleteImage =
+      images.some(
+        image =>
+          !image?.url ||
+          !image?.publicId ||
+          !image?.version ||
+          !image?.signature
+      );
+
+    if (incompleteImage) {
+      return 'Semua foto harus selesai diupload ke Cloudinary.';
+    }
+
     return '';
   }
 
-  async function handleSubmit(
-    event
-  ) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     if (!user) {
@@ -689,46 +772,61 @@ export default function SellerDashboard() {
 
       if (
         uploadedImages.length < 1 ||
-        uploadedImages.length >
-          MAX_IMAGES
+        uploadedImages.length > MAX_IMAGES
       ) {
         throw new Error(
           `Jumlah foto harus antara 1 sampai ${MAX_IMAGES}.`
         );
       }
 
-      const normalizedImages =
-        uploadedImages.map(
-          image => ({
-            url: image.url,
-            publicId:
-              image.publicId || '',
-            version:
-              image.version || '',
-            signature:
-              image.signature || ''
-          })
+      const incompleteImage =
+        uploadedImages.some(
+          image =>
+            !image?.url ||
+            !image?.publicId ||
+            !image?.version ||
+            !image?.signature
         );
 
+      if (incompleteImage) {
+        throw new Error(
+          'Ada foto yang belum berhasil diupload ke Cloudinary.'
+        );
+      }
+
       const payload = {
-        title: title.trim(),
+        title:
+          title.trim(),
         description:
           description.trim(),
-        price: Number(price),
-        stock: Number(stock),
+        price:
+          Number(price),
+        stock:
+          Number(stock),
         category,
         images:
-          normalizedImages
+          uploadedImages.map(
+            image => ({
+              url: image.url,
+              publicId:
+                image.publicId,
+              version:
+                image.version,
+              signature:
+                image.signature
+            })
+          )
       };
 
-      if (isEditing) {
+      if (editingId) {
         await api(
           `/products/${editingId}`,
           {
             method: 'PATCH',
-            body: JSON.stringify(
-              payload
-            )
+            body:
+              JSON.stringify(
+                payload
+              )
           }
         );
 
@@ -740,9 +838,10 @@ export default function SellerDashboard() {
           '/products',
           {
             method: 'POST',
-            body: JSON.stringify(
-              payload
-            )
+            body:
+              JSON.stringify(
+                payload
+              )
           }
         );
 
@@ -751,25 +850,43 @@ export default function SellerDashboard() {
         );
       }
 
-      resetForm();
+      clearImagePreviews();
+
+      setEditingId(null);
+      setTitle('');
+      setDescription('');
+      setPrice('');
+      setStock('');
+      setCategory('');
+      setImages([]);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value =
+          '';
+      }
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
     } catch (submitError) {
       setError(
         submitError?.message ||
-          'Terjadi kesalahan saat menyimpan produk.'
+          'Gagal menyimpan produk.'
       );
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(
-    product
-  ) {
+  async function handleDelete(product) {
     if (
-      product.status === 'sold' ||
       product.status ===
         'in_transaction'
     ) {
+      setError(
+        'Produk yang sedang dalam transaksi tidak dapat dihapus.'
+      );
       return;
     }
 
@@ -810,199 +927,699 @@ export default function SellerDashboard() {
     }
   }
 
-  function getStatusLabel(
-    product
+  function renderImagePreview(
+    image,
+    index
   ) {
-    if (
-      product.status ===
-      'in_transaction'
-    ) {
-      return 'Sedang Transaksi';
-    }
-
-    if (
-      product.status ===
-      'pending'
-    ) {
-      return 'Menunggu Persetujuan';
-    }
-
-    if (
-      product.status ===
-      'approved'
-    ) {
-      return 'Disetujui';
-    }
-
-    if (
-      product.status ===
-      'sold'
-    ) {
-      return 'Terjual';
-    }
-
-    if (
-      product.status ===
-      'rejected'
-    ) {
-      return 'Ditolak';
-    }
-
     return (
-      product.status ||
-      'Tidak diketahui'
+      <div
+        key={`${image.publicId || image.url}-${index}`}
+        style={{
+          position: 'relative',
+          borderRadius: 14,
+          overflow: 'hidden',
+          aspectRatio: '1 / 1',
+          background:
+            'rgba(255,255,255,0.05)',
+          border:
+            '1px solid rgba(255,255,255,0.10)'
+        }}
+      >
+        <img
+          src={image.url}
+          alt={`Foto produk ${index + 1}`}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block'
+          }}
+        />
+
+        {image.uploading && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background:
+                'rgba(0,0,0,0.60)',
+              fontSize: 12,
+              fontWeight: 700
+            }}
+          >
+            Upload...
+          </div>
+        )}
+
+        <div
+          style={{
+            position: 'absolute',
+            left: 7,
+            right: 7,
+            bottom: 7,
+            display: 'flex',
+            gap: 5
+          }}
+        >
+          <button
+            type="button"
+            onClick={() =>
+              moveImage(
+                index,
+                'left'
+              )
+            }
+            disabled={
+              index === 0 ||
+              saving ||
+              uploading
+            }
+            style={{
+              flex: 1,
+              border: 0,
+              borderRadius: 8,
+              padding: '6px 4px',
+              background:
+                'rgba(0,0,0,0.72)',
+              color: '#fff',
+              cursor:
+                index === 0
+                  ? 'not-allowed'
+                  : 'pointer',
+              opacity:
+                index === 0
+                  ? 0.4
+                  : 1
+            }}
+          >
+            ←
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              removeImage(index)
+            }
+            disabled={
+              saving ||
+              uploading
+            }
+            style={{
+              flex: 1,
+              border: 0,
+              borderRadius: 8,
+              padding: '6px 4px',
+              background:
+                'rgba(180,30,50,0.85)',
+              color: '#fff',
+              cursor: 'pointer'
+            }}
+          >
+            ×
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              moveImage(
+                index,
+                'right'
+              )
+            }
+            disabled={
+              index ===
+                images.length - 1 ||
+              saving ||
+              uploading
+            }
+            style={{
+              flex: 1,
+              border: 0,
+              borderRadius: 8,
+              padding: '6px 4px',
+              background:
+                'rgba(0,0,0,0.72)',
+              color: '#fff',
+              cursor:
+                index ===
+                images.length - 1
+                  ? 'not-allowed'
+                  : 'pointer',
+              opacity:
+                index ===
+                images.length - 1
+                  ? 0.4
+                  : 1
+            }}
+          >
+            →
+          </button>
+        </div>
+
+        {index === 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 7,
+              left: 7,
+              padding:
+                '4px 7px',
+              borderRadius: 7,
+              background:
+                'rgba(0,0,0,0.72)',
+              color: '#fff',
+              fontSize: 10,
+              fontWeight: 800
+            }}
+          >
+            UTAMA
+          </div>
+        )}
+      </div>
     );
   }
 
-  function getVisibilityLabel(
-    product
-  ) {
-    if (
-      product.visibility ===
-      'public'
-    ) {
-      return 'Publik';
-    }
-
-    return 'Private';
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          minHeight: '60vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24
+        }}
+      >
+        Memuat...
+      </div>
+    );
   }
 
   if (!user) {
     return (
-      <main className="page">
-        <section className="container">
-          <div className="card">
-            <h1>
-              Seller Dashboard
-            </h1>
+      <div
+        style={{
+          minHeight: '60vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          textAlign: 'center'
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              margin: '0 0 8px'
+            }}
+          >
+            Login diperlukan
+          </h2>
 
-            <p>
-              Login diperlukan untuk
-              mengakses dashboard
-              seller.
-            </p>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  if (!seller) {
-    return (
-      <main className="page">
-        <section className="container">
-          <div className="card">
-            <h1>
-              Seller Dashboard
-            </h1>
-
-            <p>
-              Akun seller belum
-              tersedia atau belum
-              disetujui admin.
-            </p>
-          </div>
-        </section>
-      </main>
+          <p
+            style={{
+              margin: 0,
+              opacity: 0.7
+            }}
+          >
+            Silakan login terlebih dahulu
+            untuk mengelola produk.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <main className="page">
-      <section className="container">
-        <div className="card">
+    <main
+      style={{
+        width: '100%',
+        maxWidth: 1180,
+        margin: '0 auto',
+        padding: '28px 18px 60px',
+        boxSizing: 'border-box'
+      }}
+    >
+      <style>
+        {`
+          .seller-dashboard {
+            color: inherit;
+          }
+
+          .seller-glass {
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.09);
+            box-shadow: 0 18px 50px rgba(0,0,0,0.18);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+          }
+
+          .seller-input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.045);
+            color: inherit;
+            border-radius: 12px;
+            padding: 12px 13px;
+            outline: none;
+            font: inherit;
+          }
+
+          .seller-input:focus {
+            border-color: rgba(60,150,255,0.65);
+            box-shadow: 0 0 0 3px rgba(60,150,255,0.10);
+          }
+
+          .seller-button {
+            border: 0;
+            border-radius: 11px;
+            padding: 10px 14px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+          }
+
+          .seller-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+          }
+
+          .seller-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+          }
+
+          .seller-primary {
+            background: #1683ff;
+            color: white;
+          }
+
+          .seller-secondary {
+            background: rgba(255,255,255,0.08);
+            color: inherit;
+            border: 1px solid rgba(255,255,255,0.10);
+          }
+
+          .seller-danger {
+            background: rgba(220,55,75,0.14);
+            color: #ff8d9b;
+            border: 1px solid rgba(220,55,75,0.25);
+          }
+
+          .seller-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            background: rgba(255,255,255,0.08);
+          }
+
+          .seller-status-approved {
+            color: #72d6a0;
+            background: rgba(40,180,105,0.12);
+          }
+
+          .seller-status-pending {
+            color: #ffd77d;
+            background: rgba(240,170,40,0.12);
+          }
+
+          .seller-status-rejected {
+            color: #ff8b99;
+            background: rgba(220,50,70,0.12);
+          }
+
+          .seller-status-transaction {
+            color: #77b9ff;
+            background: rgba(40,120,230,0.12);
+          }
+
+          .seller-status-sold {
+            color: #aaa;
+            background: rgba(120,120,120,0.12);
+          }
+
+          .seller-product-card {
+            display: grid;
+            grid-template-columns: 170px minmax(0, 1fr);
+            gap: 18px;
+            padding: 16px;
+            border-radius: 18px;
+          }
+
+          .seller-product-image {
+            width: 170px;
+            height: 170px;
+            border-radius: 14px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.04);
+          }
+
+          @media (max-width: 720px) {
+            .seller-product-card {
+              grid-template-columns: 1fr;
+            }
+
+            .seller-product-image {
+              width: 100%;
+              height: 220px;
+            }
+          }
+        `}
+      </style>
+
+      <div className="seller-dashboard">
+        <section
+          className="seller-glass"
+          style={{
+            borderRadius: 22,
+            padding: 22,
+            marginBottom: 22
+          }}
+        >
           <div
             style={{
               display: 'flex',
               justifyContent:
                 'space-between',
-              alignItems: 'center',
-              gap: '16px',
+              alignItems:
+                'flex-start',
+              gap: 16,
               flexWrap: 'wrap'
             }}
           >
             <div>
-              <h1>
-                {isEditing
-                  ? 'Edit Produk'
-                  : 'Tambah Produk'}
+              <div
+                style={{
+                  fontSize: 12,
+                  opacity: 0.55,
+                  marginBottom: 5
+                }}
+              >
+                SELLER
+              </div>
+
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize:
+                    'clamp(24px, 5vw, 34px)',
+                  letterSpacing: '-0.02em'
+                }}
+              >
+                Kelola Produk
               </h1>
 
-              <p>
-                Kelola produk yang
-                kamu jual di CPMKU.
+              <p
+                style={{
+                  margin:
+                    '8px 0 0',
+                  opacity: 0.65
+                }}
+              >
+                Tambahkan, edit, atau hapus
+                produk jualanmu.
               </p>
             </div>
 
-            {isEditing && (
+            <div
+              style={{
+                textAlign:
+                  'right',
+                fontSize: 13,
+                opacity: 0.7
+              }}
+            >
+              <div>
+                {user.email ||
+                  user.displayName ||
+                  'Akun Seller'}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 4
+                }}
+              >
+                {products.length}{' '}
+                produk
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {(error || success) && (
+          <div
+            className="seller-glass"
+            style={{
+              borderRadius: 14,
+              padding: 14,
+              marginBottom: 18,
+              borderColor:
+                error
+                  ? 'rgba(220,60,80,0.30)'
+                  : 'rgba(50,190,120,0.25)',
+              color: error
+                ? '#ff9aa7'
+                : '#82dfad'
+            }}
+          >
+            {error || success}
+          </div>
+        )}
+
+        <section
+          className="seller-glass"
+          style={{
+            borderRadius: 22,
+            padding: 22,
+            marginBottom: 28
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent:
+                'space-between',
+              alignItems:
+                'center',
+              gap: 12,
+              marginBottom: 20,
+              flexWrap: 'wrap'
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 20
+                }}
+              >
+                {editingId
+                  ? 'Edit Produk'
+                  : 'Tambah Produk'}
+              </h2>
+
+              <p
+                style={{
+                  margin:
+                    '5px 0 0',
+                  opacity: 0.6,
+                  fontSize: 13
+                }}
+              >
+                Foto produk 1–7 gambar.
+              </p>
+            </div>
+
+            {editingId && (
               <button
                 type="button"
-                onClick={resetForm}
-                disabled={saving}
+                className="seller-button seller-secondary"
+                onClick={
+                  resetForm
+                }
+                disabled={
+                  saving ||
+                  uploading
+                }
               >
                 Batal Edit
               </button>
             )}
           </div>
 
-          {error && (
-            <div
-              role="alert"
-              style={{
-                marginTop: '16px'
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div
-              role="status"
-              style={{
-                marginTop: '16px'
-              }}
-            >
-              {success}
-            </div>
-          )}
-
           <form
             onSubmit={
               handleSubmit
             }
-            style={{
-              marginTop: '24px'
-            }}
           >
-            <div>
-              <label htmlFor="product-title">
-                Nama Produk
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: 16
+              }}
+            >
+              <label>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    marginBottom: 7
+                  }}
+                >
+                  Nama Produk
+                </div>
+
+                <input
+                  className="seller-input"
+                  type="text"
+                  value={title}
+                  onChange={event =>
+                    setTitle(
+                      event.target
+                        .value
+                    )
+                  }
+                  maxLength={150}
+                  placeholder="Contoh: BMW M3"
+                  disabled={
+                    saving ||
+                    uploading
+                  }
+                />
               </label>
 
-              <input
-                id="product-title"
-                type="text"
-                value={title}
-                onChange={event =>
-                  setTitle(
-                    event.target
-                      .value
-                  )
-                }
-                maxLength={150}
-                disabled={saving}
-                required
-              />
+              <label>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    marginBottom: 7
+                  }}
+                >
+                  Kategori
+                </div>
+
+                <select
+                  className="seller-input"
+                  value={category}
+                  onChange={event =>
+                    setCategory(
+                      event.target
+                        .value
+                    )
+                  }
+                  disabled={
+                    saving ||
+                    uploading
+                  }
+                >
+                  <option value="">
+                    Pilih kategori
+                  </option>
+
+                  {CATEGORIES.map(
+                    item => (
+                      <option
+                        key={item}
+                        value={item}
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    marginBottom: 7
+                  }}
+                >
+                  Harga
+                </div>
+
+                <input
+                  className="seller-input"
+                  type="number"
+                  min="1"
+                  value={price}
+                  onChange={event =>
+                    setPrice(
+                      event.target
+                        .value
+                    )
+                  }
+                  placeholder="100000"
+                  disabled={
+                    saving ||
+                    uploading
+                  }
+                />
+              </label>
+
+              <label>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    marginBottom: 7
+                  }}
+                >
+                  Stok
+                </div>
+
+                <input
+                  className="seller-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={stock}
+                  onChange={event =>
+                    setStock(
+                      event.target
+                        .value
+                    )
+                  }
+                  placeholder="1"
+                  disabled={
+                    saving ||
+                    uploading
+                  }
+                />
+              </label>
             </div>
 
-            <div>
-              <label htmlFor="product-description">
+            <label
+              style={{
+                display: 'block',
+                marginTop: 16
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 7
+                }}
+              >
                 Deskripsi
-              </label>
+              </div>
 
               <textarea
-                id="product-description"
+                className="seller-input"
                 value={description}
                 onChange={event =>
                   setDescription(
@@ -1011,322 +1628,264 @@ export default function SellerDashboard() {
                   )
                 }
                 maxLength={5000}
-                disabled={saving}
                 rows={6}
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="product-price">
-                Harga
-              </label>
-
-              <input
-                id="product-price"
-                type="number"
-                min="1"
-                step="1"
-                value={price}
-                onChange={event =>
-                  setPrice(
-                    event.target
-                      .value
-                  )
+                placeholder="Jelaskan kondisi dan detail produk..."
+                disabled={
+                  saving ||
+                  uploading
                 }
-                disabled={saving}
-                required
+                style={{
+                  resize: 'vertical'
+                }}
               />
-            </div>
-
-            <div>
-              <label htmlFor="product-stock">
-                Stok
-              </label>
-
-              <input
-                id="product-stock"
-                type="number"
-                min="0"
-                step="1"
-                value={stock}
-                onChange={event =>
-                  setStock(
-                    event.target
-                      .value
-                  )
-                }
-                disabled={saving}
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="product-category">
-                Kategori
-              </label>
-
-              <select
-                id="product-category"
-                value={category}
-                onChange={event =>
-                  setCategory(
-                    event.target
-                      .value
-                  )
-                }
-                disabled={saving}
-                required
-              >
-                <option value="">
-                  Pilih kategori
-                </option>
-
-                {CATEGORIES.map(
-                  item => (
-                    <option
-                      key={item}
-                      value={item}
-                    >
-                      {item}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
+            </label>
 
             <div
               style={{
-                marginTop: '20px'
+                marginTop: 18
               }}
             >
-              <label>
-                Foto Produk
-              </label>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent:
+                    'space-between',
+                  gap: 10,
+                  alignItems:
+                    'center',
+                  flexWrap: 'wrap',
+                  marginBottom: 10
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700
+                    }}
+                  >
+                    Foto Produk
+                  </div>
 
-              <p>
-                Minimal 1 foto,
-                maksimal{' '}
-                {MAX_IMAGES}{' '}
-                foto. Maksimal 5 MB
-                per foto.
-              </p>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      opacity: 0.55,
+                      marginTop: 3
+                    }}
+                  >
+                    JPG, PNG, WebP • maksimal
+                    5 MB per foto • 1–7 foto
+                  </div>
+                </div>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                onChange={
-                  handleFilesSelected
-                }
-                disabled={
-                  saving ||
-                  images.length >=
-                    MAX_IMAGES
-                }
-              />
+                <button
+                  type="button"
+                  className="seller-button seller-secondary"
+                  onClick={() =>
+                    fileInputRef.current?.click()
+                  }
+                  disabled={
+                    images.length >=
+                      MAX_IMAGES ||
+                    saving ||
+                    uploading
+                  }
+                >
+                  Pilih Foto
+                </button>
 
-              {images.length >
-                0 && (
+                <input
+                  ref={
+                    fileInputRef
+                  }
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={
+                    handleFilesSelected
+                  }
+                  style={{
+                    display: 'none'
+                  }}
+                />
+              </div>
+
+              {images.length === 0 ? (
                 <div
                   style={{
-                    display:
-                      'grid',
+                    border:
+                      '1px dashed rgba(255,255,255,0.16)',
+                    borderRadius: 14,
+                    padding: 28,
+                    textAlign:
+                      'center',
+                    opacity: 0.55
+                  }}
+                >
+                  Belum ada foto.
+                  <br />
+                  Pilih minimal 1 foto
+                  dari galeri perangkat.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
                     gridTemplateColumns:
-                      'repeat(auto-fill, minmax(140px, 1fr))',
-                    gap: '12px',
-                    marginTop:
-                      '16px'
+                      'repeat(auto-fill, minmax(125px, 1fr))',
+                    gap: 10
                   }}
                 >
                   {images.map(
-                    (
-                      image,
-                      index
-                    ) => (
-                      <div
-                        key={`${image.url}-${index}`}
-                        style={{
-                          position:
-                            'relative'
-                        }}
-                      >
-                        <img
-                          src={
-                            image.url
-                          }
-                          alt={`Foto produk ${index + 1}`}
-                          style={{
-                            width:
-                              '100%',
-                            aspectRatio:
-                              '1 / 1',
-                            objectFit:
-                              'cover',
-                            borderRadius:
-                              '12px'
-                          }}
-                        />
-
-                        {index ===
-                          0 && (
-                          <span
-                            style={{
-                              position:
-                                'absolute',
-                              top: '8px',
-                              left: '8px'
-                            }}
-                          >
-                            Cover
-                          </span>
-                        )}
-
-                        {image.uploading && (
-                          <span
-                            style={{
-                              position:
-                                'absolute',
-                              left: '8px',
-                              bottom:
-                                '8px'
-                            }}
-                          >
-                            Uploading...
-                          </span>
-                        )}
-
-                        <div
-                          style={{
-                            display:
-                              'flex',
-                            gap: '6px',
-                            marginTop:
-                              '6px'
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() =>
-                              moveImage(
-                                index,
-                                'left'
-                              )
-                            }
-                            disabled={
-                              saving ||
-                              index ===
-                                0
-                            }
-                          >
-                            ←
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              moveImage(
-                                index,
-                                'right'
-                              )
-                            }
-                            disabled={
-                              saving ||
-                              index ===
-                                images.length -
-                                  1
-                            }
-                          >
-                            →
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeImage(
-                                index
-                              )
-                            }
-                            disabled={
-                              saving
-                            }
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </div>
-                    )
+                    renderImagePreview
                   )}
                 </div>
               )}
 
-              {images.length <
-                MAX_IMAGES && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    fileInputRef.current?.click()
-                  }
-                  disabled={saving}
-                  style={{
-                    marginTop:
-                      '12px'
-                  }}
-                >
-                  Tambah Foto
-                </button>
-              )}
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  opacity: 0.55
+                }}
+              >
+                {images.length}/
+                {MAX_IMAGES} foto
+              </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={
-                saving ||
-                uploading
-              }
+            <div
               style={{
-                marginTop:
-                  '24px'
+                marginTop: 22,
+                display: 'flex',
+                gap: 10,
+                justifyContent:
+                  'flex-end',
+                flexWrap: 'wrap'
               }}
             >
-              {saving
-                ? isEditing
-                  ? 'Menyimpan...'
-                  : 'Menambahkan...'
-                : isEditing
-                  ? 'Simpan Perubahan'
-                  : 'Tambah Produk'}
-            </button>
+              {editingId && (
+                <button
+                  type="button"
+                  className="seller-button seller-secondary"
+                  onClick={
+                    resetForm
+                  }
+                  disabled={
+                    saving ||
+                    uploading
+                  }
+                >
+                  Batal
+                </button>
+              )}
+
+              <button
+                type="submit"
+                className="seller-button seller-primary"
+                disabled={
+                  saving ||
+                  uploading
+                }
+              >
+                {uploading
+                  ? 'Mengupload foto...'
+                  : saving
+                    ? 'Menyimpan...'
+                    : editingId
+                      ? 'Simpan Perubahan'
+                      : 'Tambah Produk'}
+              </button>
+            </div>
           </form>
-        </div>
+        </section>
 
-        <div
-          className="card"
-          style={{
-            marginTop: '24px'
-          }}
-        >
-          <h2>
-            Produk Saya
-          </h2>
+        <section>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent:
+                'space-between',
+              alignItems:
+                'center',
+              gap: 12,
+              marginBottom: 14,
+              flexWrap: 'wrap'
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 21
+                }}
+              >
+                Produk Saya
+              </h2>
 
-          {loading ? (
-            <p>
+              <p
+                style={{
+                  margin:
+                    '5px 0 0',
+                  opacity: 0.55,
+                  fontSize: 13
+                }}
+              >
+                Semua produk yang dibuat
+                oleh akun seller ini.
+              </p>
+            </div>
+          </div>
+
+          {loadingProducts ? (
+            <div
+              className="seller-glass"
+              style={{
+                borderRadius: 18,
+                padding: 28,
+                textAlign:
+                  'center',
+                opacity: 0.7
+              }}
+            >
               Memuat produk...
-            </p>
-          ) : products.length ===
-            0 ? (
-            <p>
-              Belum ada produk.
-            </p>
+            </div>
+          ) : products.length === 0 ? (
+            <div
+              className="seller-glass"
+              style={{
+                borderRadius: 18,
+                padding: 35,
+                textAlign:
+                  'center'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  marginBottom: 7
+                }}
+              >
+                Belum ada produk
+              </div>
+
+              <div
+                style={{
+                  opacity: 0.55,
+                  fontSize: 13
+                }}
+              >
+                Tambahkan produk pertama
+                menggunakan form di atas.
+              </div>
+            </div>
           ) : (
             <div
               style={{
                 display: 'grid',
-                gap: '16px',
-                marginTop:
-                  '16px'
+                gap: 14
               }}
             >
               {products.map(
@@ -1336,10 +1895,10 @@ export default function SellerDashboard() {
                       product
                     );
 
-                  const locked =
-                    product.status ===
-                      'sold' ||
-                    product.status ===
+                  const canEdit =
+                    product.status !==
+                      'sold' &&
+                    product.status !==
                       'in_transaction';
 
                   return (
@@ -1347,17 +1906,9 @@ export default function SellerDashboard() {
                       key={
                         product.id
                       }
-                      style={{
-                        display:
-                          'grid',
-                        gridTemplateColumns:
-                          '120px 1fr',
-                        gap: '16px',
-                        alignItems:
-                          'start'
-                      }}
+                      className="seller-glass seller-product-card"
                     >
-                      <div>
+                      <div className="seller-product-image">
                         {productImages[0]
                           ?.url ? (
                           <img
@@ -1371,133 +1922,246 @@ export default function SellerDashboard() {
                             }
                             style={{
                               width:
-                                '120px',
+                                '100%',
                               height:
-                                '120px',
+                                '100%',
                               objectFit:
                                 'cover',
-                              borderRadius:
-                                '12px'
+                              display:
+                                'block'
                             }}
                           />
                         ) : (
                           <div
                             style={{
                               width:
-                                '120px',
+                                '100%',
                               height:
-                                '120px',
+                                '100%',
                               display:
                                 'flex',
                               alignItems:
                                 'center',
                               justifyContent:
-                                'center'
+                                'center',
+                              opacity:
+                                0.45,
+                              fontSize:
+                                12
                             }}
                           >
-                            Tidak ada
-                            foto
+                            Tidak ada foto
                           </div>
                         )}
                       </div>
 
-                      <div>
-                        <h3>
-                          {product.title ||
-                            'Tanpa nama'}
-                        </h3>
+                      <div
+                        style={{
+                          minWidth: 0,
+                          display:
+                            'flex',
+                          flexDirection:
+                            'column'
+                        }}
+                      >
+                        <div
+                          style={{
+                            display:
+                              'flex',
+                            justifyContent:
+                              'space-between',
+                            alignItems:
+                              'flex-start',
+                            gap: 10,
+                            flexWrap:
+                              'wrap'
+                          }}
+                        >
+                          <div
+                            style={{
+                              minWidth: 0
+                            }}
+                          >
+                            <h3
+                              style={{
+                                margin:
+                                  0,
+                                fontSize:
+                                  18,
+                                wordBreak:
+                                  'break-word'
+                              }}
+                            >
+                              {product.title ||
+                                'Tanpa nama'}
+                            </h3>
 
-                        <p>
+                            <div
+                              style={{
+                                marginTop:
+                                  6,
+                                fontSize:
+                                  12,
+                                opacity:
+                                  0.55
+                              }}
+                            >
+                              {product.category ||
+                                '-'}{' '}
+                              •{' '}
+                              {productImages.length ||
+                                0}{' '}
+                              foto
+                            </div>
+                          </div>
+
+                          <span
+                            className={getStatusClass(
+                              product.status
+                            )}
+                          >
+                            {getStatusLabel(
+                              product.status
+                            )}
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop:
+                              13,
+                            fontSize:
+                              21,
+                            fontWeight:
+                              800
+                          }}
+                        >
                           {rupiah(
                             product.price ||
                               0
                           )}
-                        </p>
-
-                        <p>
-                          Stok:{' '}
-                          {product.stock ??
-                            0}
-                        </p>
-
-                        <p>
-                          Status:{' '}
-                          {getStatusLabel(
-                            product
-                          )}
-                        </p>
-
-                        <p>
-                          Visibility:{' '}
-                          {getVisibilityLabel(
-                            product
-                          )}
-                        </p>
-
-                        {productImages.length >
-                          1 && (
-                          <p>
-                            {
-                              productImages.length
-                            }{' '}
-                            foto
-                          </p>
-                        )}
+                        </div>
 
                         <div
                           style={{
                             display:
                               'flex',
-                            gap: '8px',
+                            gap: 8,
+                            flexWrap:
+                              'wrap',
+                            marginTop:
+                              8,
+                            fontSize:
+                              12,
+                            opacity:
+                              0.65
+                          }}
+                        >
+                          <span>
+                            Stok:{' '}
+                            {product.stock ??
+                              0}
+                          </span>
+
+                          <span>
+                            •
+                          </span>
+
+                          <span>
+                            {getVisibilityLabel(
+                              product.visibility
+                            )}
+                          </span>
+
+                          <span>
+                            •
+                          </span>
+
+                          <span>
+                            {formatDate(
+                              product.updatedAt ||
+                                product.createdAt
+                            )}
+                          </span>
+                        </div>
+
+                        {product.description && (
+                          <p
+                            style={{
+                              margin:
+                                '12px 0 0',
+                              opacity:
+                                0.68,
+                              fontSize:
+                                13,
+                              lineHeight:
+                                1.55,
+                              display:
+                                '-webkit-box',
+                              WebkitLineClamp:
+                                3,
+                              WebkitBoxOrient:
+                                'vertical',
+                              overflow:
+                                'hidden'
+                            }}
+                          >
+                            {
+                              product.description
+                            }
+                          </p>
+                        )}
+
+                        <div
+                          style={{
+                            marginTop:
+                              'auto',
+                            paddingTop:
+                              16,
+                            display:
+                              'flex',
+                            gap: 8,
                             flexWrap:
                               'wrap'
                           }}
                         >
                           <button
                             type="button"
+                            className="seller-button seller-secondary"
                             onClick={() =>
                               startEdit(
                                 product
                               )
                             }
                             disabled={
-                              locked ||
-                              saving
+                              !canEdit
                             }
                           >
-                            Edit
+                            {product.status ===
+                            'sold'
+                              ? 'Terjual'
+                              : product.status ===
+                                  'in_transaction'
+                                ? 'Dalam Transaksi'
+                                : 'Edit'}
                           </button>
 
                           <button
                             type="button"
+                            className="seller-button seller-danger"
                             onClick={() =>
                               handleDelete(
                                 product
                               )
                             }
                             disabled={
-                              locked ||
-                              saving
+                              product.status ===
+                              'in_transaction'
                             }
                           >
                             Hapus
                           </button>
                         </div>
-
-                        {locked && (
-                          <p>
-                            Produk tidak
-                            dapat diedit
-                            atau dihapus
-                            selama
-                            statusnya{' '}
-                            {product.status ===
-                            'in_transaction'
-                              ? 'sedang transaksi'
-                              : 'terjual'}
-                            .
-                          </p>
-                        )}
                       </div>
                     </article>
                   );
@@ -1505,25 +2169,8 @@ export default function SellerDashboard() {
               )}
             </div>
           )}
-        </div>
-
-        {isEditing &&
-          editingProduct && (
-            <div
-              style={{
-                marginTop:
-                  '16px'
-              }}
-            >
-              <small>
-                Sedang mengedit:{' '}
-                {
-                  editingProduct.title
-                }
-              </small>
-            </div>
-          )}
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
