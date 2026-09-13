@@ -1,165 +1,303 @@
+import crypto from 'crypto';
 import {
   db,
   FieldValue
 } from '../firebase/admin.js';
-
+import { HttpError } from '../utils/errors.js';
 import {
-  HttpError
-} from '../utils/errors.js';
+  destroyCloudinaryImages
+} from './cloudinary.js';
 
-import {
-  productId
-} from '../utils/productId.js';
-
-const MAX_IMAGES = 7;
-
-const PRODUCT_IMAGE_PREFIX =
+export const PRODUCT_IMAGE_PREFIX =
   'cpmku/products/';
 
-function normalizeImage(image) {
+function normalizeImages(product) {
   if (
-    !image ||
-    typeof image !== 'object'
+    Array.isArray(product?.images) &&
+    product.images.length > 0
   ) {
-    return null;
+    return product.images;
   }
 
-  const url =
-    String(
-      image.url || ''
-    ).trim();
-
-  const publicId =
-    String(
-      image.publicId || ''
-    ).trim();
-
-  const version =
-    Number(
-      image.version
-    );
-
-  const signature =
-    String(
-      image.signature || ''
-    ).trim();
-
-  if (
-    !url ||
-    !publicId ||
-    !Number.isInteger(version) ||
-    version <= 0 ||
-    !signature
-  ) {
-    return null;
+  if (product?.imageUrl) {
+    return [
+      {
+        url: product.imageUrl,
+        publicId: '',
+        version: '',
+        signature: ''
+      }
+    ];
   }
 
-  return {
-    url,
-    publicId,
-    version,
-    signature
-  };
-}
-
-function normalizeImages(data) {
-  const source =
-    Array.isArray(data?.images)
-      ? data.images
-      : [];
-
-  const images =
-    source
-      .map(normalizeImage)
-      .filter(Boolean);
-
-  return images;
+  return [];
 }
 
 function validateImages(
-  images,
-  uid
+  uid,
+  images
 ) {
-  if (
-    images.length < 1
-  ) {
+  if (!Array.isArray(images)) {
     throw new HttpError(
       400,
-      'Minimal 1 foto produk.'
+      'Minimal 1 foto produk wajib diupload.'
     );
   }
 
-  if (
-    images.length > MAX_IMAGES
-  ) {
+  if (images.length < 1) {
+    throw new HttpError(
+      400,
+      'Minimal 1 foto produk wajib diupload.'
+    );
+  }
+
+  if (images.length > 7) {
     throw new HttpError(
       400,
       'Maksimal 7 foto produk.'
     );
   }
 
-  const publicIds =
-    new Set();
+  const prefix =
+    `${PRODUCT_IMAGE_PREFIX}${uid}/`;
 
-  for (
-    const image of images
-  ) {
-    if (
-      !image.publicId.startsWith(
-        `${PRODUCT_IMAGE_PREFIX}${uid}/`
-      )
-    ) {
-      throw new HttpError(
-        403,
-        'Foto produk tidak valid.'
-      );
+  return images.map(
+    (image, index) => {
+      if (
+        !image ||
+        typeof image !== 'object'
+      ) {
+        throw new HttpError(
+          400,
+          `Foto produk ke-${index + 1} tidak valid.`
+        );
+      }
+
+      const url = String(
+        image.url || ''
+      ).trim();
+
+      const publicId = String(
+        image.publicId || ''
+      ).trim();
+
+      const version = String(
+        image.version || ''
+      ).trim();
+
+      const signature = String(
+        image.signature || ''
+      ).trim();
+
+      if (!url) {
+        throw new HttpError(
+          400,
+          `URL foto produk ke-${index + 1} wajib diisi.`
+        );
+      }
+
+      if (!publicId) {
+        throw new HttpError(
+          400,
+          `Public ID foto produk ke-${index + 1} wajib diisi.`
+        );
+      }
+
+      if (!version) {
+        throw new HttpError(
+          400,
+          `Version foto produk ke-${index + 1} wajib diisi.`
+        );
+      }
+
+      if (!signature) {
+        throw new HttpError(
+          400,
+          `Signature foto produk ke-${index + 1} wajib diisi.`
+        );
+      }
+
+      if (
+        !publicId.startsWith(prefix)
+      ) {
+        throw new HttpError(
+          400,
+          'Foto produk tidak berasal dari folder Cloudinary yang valid.'
+        );
+      }
+
+      if (
+        !url.startsWith(
+          'https://res.cloudinary.com/'
+        )
+      ) {
+        throw new HttpError(
+          400,
+          'URL foto produk tidak valid.'
+        );
+      }
+
+      return {
+        url,
+        publicId,
+        version,
+        signature
+      };
     }
-
-    if (
-      publicIds.has(
-        image.publicId
-      )
-    ) {
-      throw new HttpError(
-        400,
-        'Foto produk duplikat.'
-      );
-    }
-
-    publicIds.add(
-      image.publicId
-    );
-
-    try {
-      new URL(
-        image.url
-      );
-    } catch {
-      throw new HttpError(
-        400,
-        'URL foto produk tidak valid.'
-      );
-    }
-  }
-
-  return images;
+  );
 }
 
-function productData(
+function normalizeText(
+  value
+) {
+  return String(
+    value ?? ''
+  ).trim();
+}
+
+function normalizePrice(
+  value
+) {
+  const price =
+    Number(value);
+
+  if (
+    !Number.isFinite(price) ||
+    price < 0
+  ) {
+    throw new HttpError(
+      400,
+      'Harga produk tidak valid.'
+    );
+  }
+
+  return price;
+}
+
+function normalizeStock(
+  value
+) {
+  const stock =
+    Number(value);
+
+  if (
+    !Number.isInteger(stock) ||
+    stock < 0
+  ) {
+    throw new HttpError(
+      400,
+      'Stok produk tidak valid.'
+    );
+  }
+
+  return stock;
+}
+
+function validateBasicProductData(
+  input
+) {
+  const title =
+    normalizeText(input?.title);
+
+  const description =
+    normalizeText(input?.description);
+
+  const category =
+    normalizeText(input?.category);
+
+  if (!title) {
+    throw new HttpError(
+      400,
+      'Nama produk wajib diisi.'
+    );
+  }
+
+  if (!description) {
+    throw new HttpError(
+      400,
+      'Deskripsi produk wajib diisi.'
+    );
+  }
+
+  if (!category) {
+    throw new HttpError(
+      400,
+      'Kategori produk wajib diisi.'
+    );
+  }
+
+  if (title.length > 150) {
+    throw new HttpError(
+      400,
+      'Nama produk maksimal 150 karakter.'
+    );
+  }
+
+  if (description.length > 5000) {
+    throw new HttpError(
+      400,
+      'Deskripsi produk maksimal 5000 karakter.'
+    );
+  }
+
+  if (category.length > 100) {
+    throw new HttpError(
+      400,
+      'Kategori produk maksimal 100 karakter.'
+    );
+  }
+
+  return {
+    title,
+    description,
+    category,
+    price: normalizePrice(
+      input?.price
+    ),
+    stock: normalizeStock(
+      input?.stock
+    )
+  };
+}
+
+export async function createProduct(
   uid,
   seller,
-  data,
-  images
+  input
 ) {
-  return {
-    productId:
-      data.productId,
+  if (!uid) {
+    throw new HttpError(
+      401,
+      'Login diperlukan.'
+    );
+  }
+
+  const productData =
+    validateBasicProductData(
+      input
+    );
+
+  const images =
+    validateImages(
+      uid,
+      input?.images
+    );
+
+  const productId =
+    crypto.randomUUID();
+
+  const ref = db
+    .collection('products')
+    .doc(productId);
+
+  await ref.set({
+    productId,
 
     title:
-      data.title,
+      productData.title,
 
     description:
-      data.description,
+      productData.description,
 
     images,
 
@@ -167,167 +305,39 @@ function productData(
       images[0].url,
 
     price:
-      data.price,
+      productData.price,
 
     stock:
-      data.stock,
+      productData.stock,
 
     category:
-      data.category,
+      productData.category,
 
     sellerUid:
       uid,
 
     sellerName:
-      seller.name,
+      seller?.name || '',
 
     sellerPhotoUrl:
-      seller.photoUrl
-  };
-}
+      seller?.photoUrl || '',
 
-export async function createProduct(
-  uid,
-  seller,
-  data
-) {
-  const title =
-    String(
-      data?.title || ''
-    ).trim();
+    status:
+      'pending',
 
-  const description =
-    String(
-      data?.description || ''
-    ).trim();
+    visibility:
+      'private',
 
-  const price =
-    Number(
-      data?.price
-    );
+    createdAt:
+      FieldValue.serverTimestamp(),
 
-  const stock =
-    Number(
-      data?.stock
-    );
-
-  const category =
-    String(
-      data?.category ||
-        'mobil'
-    ).trim();
-
-  const images =
-    normalizeImages(
-      data
-    );
-
-  validateImages(
-    images,
-    uid
-  );
-
-  if (
-    !title ||
-    !description ||
-    !Number.isFinite(price) ||
-    price <= 0 ||
-    !Number.isInteger(stock) ||
-    stock < 1
-  ) {
-    throw new HttpError(
-      400,
-      'Data produk tidak valid.'
-    );
-  }
-
-  if (
-    title.length > 150
-  ) {
-    throw new HttpError(
-      400,
-      'Nama produk maksimal 150 karakter.'
-    );
-  }
-
-  if (
-    description.length > 5000
-  ) {
-    throw new HttpError(
-      400,
-      'Deskripsi produk maksimal 5000 karakter.'
-    );
-  }
-
-  let id;
-
-  for (
-    let i = 0;
-    i < 10;
-    i++
-  ) {
-    const candidate =
-      productId();
-
-    const existing =
-      await db
-        .collection('products')
-        .doc(candidate)
-        .get();
-
-    if (
-      !existing.exists
-    ) {
-      id =
-        candidate;
-
-      break;
-    }
-  }
-
-  if (!id) {
-    throw new HttpError(
-      500,
-      'Gagal membuat ID produk unik.'
-    );
-  }
-
-  await db
-    .collection('products')
-    .doc(id)
-    .set({
-      ...productData(
-        uid,
-        seller,
-        {
-          productId: id,
-          title,
-          description,
-          price,
-          stock,
-          category
-        },
-        images
-      ),
-
-      visibility:
-        'private',
-
-      status:
-        'pending',
-
-      createdAt:
-        FieldValue.serverTimestamp(),
-
-      updatedAt:
-        FieldValue.serverTimestamp()
-    });
+    updatedAt:
+      FieldValue.serverTimestamp()
+  });
 
   return {
-    productId:
-      id,
-
-    images
+    ok: true,
+    productId
   };
 }
 
@@ -335,26 +345,30 @@ export async function updateProduct(
   uid,
   seller,
   id,
-  data
+  input
 ) {
-  if (!id) {
+  if (!uid) {
     throw new HttpError(
-      400,
-      'ID produk tidak tersedia.'
+      401,
+      'Login diperlukan.'
     );
   }
 
-  const ref =
-    db
-      .collection('products')
-      .doc(id);
+  if (!id) {
+    throw new HttpError(
+      400,
+      'ID produk wajib diisi.'
+    );
+  }
+
+  const ref = db
+    .collection('products')
+    .doc(id);
 
   const snapshot =
     await ref.get();
 
-  if (
-    !snapshot.exists
-  ) {
+  if (!snapshot.exists) {
     throw new HttpError(
       404,
       'Produk tidak ditemukan.'
@@ -365,126 +379,125 @@ export async function updateProduct(
     snapshot.data();
 
   if (
-    existing.sellerUid !==
-    uid
+    existing.sellerUid !== uid
   ) {
     throw new HttpError(
       403,
-      'Anda bukan pemilik produk ini.'
+      'Anda tidak memiliki akses ke produk ini.'
     );
   }
 
   if (
     existing.status ===
-      'in_transaction' ||
-    existing.status ===
-      'sold'
+      'in_transaction'
   ) {
     throw new HttpError(
       409,
-      'Produk yang sedang bertransaksi atau sudah terjual tidak dapat diedit.'
+      'Produk sedang dalam transaksi dan tidak dapat diedit.'
     );
   }
 
-  const title =
-    String(
-      data?.title || ''
-    ).trim();
-
-  const description =
-    String(
-      data?.description || ''
-    ).trim();
-
-  const price =
-    Number(
-      data?.price
+  if (
+    existing.status === 'sold'
+  ) {
+    throw new HttpError(
+      409,
+      'Produk yang sudah terjual tidak dapat diedit.'
     );
+  }
 
-  const stock =
-    Number(
-      data?.stock
+  const productData =
+    validateBasicProductData(
+      input
     );
-
-  const category =
-    String(
-      data?.category ||
-        existing.category ||
-        'mobil'
-    ).trim();
 
   const images =
+    validateImages(
+      uid,
+      input?.images
+    );
+
+  const oldImages =
     normalizeImages(
-      data
+      existing
     );
 
-  validateImages(
-    images,
-    uid
-  );
-
-  if (
-    !title ||
-    !description ||
-    !Number.isFinite(price) ||
-    price <= 0 ||
-    !Number.isInteger(stock) ||
-    stock < 1
-  ) {
-    throw new HttpError(
-      400,
-      'Data produk tidak valid.'
+  const oldPublicIds =
+    new Set(
+      oldImages
+        .map(
+          image =>
+            image?.publicId
+        )
+        .filter(Boolean)
     );
-  }
 
-  if (
-    title.length > 150
-  ) {
-    throw new HttpError(
-      400,
-      'Nama produk maksimal 150 karakter.'
+  const newPublicIds =
+    new Set(
+      images
+        .map(
+          image =>
+            image?.publicId
+        )
+        .filter(Boolean)
     );
-  }
 
-  if (
-    description.length > 5000
-  ) {
-    throw new HttpError(
-      400,
-      'Deskripsi produk maksimal 5000 karakter.'
+  const removedImages =
+    oldImages.filter(
+      image => {
+        const publicId =
+          image?.publicId;
+
+        if (!publicId) {
+          return false;
+        }
+
+        return !newPublicIds.has(
+          publicId
+        );
+      }
     );
-  }
 
   await ref.update({
-    title,
-    description,
+    title:
+      productData.title,
+
+    description:
+      productData.description,
 
     images,
 
     imageUrl:
       images[0].url,
 
-    price,
-    stock,
-    category,
+    price:
+      productData.price,
+
+    stock:
+      productData.stock,
+
+    category:
+      productData.category,
 
     sellerName:
-      seller.name,
+      seller?.name || existing.sellerName || '',
 
     sellerPhotoUrl:
-      seller.photoUrl,
+      seller?.photoUrl ||
+      existing.sellerPhotoUrl ||
+      '',
 
     updatedAt:
       FieldValue.serverTimestamp()
   });
 
+  await destroyCloudinaryImages(
+    removedImages
+  );
+
   return {
     ok: true,
-
-    productId:
-      id,
-
-    images
+    productId: id
   };
 }
 
@@ -492,24 +505,28 @@ export async function deleteProduct(
   uid,
   id
 ) {
-  if (!id) {
+  if (!uid) {
     throw new HttpError(
-      400,
-      'ID produk tidak tersedia.'
+      401,
+      'Login diperlukan.'
     );
   }
 
-  const ref =
-    db
-      .collection('products')
-      .doc(id);
+  if (!id) {
+    throw new HttpError(
+      400,
+      'ID produk wajib diisi.'
+    );
+  }
+
+  const ref = db
+    .collection('products')
+    .doc(id);
 
   const snapshot =
     await ref.get();
 
-  if (
-    !snapshot.exists
-  ) {
+  if (!snapshot.exists) {
     throw new HttpError(
       404,
       'Produk tidak ditemukan.'
@@ -520,38 +537,37 @@ export async function deleteProduct(
     snapshot.data();
 
   if (
-    product.sellerUid !==
-    uid
+    product.sellerUid !== uid
   ) {
     throw new HttpError(
       403,
-      'Anda bukan pemilik produk ini.'
+      'Anda tidak memiliki akses ke produk ini.'
     );
   }
 
   if (
     product.status ===
-      'in_transaction' ||
-    product.status ===
-      'sold'
+      'in_transaction'
   ) {
     throw new HttpError(
       409,
-      'Produk yang sedang bertransaksi atau sudah terjual tidak dapat dihapus.'
+      'Produk sedang dalam transaksi dan tidak dapat dihapus.'
     );
   }
 
+  const images =
+    normalizeImages(
+      product
+    );
+
   await ref.delete();
+
+  await destroyCloudinaryImages(
+    images
+  );
 
   return {
     ok: true,
-
-    productId:
-      id
+    productId: id
   };
 }
-
-export {
-  MAX_IMAGES,
-  PRODUCT_IMAGE_PREFIX
-};
