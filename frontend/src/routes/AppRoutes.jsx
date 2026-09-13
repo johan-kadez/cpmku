@@ -18,8 +18,11 @@ import ProtectedRoute from './ProtectedRoute';
 import Login from '../pages/auth/Login';
 
 import AdminLogin from '../pages/admin/AdminLogin';
+import AdminShell from '../pages/admin/AdminShell';
 import AdminDashboard from '../pages/admin/Dashboard';
 import Manage from '../pages/admin/Manage';
+import Rooms from '../pages/admin/Rooms';
+import Users from '../pages/admin/Users';
 import Settings from '../pages/admin/Settings';
 
 import SellerDashboard from '../pages/seller/SellerDashboard';
@@ -27,13 +30,7 @@ import SellerDashboard from '../pages/seller/SellerDashboard';
 export default function AppRoutes() {
   return (
     <Routes>
-
-      {/* =========================
-          PUBLIC + BUYER
-          ========================= */}
-
       <Route element={<AppLayout />}>
-
         <Route
           path="/"
           element={<Home />}
@@ -85,13 +82,7 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
       </Route>
-
-
-      {/* =========================
-          ADMIN
-          ========================= */}
 
       <Route
         path="/admin/login"
@@ -102,89 +93,80 @@ export default function AppRoutes() {
         path="/admin"
         element={
           <ProtectedRoute>
-            <AdminDashboard />
+            <AdminShell />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route
+          index
+          element={<AdminDashboard />}
+        />
 
-      <Route
-        path="/admin/sellers"
-        element={
-          <ProtectedRoute>
+        <Route
+          path="sellers"
+          element={
             <Manage
               type="sellers"
               title="Seller"
             />
-          </ProtectedRoute>
-        }
-      />
+          }
+        />
 
-      <Route
-        path="/admin/products"
-        element={
-          <ProtectedRoute>
+        <Route
+          path="products"
+          element={
             <Manage
               type="products"
               title="Produk"
             />
-          </ProtectedRoute>
-        }
-      />
+          }
+        />
 
-      <Route
-        path="/admin/orders"
-        element={
-          <ProtectedRoute>
+        <Route
+          path="orders"
+          element={
             <Manage
               type="orders"
               title="Order"
             />
-          </ProtectedRoute>
-        }
-      />
+          }
+        />
 
-      <Route
-        path="/admin/payments"
-        element={
-          <ProtectedRoute>
+        <Route
+          path="payments"
+          element={
             <Manage
               type="payments"
               title="Pembayaran"
             />
-          </ProtectedRoute>
-        }
-      />
+          }
+        />
 
-      <Route
-        path="/admin/settings"
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="rooms"
+          element={<Rooms />}
+        />
 
+        <Route
+          path="users"
+          element={<Users />}
+        />
 
-      {/* =========================
-          ADMIN LEGACY
-          ========================= */}
+        <Route
+          path="settings"
+          element={<Settings />}
+        />
 
-      <Route
-        path="/admin/manage"
-        element={
-          <ProtectedRoute>
+        <Route
+          path="manage"
+          element={
             <Manage
               type="products"
               title="Kelola Produk"
             />
-          </ProtectedRoute>
-        }
-      />
-
-
-      {/* =========================
-          SELLER
-          ========================= */}
+          }
+        />
+      </Route>
 
       <Route
         path="/seller"
@@ -195,11 +177,6 @@ export default function AppRoutes() {
         }
       />
 
-
-      {/* =========================
-          404
-          ========================= */}
-
       <Route
         path="*"
         element={
@@ -208,7 +185,6 @@ export default function AppRoutes() {
           </div>
         }
       />
-
     </Routes>
   );
 }
