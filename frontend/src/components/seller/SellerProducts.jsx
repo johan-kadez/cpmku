@@ -49,6 +49,7 @@ export default function SellerProducts({
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [editingId, setEditingId] = useState("");
+  const [confirmProduct, setConfirmProduct] = useState(null);
   const [editForm, setEditForm] = useState({
     title: "",
     description: "",
@@ -225,7 +226,7 @@ export default function SellerProducts({
     }
   }
 
-  async function removeProduct(product) {
+  function removeProduct(product) {
     if (!product?.id) return;
 
     if (typeof onDelete === "function") {
@@ -235,12 +236,14 @@ export default function SellerProducts({
 
     if (!editable) return;
 
-    const confirmed = window.confirm(
-      `Hapus produk "${safeString(product.title) || "tanpa nama"}"?`,
-    );
+    setConfirmProduct(product);
+  }
 
-    if (!confirmed) return;
+  async function confirmRemoveProduct() {
+    if (!confirmProduct?.id) return;
 
+    const product = confirmProduct;
+    setConfirmProduct(null);
     setBusyId(product.id);
     setError("");
 
@@ -263,6 +266,62 @@ export default function SellerProducts({
 
   return (
     <section className="seller-products">
+      {confirmProduct ? (
+        <div
+          role="presentation"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            background: "rgba(0,0,0,0.68)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)"
+          }}
+          onClick={() => setConfirmProduct(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="seller-products-confirm-title"
+            style={{
+              width: "min(100%, 420px)",
+              boxSizing: "border-box",
+              padding: 22,
+              borderRadius: 18,
+              background: "rgba(20,24,32,0.96)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.45)"
+            }}
+            onClick={event => event.stopPropagation()}
+          >
+            <h3 id="seller-products-confirm-title" style={{ margin: "0 0 8px" }}>
+              Hapus produk?
+            </h3>
+            <p style={{ margin: "0 0 20px", opacity: 0.72 }}>
+              Hapus produk "{safeString(confirmProduct.title) || "tanpa nama"}"?
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setConfirmProduct(null)}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemoveProduct}
+              >
+                Ya, hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {error ? (
         <div className="state seller-products-error" role="alert">
           {error}
