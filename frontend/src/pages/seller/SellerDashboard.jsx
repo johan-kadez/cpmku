@@ -733,14 +733,17 @@ export default function SellerDashboard() {
     const incompleteImage =
       images.some(
         image =>
-          !image?.url ||
-          !image?.publicId ||
-          !image?.version ||
-          !image?.signature
+          !image?.file &&
+          (
+            !image?.url ||
+            !image?.publicId ||
+            !image?.version ||
+            !image?.signature
+          )
       );
 
     if (incompleteImage) {
-      return 'Semua foto harus selesai diupload ke Cloudinary.';
+      return 'Ada foto yang belum siap untuk disimpan.';
     }
 
     return '';
