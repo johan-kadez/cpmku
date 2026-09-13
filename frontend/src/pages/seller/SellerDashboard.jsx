@@ -9,7 +9,7 @@ import {
 
 import { auth, db } from '../../services/firebase';
 import { api } from '../../services/api';
-import { rupiah } from '../../utils/rupiah';
+import { rupiah } from '../../utils/format';
 
 const MAX_IMAGES = 7;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
