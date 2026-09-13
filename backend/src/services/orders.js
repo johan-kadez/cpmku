@@ -1,4 +1,306 @@
-import {db,FieldValue,auth} from '../firebase/admin.js';import {env} from '../config/env.js';import {HttpError} from '../utils/errors.js';
-async function adminUids(){const ids=[];for(const email of env.adminEmails){try{ids.push((await auth.getUserByEmail(email)).uid)}catch{}}return[...new Set(ids)]}
-export async function createOrder(buyerUid,productId){const admins=await adminUids();if(!admins.length)throw new HttpError(503,'Admin belum tersedia.');return db.runTransaction(async tx=>{const productRef=db.collection('products').doc(productId);const snap=await tx.get(productRef);if(!snap.exists)throw new HttpError(404,'Produk tidak ditemukan.');const p=snap.data(),stock=Number(p.stock);if(p.status!=='available'||p.visibility!=='public'||!Number.isInteger(stock)||stock<1)throw new HttpError(409,'Produk tidak tersedia atau sedang dalam transaksi.');if(p.sellerUid===buyerUid)throw new HttpError(403,'Seller tidak dapat membeli produknya sendiri.');const orderRef=db.collection('orders').doc(),roomRef=db.collection('rooms').doc(orderRef.id),pid=p.productId||productId;tx.update(productRef,{status:'in_transaction',updatedAt:FieldValue.serverTimestamp()});tx.set(orderRef,{buyerUid,sellerUid:p.sellerUid,productId:pid,productName:p.title,amount:Number(p.price),roomId:roomRef.id,status:'in_transaction',paymentStatus:'pending',createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});tx.set(roomRef,{roomId:roomRef.id,orderId:orderRef.id,productId:pid,buyerUid,sellerUid:p.sellerUid,participantUids:[buyerUid,...admins],sellerCalled:false,status:'in_transaction',createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});tx.set(db.collection('payments').doc(orderRef.id),{orderId:orderRef.id,productId:pid,buyerUid,sellerUid:p.sellerUid,amount:Number(p.price),paymentMethod:'qris',status:'pending',createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});return{orderId:orderRef.id,roomId:roomRef.id,productId:pid}})}
-export async function doneOrder(orderId,buyerUid){return db.runTransaction(async tx=>{const orderRef=db.collection('orders').doc(orderId),orderSnap=await tx.get(orderRef);if(!orderSnap.exists)throw new HttpError(404,'Order tidak ditemukan.');const order=orderSnap.data();if(order.buyerUid!==buyerUid)throw new HttpError(403,'Hanya buyer yang dapat menekan DONE.');if(['completed','cancelled'].includes(order.status))throw new HttpError(409,'Transaksi sudah selesai atau dibatalkan.');if(order.paymentStatus!=='verified')throw new HttpError(409,'Pembayaran belum diverifikasi admin.');const roomRef=db.collection('rooms').doc(order.roomId||orderId),roomSnap=await tx.get(roomRef);const productRef=db.collection('products').doc(order.productId),productSnap=await tx.get(productRef);if(!productSnap.exists)throw new HttpError(409,'Produk transaksi tidak ditemukan.');const p=productSnap.data();const stock=Math.max(0,Number(p.stock)-1);tx.update(orderRef,{status:'completed',completedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});if(roomSnap.exists)tx.update(roomRef,{status:'completed',completedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});tx.update(productRef,stock===0?{stock:0,status:'sold',visibility:'private',updatedAt:FieldValue.serverTimestamp()}:{stock,status:'available',visibility:'public',updatedAt:FieldValue.serverTimestamp()});return{ok:true,status:'completed'}})}
+import {
+  db,
+  FieldValue
+} from '../firebase/admin.js';
+
+import {
+  env
+} from '../config/env.js';
+
+import {
+  HttpError
+} from '../utils/errors.js';
+
+async function adminUids() {
+  const adminUid = String(
+    env.adminUid || ''
+  ).trim();
+
+  if (!adminUid) {
+    return [];
+  }
+
+  return [adminUid];
+}
+
+export async function createOrder(
+  buyerUid,
+  productId
+) {
+  const admins = await adminUids();
+
+  if (!admins.length) {
+    throw new HttpError(
+      503,
+      'Admin belum tersedia.'
+    );
+  }
+
+  return db.runTransaction(
+    async tx => {
+      const productRef = db
+        .collection('products')
+        .doc(productId);
+
+      const snap = await tx.get(
+        productRef
+      );
+
+      if (!snap.exists) {
+        throw new HttpError(
+          404,
+          'Produk tidak ditemukan.'
+        );
+      }
+
+      const p = snap.data();
+
+      const stock = Number(
+        p.stock
+      );
+
+      if (
+        p.status !== 'available' ||
+        p.visibility !== 'public' ||
+        !Number.isInteger(stock) ||
+        stock < 1
+      ) {
+        throw new HttpError(
+          409,
+          'Produk tidak tersedia atau sedang dalam transaksi.'
+        );
+      }
+
+      if (
+        p.sellerUid === buyerUid
+      ) {
+        throw new HttpError(
+          403,
+          'Seller tidak dapat membeli produknya sendiri.'
+        );
+      }
+
+      const orderRef = db
+        .collection('orders')
+        .doc();
+
+      const roomRef = db
+        .collection('rooms')
+        .doc(orderRef.id);
+
+      const pid =
+        p.productId ||
+        productId;
+
+      tx.update(
+        productRef,
+        {
+          status: 'in_transaction',
+          updatedAt:
+            FieldValue.serverTimestamp()
+        }
+      );
+
+      tx.set(
+        orderRef,
+        {
+          buyerUid,
+          sellerUid: p.sellerUid,
+          productId: pid,
+          productName: p.title,
+          amount: Number(p.price),
+          roomId: roomRef.id,
+          status: 'in_transaction',
+          paymentStatus: 'pending',
+          createdAt:
+            FieldValue.serverTimestamp(),
+          updatedAt:
+            FieldValue.serverTimestamp()
+        }
+      );
+
+      tx.set(
+        roomRef,
+        {
+          roomId: roomRef.id,
+          orderId: orderRef.id,
+          productId: pid,
+          buyerUid,
+          sellerUid: p.sellerUid,
+          participantUids: [
+            buyerUid,
+            ...admins
+          ],
+          sellerCalled: false,
+          status: 'in_transaction',
+          createdAt:
+            FieldValue.serverTimestamp(),
+          updatedAt:
+            FieldValue.serverTimestamp()
+        }
+      );
+
+      tx.set(
+        db
+          .collection('payments')
+          .doc(orderRef.id),
+        {
+          orderId: orderRef.id,
+          productId: pid,
+          buyerUid,
+          sellerUid: p.sellerUid,
+          amount: Number(p.price),
+          paymentMethod: 'qris',
+          status: 'pending',
+          createdAt:
+            FieldValue.serverTimestamp(),
+          updatedAt:
+            FieldValue.serverTimestamp()
+        }
+      );
+
+      return {
+        orderId: orderRef.id,
+        roomId: roomRef.id,
+        productId: pid
+      };
+    }
+  );
+}
+
+export async function doneOrder(
+  orderId,
+  buyerUid
+) {
+  return db.runTransaction(
+    async tx => {
+      const orderRef = db
+        .collection('orders')
+        .doc(orderId);
+
+      const orderSnap =
+        await tx.get(orderRef);
+
+      if (!orderSnap.exists) {
+        throw new HttpError(
+          404,
+          'Order tidak ditemukan.'
+        );
+      }
+
+      const order =
+        orderSnap.data();
+
+      if (
+        order.buyerUid !== buyerUid
+      ) {
+        throw new HttpError(
+          403,
+          'Hanya buyer yang dapat menekan DONE.'
+        );
+      }
+
+      if (
+        [
+          'completed',
+          'cancelled'
+        ].includes(order.status)
+      ) {
+        throw new HttpError(
+          409,
+          'Transaksi sudah selesai atau dibatalkan.'
+        );
+      }
+
+      if (
+        order.paymentStatus !==
+        'verified'
+      ) {
+        throw new HttpError(
+          409,
+          'Pembayaran belum diverifikasi admin.'
+        );
+      }
+
+      const roomRef = db
+        .collection('rooms')
+        .doc(
+          order.roomId ||
+          orderId
+        );
+
+      const roomSnap =
+        await tx.get(roomRef);
+
+      const productRef = db
+        .collection('products')
+        .doc(order.productId);
+
+      const productSnap =
+        await tx.get(productRef);
+
+      if (!productSnap.exists) {
+        throw new HttpError(
+          409,
+          'Produk transaksi tidak ditemukan.'
+        );
+      }
+
+      const p =
+        productSnap.data();
+
+      const stock = Math.max(
+        0,
+        Number(p.stock) - 1
+      );
+
+      tx.update(
+        orderRef,
+        {
+          status: 'completed',
+          completedAt:
+            FieldValue.serverTimestamp(),
+          updatedAt:
+            FieldValue.serverTimestamp()
+        }
+      );
+
+      if (roomSnap.exists) {
+        tx.update(
+          roomRef,
+          {
+            status: 'completed',
+            completedAt:
+              FieldValue.serverTimestamp(),
+            updatedAt:
+              FieldValue.serverTimestamp()
+          }
+        );
+      }
+
+      tx.update(
+        productRef,
+        stock === 0
+          ? {
+              stock: 0,
+              status: 'sold',
+              visibility: 'private',
+              updatedAt:
+                FieldValue.serverTimestamp()
+            }
+          : {
+              stock,
+              status: 'available',
+              visibility: 'public',
+              updatedAt:
+                FieldValue.serverTimestamp()
+            }
+      );
+
+      return {
+        ok: true,
+        status: 'completed'
+      };
+    }
+  );
+}
