@@ -90,10 +90,13 @@ export const me =
 export const profileNickname =
   async (req, res) => {
     const result =
-      await updateProfileNickname(
-        req.user.uid,
-        req.body?.name
-      );
+      await updateProfileNickname({
+        uid:
+          req.user.uid,
+
+        nickname:
+          req.body?.name
+      });
 
     return ok(
       res,
