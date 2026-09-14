@@ -22,6 +22,10 @@ import {
 } from '../../context/AuthContext';
 
 import {
+  useNotifications
+} from '../../context/NotificationContext';
+
+import {
   useOrder
 } from '../../hooks/useOrder';
 
@@ -50,7 +54,8 @@ function getProductImages(
     return product.images
       .map(
         image =>
-          typeof image === 'string'
+          typeof image ===
+          'string'
             ? image
             : image?.url
       )
@@ -93,6 +98,10 @@ export default function ProductDetail() {
   } = useAuth();
 
   const {
+    showToast
+  } = useNotifications();
+
+  const {
     createOrder,
     busy
   } = useOrder();
@@ -122,15 +131,11 @@ export default function ProductDetail() {
             ...snapshot.data()
           });
         } else {
-          setProduct(
-            null
-          );
+          setProduct(null);
         }
       },
       () => {
-        setProduct(
-          null
-        );
+        setProduct(null);
       }
     );
   }, [
@@ -141,9 +146,7 @@ export default function ProductDetail() {
     if (
       !product?.sellerUid
     ) {
-      setSeller(
-        null
-      );
+      setSeller(null);
 
       return undefined;
     }
@@ -164,9 +167,7 @@ export default function ProductDetail() {
             ...snapshot.data()
           });
         } else {
-          setSeller(
-            null
-          );
+          setSeller(null);
         }
       }
     );
@@ -175,9 +176,7 @@ export default function ProductDetail() {
   ]);
 
   useEffect(() => {
-    setSelectedImage(
-      0
-    );
+    setSelectedImage(0);
   }, [
     product?.id
   ]);
@@ -225,19 +224,14 @@ export default function ProductDetail() {
           );
         }
 
-        const result =
-          await createOrder(
-            id
-          );
-
-        nav(
-          `/chat/${result.roomId}`
+        await createOrder(
+          id
         );
-      } catch (
-        error
-      ) {
-        alert(
-          error.message
+      } catch (error) {
+        showToast(
+          'Pesanan gagal dibuat',
+          error?.message ||
+            'Terjadi kesalahan saat membuat pesanan.'
         );
       }
     };
@@ -258,11 +252,11 @@ export default function ProductDetail() {
             product.id
           )
         );
-      } catch (
-        error
-      ) {
-        alert(
-          error.message
+      } catch (error) {
+        showToast(
+          'Favorit gagal diperbarui',
+          error?.message ||
+            'Terjadi kesalahan.'
         );
       }
     };
@@ -270,8 +264,7 @@ export default function ProductDetail() {
   const previousImage =
     () => {
       if (
-        images.length <=
-        1
+        images.length <= 1
       ) {
         return;
       }
@@ -287,8 +280,7 @@ export default function ProductDetail() {
   const nextImage =
     () => {
       if (
-        images.length <=
-        1
+        images.length <= 1
       ) {
         return;
       }
@@ -451,8 +443,10 @@ export default function ProductDetail() {
                     '12px'
                 }}
               >
-                {selectedImage +
-                  1}{' '}
+                {
+                  selectedImage +
+                  1
+                }{' '}
                 /{' '}
                 {
                   images.length
@@ -641,8 +635,8 @@ export default function ProductDetail() {
             }
           >
             {busy
-              ? 'Membuat transaksi...'
-              : 'Buy'}
+              ? 'Memproses pesanan...'
+              : 'Pesan'}
           </button>
         )}
       </div>
