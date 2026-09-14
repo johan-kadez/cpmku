@@ -96,15 +96,11 @@ export default function ChatRoom({
   );
 
   if (!room) {
-    return (
-      <div className="state">
-        Pilih ruang chat.
-      </div>
-    );
+    return null;
   }
 
-  const submit = async e => {
-    e.preventDefault();
+  const submit = async event => {
+    event.preventDefault();
 
     const value =
       text.trim();
@@ -175,20 +171,24 @@ export default function ChatRoom({
             }
           </b>
 
-          <small>
-            Buyer + Seller + Admin
-          </small>
+          {!floating && (
+            <small>
+              Buyer + Seller + Admin
+            </small>
+          )}
         </div>
 
         <div className="chat-header-actions">
-          <button
-            type="button"
-            onClick={() =>
-              setQris(true)
-            }
-          >
-            Lihat QRIS
-          </button>
+          {!floating && (
+            <button
+              type="button"
+              onClick={() =>
+                setQris(true)
+              }
+            >
+              Lihat QRIS
+            </button>
+          )}
 
           {floating && (
             <button
@@ -211,39 +211,46 @@ export default function ChatRoom({
 
       <div className="messages">
         {messages.map(
-          message => (
-            <div
-              className={
-                `msg ${
-                  message.senderUid ===
-                  user?.uid
-                    ? 'mine'
-                    : ''
-                }`
-              }
-              key={
-                message.id
-              }
-            >
-              <b>
-                {
-                  message.senderName
-                }{' '}
-                <small>
-                  •{' '}
-                  {
-                    message.role
-                  }
-                </small>
-              </b>
+          message => {
+            const messageRole =
+              message.role ||
+              message.senderRole ||
+              'buyer';
 
-              <p>
-                {
-                  message.body
+            return (
+              <div
+                className={
+                  `msg ${
+                    message.senderUid ===
+                    user?.uid
+                      ? 'mine'
+                      : ''
+                  }`
                 }
-              </p>
-            </div>
-          )
+                key={
+                  message.id
+                }
+              >
+                <b>
+                  {
+                    message.senderName
+                  }{' '}
+                  <small>
+                    •{' '}
+                    {
+                      messageRole
+                    }
+                  </small>
+                </b>
+
+                <p>
+                  {
+                    message.body
+                  }
+                </p>
+              </div>
+            );
+          }
         )}
       </div>
 
@@ -266,9 +273,9 @@ export default function ChatRoom({
       >
         <input
           value={text}
-          onChange={e =>
+          onChange={event =>
             setText(
-              e.target.value
+              event.target.value
             )
           }
           placeholder="Tulis pesan..."
