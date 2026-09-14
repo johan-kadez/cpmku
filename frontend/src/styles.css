@@ -1742,3 +1742,31 @@ body {
     flex: 1;
   }
 }
+
+.admin-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 14px;
+  background: rgba(21, 21, 21, 0.72);
+  border: 1px solid #292929;
+  border-radius: 12px;
+  color: #aaa;
+  white-space: nowrap;
+  transition:
+    border-color .18s ease,
+    color .18s ease,
+    background .18s ease;
+}
+
+.admin-nav-link:hover {
+  color: #fff;
+  border-color: #3b82f6;
+}
+
+.admin-nav-link.active {
+  color: #fff;
+  background: rgba(29, 78, 216, 0.18);
+  border-color: #2563eb;
+}
