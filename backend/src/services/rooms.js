@@ -42,6 +42,9 @@ export async function sendMessage(
   const room =
     snap.data();
 
+  const isAdmin =
+    user.role === 'admin';
+
   const participant =
     Array.isArray(
       room.participantUids
@@ -52,7 +55,7 @@ export async function sendMessage(
 
   if (
     !participant &&
-    !user.isAdmin
+    !isAdmin
   ) {
     throw new HttpError(
       403,
@@ -60,13 +63,30 @@ export async function sendMessage(
     );
   }
 
-  const role =
-    user.isAdmin
-      ? 'admin'
-      : room.buyerUid ===
-          user.uid
-        ? 'buyer'
-        : 'seller';
+  let messageRole =
+    'buyer';
+
+  if (isAdmin) {
+    messageRole =
+      'admin';
+  } else if (
+    room.buyerUid ===
+    user.uid
+  ) {
+    messageRole =
+      'buyer';
+  } else if (
+    room.sellerUid ===
+    user.uid
+  ) {
+    messageRole =
+      'seller';
+  } else {
+    throw new HttpError(
+      403,
+      'Role pengguna tidak sesuai dengan transaksi.'
+    );
+  }
 
   await ref
     .collection('messages')
@@ -79,7 +99,8 @@ export async function sendMessage(
         user.email ||
         'User',
 
-      role,
+      role:
+        messageRole,
 
       body:
         text,
