@@ -5,7 +5,7 @@ import {
 } from 'react-router-dom';
 
 import Header from '../../components/layout/Header';
-import AdminNav from '../../components/admin/AdminNav';
+import BottomNav from '../../components/layout/BottomNav';
 
 import {
   useAuth
@@ -70,12 +70,12 @@ export default function AdminShell() {
           </div>
         </div>
 
-        <AdminNav />
-
         <section className="admin-content">
           <Outlet />
         </section>
       </main>
+
+      <BottomNav />
     </div>
   );
 }
