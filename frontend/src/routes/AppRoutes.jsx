@@ -21,6 +21,7 @@ import Login from '../pages/auth/Login';
 import ChatPage from '../pages/chat/ChatPage';
 
 import AdminLogin from '../pages/admin/AdminLogin';
+import AdminShell from '../pages/admin/AdminShell';
 import AdminDashboard from '../pages/admin/Dashboard';
 import Manage from '../pages/admin/Manage';
 import Rooms from '../pages/admin/Rooms';
@@ -29,7 +30,9 @@ import Settings from '../pages/admin/Settings';
 
 import SellerDashboard from '../pages/seller/SellerDashboard';
 
-import { useAuth } from '../context/AuthContext';
+import {
+  useAuth
+} from '../context/AuthContext';
 
 function AdminRoute({ children }) {
   const {
@@ -134,103 +137,85 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminShell />
+          </AdminRoute>
+        }
+      >
+        <Route
+          index
+          element={<AdminDashboard />}
+        />
 
         <Route
-          path="/admin"
+          path="sellers"
           element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
+            <Manage
+              type="sellers"
+              title="Seller"
+            />
           }
         />
 
         <Route
-          path="/admin/sellers"
+          path="products"
           element={
-            <AdminRoute>
-              <Manage
-                type="sellers"
-                title="Seller"
-              />
-            </AdminRoute>
+            <Manage
+              type="products"
+              title="Produk"
+            />
           }
         />
 
         <Route
-          path="/admin/products"
+          path="orders"
           element={
-            <AdminRoute>
-              <Manage
-                type="products"
-                title="Produk"
-              />
-            </AdminRoute>
+            <Manage
+              type="orders"
+              title="Order"
+            />
           }
         />
 
         <Route
-          path="/admin/orders"
+          path="payments"
           element={
-            <AdminRoute>
-              <Manage
-                type="orders"
-                title="Order"
-              />
-            </AdminRoute>
+            <Manage
+              type="payments"
+              title="Pembayaran"
+            />
           }
         />
 
         <Route
-          path="/admin/payments"
-          element={
-            <AdminRoute>
-              <Manage
-                type="payments"
-                title="Pembayaran"
-              />
-            </AdminRoute>
-          }
+          path="rooms"
+          element={<Rooms />}
         />
 
         <Route
-          path="/admin/rooms"
-          element={
-            <AdminRoute>
-              <Rooms />
-            </AdminRoute>
-          }
+          path="users"
+          element={<Users />}
         />
 
         <Route
-          path="/admin/users"
-          element={
-            <AdminRoute>
-              <Users />
-            </AdminRoute>
-          }
+          path="settings"
+          element={<Settings />}
         />
 
         <Route
-          path="/admin/settings"
+          path="manage"
           element={
-            <AdminRoute>
-              <Settings />
-            </AdminRoute>
+            <Manage
+              type="products"
+              title="Kelola Produk"
+            />
           }
         />
-
-        <Route
-          path="/admin/manage"
-          element={
-            <AdminRoute>
-              <Manage
-                type="products"
-                title="Kelola Produk"
-              />
-            </AdminRoute>
-          }
-        />
-
       </Route>
 
       <Route
