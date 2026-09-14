@@ -17,6 +17,8 @@ import ProtectedRoute from './ProtectedRoute';
 
 import Login from '../pages/auth/Login';
 
+import ChatPage from '../pages/chat/ChatPage';
+
 import AdminLogin from '../pages/admin/AdminLogin';
 import AdminShell from '../pages/admin/AdminShell';
 import AdminDashboard from '../pages/admin/Dashboard';
@@ -43,7 +45,9 @@ export default function AppRoutes() {
 
         <Route
           path="/products/:id"
-          element={<ProductDetail />}
+          element={
+            <ProductDetail />
+          }
         />
 
         <Route
@@ -82,6 +86,15 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/chat/:roomId"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route
@@ -99,7 +112,9 @@ export default function AppRoutes() {
       >
         <Route
           index
-          element={<AdminDashboard />}
+          element={
+            <AdminDashboard />
+          }
         />
 
         <Route
