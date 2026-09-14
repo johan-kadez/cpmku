@@ -5,6 +5,7 @@ import {
   useRef,
   useState
 } from 'react';
+
 import {
   collection,
   onSnapshot,
@@ -13,95 +14,171 @@ import {
   where
 } from 'firebase/firestore';
 
-import { db } from '../services/firebase';
-import { useAuth } from './AuthContext';
+import {
+  db
+} from '../services/firebase';
 
-const C = createContext(null);
+import {
+  useAuth
+} from './AuthContext';
 
-export function NotificationProvider({ children }) {
-  const { user } = useAuth();
+const C =
+  createContext(null);
 
-  const [notifications, setNotifications] = useState([]);
-  const [toast, setToast] = useState(null);
+export function NotificationProvider({
+  children
+}) {
+  const {
+    user
+  } = useAuth();
 
-  const notifiedIds = useRef(new Set());
-  const toastTimer = useRef(null);
+  const [
+    notifications,
+    setNotifications
+  ] = useState([]);
+
+  const [
+    toast,
+    setToast
+  ] = useState(null);
+
+  const notifiedIds =
+    useRef(new Set());
+
+  const toastTimer =
+    useRef(null);
 
   useEffect(() => {
     notifiedIds.current.clear();
+
     setToast(null);
 
-    if (toastTimer.current) {
-      clearTimeout(toastTimer.current);
-      toastTimer.current = null;
+    if (
+      toastTimer.current
+    ) {
+      clearTimeout(
+        toastTimer.current
+      );
+
+      toastTimer.current =
+        null;
     }
 
     if (!user) {
       setNotifications([]);
+
       return undefined;
     }
 
     return onSnapshot(
       query(
-        collection(db, 'notifications'),
-        where('toUid', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        collection(
+          db,
+          'notifications'
+        ),
+        where(
+          'toUid',
+          '==',
+          user.uid
+        ),
+        orderBy(
+          'createdAt',
+          'desc'
+        )
       ),
       snapshot => {
-        const rows = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        const rows =
+          snapshot.docs.map(
+            doc => ({
+              id: doc.id,
+              ...doc.data()
+            })
+          );
 
         setNotifications(rows);
 
-        const latest = rows[0];
+        const latest =
+          rows[0];
 
         if (
           latest &&
-          !notifiedIds.current.has(latest.id)
+          !notifiedIds.current.has(
+            latest.id
+          )
         ) {
-          notifiedIds.current.add(latest.id);
+          notifiedIds.current.add(
+            latest.id
+          );
 
-          setToast({
-            id: latest.id,
-            title:
-              latest.title ||
+          showToast(
+            latest.title ||
               'Notifikasi CPMKU',
-            message:
-              latest.message ||
+            latest.message ||
               latest.body ||
               ''
-          });
-
-          if (toastTimer.current) {
-            clearTimeout(toastTimer.current);
-          }
-
-          toastTimer.current = setTimeout(() => {
-            setToast(null);
-            toastTimer.current = null;
-          }, 5000);
+          );
         }
       },
       () => {
         setNotifications([]);
       }
     );
-  }, [user]);
+  }, [
+    user
+  ]);
 
   useEffect(() => {
     return () => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
+      if (
+        toastTimer.current
+      ) {
+        clearTimeout(
+          toastTimer.current
+        );
       }
     };
   }, []);
 
+  const showToast = (
+    title,
+    message
+  ) => {
+    if (
+      toastTimer.current
+    ) {
+      clearTimeout(
+        toastTimer.current
+      );
+    }
+
+    setToast({
+      id:
+        `toast-${Date.now()}`,
+      title:
+        title ||
+        'Notifikasi CPMKU',
+      message:
+        message || ''
+    });
+
+    toastTimer.current =
+      setTimeout(() => {
+        setToast(null);
+        toastTimer.current =
+          null;
+      }, 5000);
+  };
+
   const dismissToast = () => {
-    if (toastTimer.current) {
-      clearTimeout(toastTimer.current);
-      toastTimer.current = null;
+    if (
+      toastTimer.current
+    ) {
+      clearTimeout(
+        toastTimer.current
+      );
+
+      toastTimer.current =
+        null;
     }
 
     setToast(null);
@@ -112,6 +189,7 @@ export function NotificationProvider({ children }) {
       value={{
         notifications,
         toast,
+        showToast,
         dismissToast
       }}
     >
@@ -120,5 +198,5 @@ export function NotificationProvider({ children }) {
   );
 }
 
-export const useNotifications = () =>
-  useContext(C);
+export const useNotifications =
+  () => useContext(C);
