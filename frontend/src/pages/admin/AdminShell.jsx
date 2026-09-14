@@ -4,6 +4,7 @@ import {
   useNavigate
 } from 'react-router-dom';
 
+import Header from '../../components/layout/Header';
 import AdminNav from '../../components/admin/AdminNav';
 
 import {
@@ -32,50 +33,49 @@ export default function AdminShell() {
 
   return (
     <div className="admin-shell">
-      <header className="admin-header">
-        <span className="brand">
-          JOHAN
-          <span>
-            ADMIN
-          </span>
-        </span>
+      <Header />
 
-        <div className="admin-header-actions">
-          <Link
-            to="/"
-            className="admin-public-link"
-          >
-            Public Web
-          </Link>
+      <main className="container admin-container">
+        <div className="admin-shell-top">
+          <div>
+            <span className="admin-eyebrow">
+              CPMKU
+            </span>
 
-          <button
-            type="button"
-            onClick={
-              doLogout
-            }
-          >
-            Logout
-          </button>
+            <h1>
+              Dashboard Admin
+            </h1>
+
+            <p>
+              Kelola marketplace CPMKU
+              dari satu tempat.
+            </p>
+          </div>
+
+          <div className="admin-shell-actions">
+            <Link
+              to="/"
+              className="admin-public-link"
+            >
+              Marketplace
+            </Link>
+
+            <button
+              type="button"
+              onClick={doLogout}
+              className="admin-logout-button"
+            >
+              Logout
+            </button>
+          </div>
         </div>
-      </header>
-
-      <div className="container">
-        <section className="page-title">
-          <h1>
-            Admin Panel
-          </h1>
-
-          <p>
-            Kontrol marketplace
-            dengan sistem UID
-            admin.
-          </p>
-        </section>
 
         <AdminNav />
 
-        <Outlet />
-      </div>
+        <section className="admin-content">
+          <Outlet />
+        </section>
+      </main>
     </div>
   );
 }
