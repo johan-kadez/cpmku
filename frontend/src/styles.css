@@ -1653,3 +1653,92 @@ body {
     font-size:10px;
   }
 }
+
+.admin-container {
+  padding-top: 28px;
+}
+
+.admin-shell-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.admin-shell-top h1 {
+  margin: 8px 0;
+  font-size: clamp(28px, 5vw, 44px);
+  line-height: 1.05;
+}
+
+.admin-shell-top p {
+  margin: 0;
+  color: #999;
+  line-height: 1.6;
+}
+
+.admin-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: #3b82f6;
+}
+
+.admin-shell-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-public-link,
+.admin-logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 11px;
+  border: 1px solid #292929;
+  background: #171717;
+  color: #fff;
+}
+
+.admin-public-link:hover,
+.admin-logout-button:hover {
+  border-color: #3b82f6;
+}
+
+.admin-logout-button {
+  cursor: pointer;
+}
+
+.admin-content {
+  min-width: 0;
+}
+
+.admin-nav {
+  margin-top: 0;
+}
+
+@media (max-width: 650px) {
+  .admin-container {
+    padding-top: 20px;
+  }
+
+  .admin-shell-top {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .admin-shell-actions {
+    width: 100%;
+  }
+
+  .admin-public-link,
+  .admin-logout-button {
+    flex: 1;
+  }
+}
