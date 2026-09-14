@@ -40,11 +40,16 @@
 
 .floating-chat-panel-wrap {
   position:fixed;
-  inset:0;
+
+  top:70px;
+  right:0;
+  bottom:0;
+  left:0;
+
   z-index:500;
 
   width:100vw;
-  height:100dvh;
+  height:calc(100dvh - 70px);
 
   margin:0;
   padding:0;
@@ -58,8 +63,11 @@
 .floating-chat-panel {
   width:100%;
   height:100%;
+  min-height:0;
 
   pointer-events:auto;
+
+  overflow:hidden;
 
   transform-origin:
     bottom right;
@@ -88,11 +96,12 @@
 
   backdrop-filter:none;
   -webkit-backdrop-filter:none;
+
+  overflow:hidden;
 }
 
 .floating-chat-panel .chat-room > header {
-  position:
-    sticky;
+  position:sticky;
 
   top:0;
 
@@ -128,8 +137,7 @@
 }
 
 .floating-chat-panel .chat-actions {
-  position:
-    absolute;
+  position:absolute;
 
   left:18px;
   right:18px;
@@ -139,8 +147,7 @@
 }
 
 .floating-chat-panel form {
-  position:
-    absolute;
+  position:absolute;
 
   left:0;
   right:0;
@@ -247,24 +254,20 @@
   }
 
   .floating-chat-panel-wrap {
-    inset:0;
+    top:70px;
+    right:0;
+    bottom:0;
+    left:0;
 
     width:100vw;
-    height:100dvh;
+    height:calc(100dvh - 70px);
   }
 
   .floating-chat-panel .chat-room > header {
-    min-height:
-      calc(
-        64px +
-        env(safe-area-inset-top)
-      );
+    min-height:64px;
 
-    padding-top:
-      calc(
-        10px +
-        env(safe-area-inset-top)
-      );
+    padding:
+      10px 14px;
   }
 
   .floating-chat-panel .messages {
