@@ -95,6 +95,63 @@ function getStatusLabel(status) {
   );
 }
 
+function formatAmount(value) {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return '-';
+  }
+
+  return new Intl.NumberFormat(
+    'id-ID',
+    {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0
+    }
+  ).format(amount);
+}
+
+function formatDate(value) {
+  if (!value) {
+    return '-';
+  }
+
+  let date;
+
+  if (
+    typeof value === 'object' &&
+    typeof value.toDate === 'function'
+  ) {
+    date = value.toDate();
+  } else if (
+    typeof value === 'object' &&
+    typeof value._seconds === 'number'
+  ) {
+    date = new Date(
+      value._seconds * 1000
+    );
+  } else {
+    date = new Date(value);
+  }
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat(
+    'id-ID',
+    {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }
+  ).format(date);
+}
+
 export default function Manage({
   type,
   title
@@ -173,6 +230,18 @@ export default function Manage({
         id,
         status,
         kind: 'status'
+      });
+
+      return;
+    }
+
+    if (
+      type === 'payments'
+    ) {
+      setConfirmState({
+        id,
+        status,
+        kind: 'payment'
       });
 
       return;
@@ -343,6 +412,7 @@ export default function Manage({
     return (
       row.name ||
       row.title ||
+      row.productName ||
       row.productId ||
       row.orderId ||
       row.id
@@ -631,6 +701,420 @@ export default function Manage({
     );
   };
 
+  const renderPayment = row => {
+    const status =
+      row.status || 'pending';
+
+    const isExpanded =
+      expandedId === row.id;
+
+    const isPending =
+      status === 'pending';
+
+    const verifyLoading =
+      loadingAction ===
+      `${row.id}:verified`;
+
+    const rejectLoading =
+      loadingAction ===
+      `${row.id}:rejected`;
+
+    const buyer =
+      row.buyerName ||
+      row.buyerEmail ||
+      row.buyerUid ||
+      '-';
+
+    const seller =
+      row.sellerName ||
+      row.sellerEmail ||
+      row.sellerUid ||
+      '-';
+
+    const product =
+      row.productName ||
+      row.productTitle ||
+      row.productId ||
+      '-';
+
+    const orderId =
+      row.orderId ||
+      row.id ||
+      '-';
+
+    return (
+      <article
+        key={row.id}
+        className="admin-manage-card"
+        style={{
+          width: '100%'
+        }}
+      >
+        <div className="admin-card-heading">
+          <div>
+            <span className="admin-card-label">
+              Pembayaran
+            </span>
+
+            <h3>
+              {
+                formatAmount(
+                  row.amount
+                )
+              }
+            </h3>
+
+            <p>
+              Order #{orderId}
+            </p>
+          </div>
+
+          <span
+            className={
+              `admin-status admin-status-${status}`
+            }
+          >
+            {
+              getStatusLabel(
+                status
+              )
+            }
+          </span>
+        </div>
+
+        <div
+          className="admin-generic-details"
+          style={{
+            gridTemplateColumns:
+              'repeat(2, minmax(0, 1fr))'
+          }}
+        >
+          <div>
+            <span>
+              Buyer
+            </span>
+
+            <strong>
+              {buyer}
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              Seller
+            </span>
+
+            <strong>
+              {seller}
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              Produk
+            </span>
+
+            <strong>
+              {product}
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              Nominal
+            </span>
+
+            <strong>
+              {
+                formatAmount(
+                  row.amount
+                )
+              }
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              Metode Pembayaran
+            </span>
+
+            <strong>
+              {
+                String(
+                  row.paymentMethod ||
+                  row.method ||
+                  '-'
+                ).toUpperCase()
+              }
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              Status Pembayaran
+            </span>
+
+            <strong>
+              {
+                getStatusLabel(
+                  status
+                )
+              }
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              Status Order
+            </span>
+
+            <strong>
+              {
+                getStatusLabel(
+                  row.orderStatus ||
+                  row.order?.status ||
+                  '-'
+                )
+              }
+            </strong>
+          </div>
+
+          <div>
+            <span>
+              Waktu
+            </span>
+
+            <strong>
+              {
+                formatDate(
+                  row.createdAt
+                )
+              }
+            </strong>
+          </div>
+        </div>
+
+        {isExpanded && (
+          <div className="admin-detail-panel">
+            <div className="admin-detail-row">
+              <span>
+                Payment ID
+              </span>
+
+              <strong>
+                {
+                  row.id ||
+                  '-'
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Order ID
+              </span>
+
+              <strong>
+                {
+                  row.orderId ||
+                  '-'
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Buyer UID
+              </span>
+
+              <strong>
+                {
+                  row.buyerUid ||
+                  '-'
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Seller UID
+              </span>
+
+              <strong>
+                {
+                  row.sellerUid ||
+                  '-'
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Product ID
+              </span>
+
+              <strong>
+                {
+                  row.productId ||
+                  '-'
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Nominal
+              </span>
+
+              <strong>
+                {
+                  formatAmount(
+                    row.amount
+                  )
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Metode Pembayaran
+              </span>
+
+              <strong>
+                {
+                  row.paymentMethod ||
+                  row.method ||
+                  '-'
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Status Pembayaran
+              </span>
+
+              <strong>
+                {
+                  getStatusLabel(
+                    status
+                  )
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Status Order
+              </span>
+
+              <strong>
+                {
+                  getStatusLabel(
+                    row.orderStatus ||
+                    row.order?.status ||
+                    '-'
+                  )
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Dibuat
+              </span>
+
+              <strong>
+                {
+                  formatDate(
+                    row.createdAt
+                  )
+                }
+              </strong>
+            </div>
+
+            <div className="admin-detail-row">
+              <span>
+                Diperbarui
+              </span>
+
+              <strong>
+                {
+                  formatDate(
+                    row.updatedAt
+                  )
+                }
+              </strong>
+            </div>
+          </div>
+        )}
+
+        <div className="admin-card-actions">
+          <button
+            type="button"
+            className="admin-detail-button"
+            onClick={() => {
+              toggleExpand(
+                row.id
+              );
+            }}
+          >
+            {
+              isExpanded
+                ? 'Sembunyikan'
+                : 'Detail Pembayaran'
+            }
+          </button>
+
+          {isPending && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  action(
+                    row.id,
+                    'verified'
+                  );
+                }}
+                disabled={
+                  verifyLoading ||
+                  rejectLoading
+                }
+              >
+                {
+                  verifyLoading
+                    ? 'Memproses...'
+                    : 'Verifikasi'
+                }
+              </button>
+
+              <button
+                type="button"
+                className="admin-danger-button"
+                onClick={() => {
+                  action(
+                    row.id,
+                    'rejected'
+                  );
+                }}
+                disabled={
+                  verifyLoading ||
+                  rejectLoading
+                }
+              >
+                {
+                  rejectLoading
+                    ? 'Memproses...'
+                    : 'Tolak'
+                }
+              </button>
+            </>
+          )}
+        </div>
+      </article>
+    );
+  };
+
   const renderGeneric = row => {
     const status =
       row.status || '';
@@ -743,38 +1227,6 @@ export default function Manage({
               </div>
             </>
           )}
-
-          {type === 'payments' && (
-            <>
-              <div>
-                <span>
-                  Buyer
-                </span>
-
-                <strong>
-                  {
-                    row.buyerName ||
-                    row.buyerUid ||
-                    '-'
-                  }
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Produk
-                </span>
-
-                <strong>
-                  {
-                    row.productName ||
-                    row.productId ||
-                    '-'
-                  }
-                </strong>
-              </div>
-            </>
-          )}
         </div>
 
         <div className="admin-card-actions">
@@ -879,20 +1331,32 @@ export default function Manage({
               {confirmState.kind ===
               'ban'
                 ? 'Ban Seller?'
-                : confirmState.status ===
-                  'rejected'
-                  ? 'Tolak pengajuan seller?'
-                  : 'Batalkan transaksi?'}
+                : confirmState.kind ===
+                  'payment'
+                  ? confirmState.status ===
+                    'verified'
+                    ? 'Verifikasi pembayaran?'
+                    : 'Tolak pembayaran?'
+                  : confirmState.status ===
+                    'rejected'
+                    ? 'Tolak pengajuan seller?'
+                    : 'Batalkan transaksi?'}
             </h3>
 
             <p>
               {confirmState.kind ===
               'ban'
                 ? 'Seller ini akan diblokir dan status bannya akan tersimpan di akun seller.'
-                : confirmState.status ===
-                  'rejected'
-                  ? 'Pengajuan seller ini akan ditolak.'
-                  : 'Order akan dibatalkan sesuai alur transaksi yang sudah tersedia.'}
+                : confirmState.kind ===
+                  'payment'
+                  ? confirmState.status ===
+                    'verified'
+                    ? 'Pembayaran akan ditandai terverifikasi dan status pembayaran pada order akan ikut diperbarui.'
+                    : 'Pembayaran akan ditolak dan status pembayaran pada order akan ikut diperbarui.'
+                  : confirmState.status ===
+                    'rejected'
+                    ? 'Pengajuan seller ini akan ditolak.'
+                    : 'Order akan dibatalkan sesuai alur transaksi yang sudah tersedia.'}
             </p>
 
             <div className="admin-confirm-actions">
@@ -912,7 +1376,12 @@ export default function Manage({
 
               <button
                 type="button"
-                className="admin-danger-button"
+                className={
+                  confirmState.status ===
+                    'verified'
+                    ? ''
+                    : 'admin-danger-button'
+                }
                 onClick={
                   confirmAction
                 }
@@ -922,7 +1391,12 @@ export default function Manage({
                   )
                 }
               >
-                Ya, lanjutkan
+                {
+                  confirmState.status ===
+                  'verified'
+                    ? 'Ya, verifikasi'
+                    : 'Ya, lanjutkan'
+                }
               </button>
             </div>
           </div>
@@ -936,6 +1410,14 @@ export default function Manage({
               type === 'sellers'
             ) {
               return renderSeller(
+                row
+              );
+            }
+
+            if (
+              type === 'payments'
+            ) {
+              return renderPayment(
                 row
               );
             }
