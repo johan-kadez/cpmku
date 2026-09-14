@@ -1435,3 +1435,165 @@ body {
     width: 100%;
   }
 }
+
+.cpmku-toast {
+  position:fixed;
+  top:82px;
+  right:18px;
+  z-index:300;
+
+  width:min(
+    390px,
+    calc(100vw - 36px)
+  );
+
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+
+  padding:15px 15px 15px 17px;
+
+  background:
+    rgba(14,20,31,.92);
+
+  border:
+    1px solid
+    rgba(59,130,246,.42);
+
+  border-radius:16px;
+
+  box-shadow:
+    0 18px 55px rgba(0,0,0,.42);
+
+  backdrop-filter:
+    blur(24px)
+    saturate(150%);
+
+  -webkit-backdrop-filter:
+    blur(24px)
+    saturate(150%);
+
+  animation:
+    cpmkuToastIn
+    .25s
+    ease
+    both;
+}
+
+.cpmku-toast-content {
+  flex:1;
+  min-width:0;
+}
+
+.cpmku-toast-content strong {
+  display:block;
+  color:#fff;
+  font-size:14px;
+  margin-bottom:5px;
+}
+
+.cpmku-toast-content p {
+  margin:0;
+  color:#aeb8c8;
+  font-size:13px;
+  line-height:1.5;
+}
+
+.cpmku-toast > button {
+  width:30px;
+  height:30px;
+
+  padding:0;
+
+  display:grid;
+  place-items:center;
+
+  border:
+    1px solid
+    rgba(255,255,255,.12);
+
+  border-radius:9px;
+
+  background:
+    rgba(255,255,255,.05);
+
+  color:#fff;
+
+  font-size:20px;
+  line-height:1;
+}
+
+.cpmku-toast > button:hover {
+  background:
+    rgba(59,130,246,.14);
+}
+
+.admin-header-actions {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.admin-public-link {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  min-height:38px;
+  padding:0 13px;
+
+  border:
+    1px solid
+    rgba(59,130,246,.35);
+
+  border-radius:10px;
+
+  background:
+    rgba(37,99,235,.10);
+
+  color:#fff;
+}
+
+.admin-public-link:hover {
+  background:
+    rgba(37,99,235,.18);
+
+  border-color:
+    rgba(59,130,246,.55);
+}
+
+@keyframes cpmkuToastIn {
+  0% {
+    opacity:0;
+    transform:
+      translateY(-12px)
+      scale(.97);
+  }
+
+  100% {
+    opacity:1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+@media(max-width:650px) {
+  .cpmku-toast {
+    top:76px;
+    right:12px;
+
+    width:calc(
+      100vw - 24px
+    );
+  }
+
+  .admin-header-actions {
+    gap:6px;
+  }
+
+  .admin-public-link {
+    padding:0 10px;
+    font-size:12px;
+  }
+    }
