@@ -361,20 +361,21 @@ export const orderDone =
     );
 
 export const messageCreate =
-  async (req, res) =>
-    ok(
+  async (req, res) => {
+    const user =
+      await currentUser(
+        req.user
+      );
+
+    return ok(
       res,
       await sendMessage(
         req.query.id,
-        {
-          ...req.user,
-
-          isAdmin:
-            req.userRole === 'admin'
-        },
+        user,
         req.body?.body
       )
     );
+  };
 
 export const sellerCall =
   async (req, res) =>
