@@ -300,7 +300,10 @@ function AdminStyles() {
         }
 
         .cpmku-admin-detail-button {
+          flex: 0 0 100%;
           width: 100%;
+          display: block;
+          box-sizing: border-box;
           justify-content: center;
           text-align: center;
         }
@@ -636,6 +639,56 @@ export default function Manage({
               JSON.stringify({
                 status
               })
+          }
+        );
+
+        setDetail(
+          null
+        );
+
+        await load();
+      } catch (
+        actionError
+      ) {
+        setError(
+          actionError?.message ||
+          'Aksi gagal.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
+
+  const runDelete =
+    async row => {
+      const id =
+        getId(row);
+
+      if (!id) {
+        setError(
+          'ID data tidak ditemukan.'
+        );
+        return;
+      }
+
+      try {
+        setLoading(
+          true
+        );
+
+        setConfirm(
+          null
+        );
+
+        setError('');
+
+        await api(
+          `/admin/${type}/${encodeURIComponent(id)}`,
+          {
+            method:
+              'DELETE'
           }
         );
 
@@ -1106,9 +1159,7 @@ export default function Manage({
                     setConfirm({
                       row,
                       action:
-                        'product-delete',
-                      status:
-                        'rejected',
+                        'delete',
                       text:
                         'Hapus produk ini? Produk akan disembunyikan dari marketplace.'
                     })
@@ -1297,9 +1348,7 @@ export default function Manage({
                       setConfirm({
                         row,
                         action:
-                          'order-delete',
-                        status:
-                          'cancelled',
+                          'delete',
                         text:
                           'Delete order ini? Order akan dibatalkan dan produk dikembalikan tersedia.'
                       })
@@ -1512,9 +1561,7 @@ export default function Manage({
                       setConfirm({
                         row,
                         action:
-                          'payment-delete',
-                        status:
-                          'rejected',
+                          'delete',
                         text:
                           'Delete pembayaran ini? Pembayaran akan ditandai ditolak.'
                       })
@@ -1754,6 +1801,15 @@ export default function Manage({
                     return runUserBan(
                       confirm.row,
                       true
+                    );
+                  }
+
+                  if (
+                    confirm.action ===
+                    'delete'
+                  ) {
+                    return runDelete(
+                      confirm.row
                     );
                   }
 
