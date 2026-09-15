@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Link
 } from 'react-router-dom';
@@ -15,28 +16,21 @@ import {
   rupiah
 } from '../../utils/format';
 
-function getProductImages(
-  product
-) {
+function getProductImages(product) {
   if (
-    Array.isArray(
-      product?.images
-    ) &&
+    Array.isArray(product?.images) &&
     product.images.length > 0
   ) {
     return product.images
-      .map(
-        image =>
-          typeof image === 'string'
-            ? image
-            : image?.url
+      .map(image =>
+        typeof image === 'string'
+          ? image
+          : image?.url
       )
       .filter(Boolean);
   }
 
-  if (
-    product?.imageUrl
-  ) {
+  if (product?.imageUrl) {
     return [
       product.imageUrl
     ];
@@ -52,46 +46,47 @@ export default function ProductCard({
     user
   } = useAuth();
 
-  const ids =
-    useFavoriteIds(
-      user?.uid
-    );
+  const ids = useFavoriteIds(
+    user?.uid
+  );
 
-  const saved =
-    ids.has(
-      product.id
-    );
+  const [notice, setNotice] = useState('');
 
-  const images =
-    getProductImages(
-      product
-    );
+  const saved = ids.has(
+    product.id
+  );
 
-  const cover =
-    images[0] || '';
+  const images = getProductImages(
+    product
+  );
 
-  const fav =
-    async event => {
-      event.preventDefault();
+  const cover = images[0] || '';
 
-      if (!user) {
-        return alert(
-          'Silakan Sign In terlebih dahulu.'
-        );
-      }
+  const fav = async event => {
+    event.preventDefault();
 
-      try {
-        await toggleFavorite(
-          user.uid,
-          product,
-          saved
-        );
-      } catch (error) {
-        alert(
-          error.message
-        );
-      }
-    };
+    setNotice('');
+
+    if (!user) {
+      setNotice(
+        'Silakan Sign In terlebih dahulu.'
+      );
+      return;
+    }
+
+    try {
+      await toggleFavorite(
+        user.uid,
+        product,
+        saved
+      );
+    } catch (error) {
+      setNotice(
+        error?.message ||
+        'Gagal mengubah favorite.'
+      );
+    }
+  };
 
   return (
     <article className="product-card">
@@ -121,17 +116,21 @@ export default function ProductCard({
       </Link>
 
       <div className="product-body">
+        {notice && (
+          <div className="notice error">
+            {notice}
+          </div>
+        )}
+
         <div className="card-row">
           <span className="badge">
-            {
-              product.status ===
-              'in_transaction'
-                ? 'Ordered'
-                : product.status ===
-                    'sold'
-                  ? 'Sold'
-                  : `Stock ${product.stock}`
-            }
+            {product.status ===
+            'in_transaction'
+              ? 'Ordered'
+              : product.status ===
+                  'sold'
+                ? 'Sold'
+                : `Stock ${product.stock}`}
           </span>
 
           <button
@@ -142,34 +141,28 @@ export default function ProductCard({
             }`}
             onClick={fav}
             aria-label="Favorite"
+            type="button"
           >
             ♥
           </button>
         </div>
 
         <h3>
-          {
-            product.title
-          }
+          {product.title}
         </h3>
 
         <strong>
-          {
-            rupiah(
-              product.price
-            )
-          }
+          {rupiah(
+            product.price
+          )}
         </strong>
 
         <p className="muted">
-          {
-            product.sellerName ||
-            'Seller'
-          }
+          {product.sellerName ||
+            'Seller'}
         </p>
 
-        {images.length >
-          1 && (
+        {images.length > 1 && (
           <p className="muted">
             {images.length} foto
           </p>
