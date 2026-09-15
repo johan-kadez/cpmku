@@ -1018,6 +1018,7 @@ export default function Manage({
                   )
                   : null
               )
+              }
           >
             Detail
           </button>
@@ -1119,6 +1120,7 @@ export default function Manage({
                   Hapus
                 </button>
               )
+              }
           >
             Detail
           </button>
