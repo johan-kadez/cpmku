@@ -59,6 +59,17 @@ function label(
   );
 }
 
+function shortText(
+  value
+) {
+  const text =
+    String(
+      value || '-'
+    );
+
+  return text;
+}
+
 export default function Rooms() {
   const [
     rooms,
@@ -201,22 +212,38 @@ export default function Rooms() {
         {`
           .cpmku-room-list {
             display: grid;
-            gap: 14px;
+            grid-template-columns: repeat(
+              auto-fit,
+              minmax(250px, 1fr)
+            );
+            gap: 18px;
           }
 
           .cpmku-room-card {
             width: 100%;
+            min-width: 0;
+            aspect-ratio: 1 / 1;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
             padding: 22px;
-            border: 1px solid rgba(255,255,255,.09);
-            border-radius: 22px;
-            background: rgba(20,20,20,.72);
+            border: 1px solid rgba(55,119,255,.24);
+            border-radius: 24px;
+            background: rgba(15,20,32,.82);
+            box-shadow:
+              inset 0 1px 0 rgba(255,255,255,.03),
+              0 14px 40px rgba(0,0,0,.18);
           }
 
           .cpmku-room-grid {
             display: grid;
-            grid-template-columns: repeat(3,minmax(0,1fr));
-            gap: 14px;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            min-width: 0;
+          }
+
+          .cpmku-room-grid > div {
+            min-width: 0;
           }
 
           .cpmku-room-grid span {
@@ -229,37 +256,64 @@ export default function Rooms() {
 
           .cpmku-room-grid strong {
             display: block;
-            margin-top: 5px;
+            min-width: 0;
+            margin-top: 6px;
+            overflow: hidden;
             color: #fff;
-            word-break: break-word;
+            font-size: 17px;
+            line-height: 1.35;
+            white-space: nowrap;
+            text-overflow: ellipsis;
           }
 
           .cpmku-room-status {
-            margin-top: 13px;
+            margin-top: auto;
+            padding-top: 16px;
             color: #9aa6ba;
           }
 
           .cpmku-room-actions {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 9px;
             margin-top: 16px;
           }
 
           .cpmku-room-button {
+            width: 100%;
             min-height: 42px;
-            padding: 10px 17px;
+            padding: 10px 14px;
             border: 1px solid rgba(55,119,255,.5);
             border-radius: 13px;
-            background: linear-gradient(180deg,#172d59,#10224a);
+            background:
+              linear-gradient(
+                180deg,
+                #172d59,
+                #10224a
+              );
             color: #fff;
             font-weight: 600;
             cursor: pointer;
           }
 
+          .cpmku-room-button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+          }
+
+          .cpmku-room-detail-button {
+            grid-column: 1 / -1;
+            text-align: center;
+          }
+
           .cpmku-room-danger {
             border-color: rgba(255,75,95,.5);
-            background: linear-gradient(180deg,#642433,#411723);
+            background:
+              linear-gradient(
+                180deg,
+                #642433,
+                #411723
+              );
           }
 
           .cpmku-room-modal-bg {
@@ -297,12 +351,17 @@ export default function Rooms() {
             background: rgba(23,43,78,.8);
             color: #fff;
             font-size: 28px;
+            cursor: pointer;
+          }
+
+          .cpmku-room-modal h3 {
+            margin: 8px 52px 24px 0;
+            font-size: 24px;
           }
 
           .cpmku-room-detail {
             display: grid;
             gap: 13px;
-            margin-top: 45px;
           }
 
           .cpmku-room-detail div {
@@ -317,9 +376,20 @@ export default function Rooms() {
             font-size: 13px;
           }
 
+          .cpmku-room-detail strong {
+            color: #fff;
+            line-height: 1.45;
+            word-break: break-word;
+          }
+
           @media(max-width:650px) {
-            .cpmku-room-grid {
+            .cpmku-room-list {
               grid-template-columns: 1fr;
+            }
+
+            .cpmku-room-card {
+              aspect-ratio: auto;
+              min-height: 300px;
             }
           }
         `}
@@ -371,6 +441,24 @@ export default function Rooms() {
                 room.sellerUid
               );
 
+            const buyerName =
+              room.buyerName ||
+              buyer?.name ||
+              room.buyerUid ||
+              '-';
+
+            const productName =
+              room.productName ||
+              room.productTitle ||
+              room.productId ||
+              '-';
+
+            const sellerName =
+              room.sellerName ||
+              seller?.name ||
+              room.sellerUid ||
+              '-';
+
             return (
               <article
                 key={
@@ -383,11 +471,16 @@ export default function Rooms() {
                     <span>
                       Buyer
                     </span>
-                    <strong>
-                      {room.buyerName ||
-                        buyer?.name ||
-                        room.buyerUid ||
-                        '-'}
+                    <strong
+                      title={
+                        shortText(
+                          buyerName
+                        )
+                      }
+                    >
+                      {shortText(
+                        buyerName
+                      )}
                     </strong>
                   </div>
 
@@ -395,11 +488,16 @@ export default function Rooms() {
                     <span>
                       Produk
                     </span>
-                    <strong>
-                      {room.productName ||
-                        room.productTitle ||
-                        room.productId ||
-                        '-'}
+                    <strong
+                      title={
+                        shortText(
+                          productName
+                        )
+                      }
+                    >
+                      {shortText(
+                        productName
+                      )}
                     </strong>
                   </div>
 
@@ -407,17 +505,22 @@ export default function Rooms() {
                     <span>
                       Seller
                     </span>
-                    <strong>
-                      {room.sellerName ||
-                        seller?.name ||
-                        room.sellerUid ||
-                        '-'}
+                    <strong
+                      title={
+                        shortText(
+                          sellerName
+                        )
+                      }
+                    >
+                      {shortText(
+                        sellerName
+                      )}
                     </strong>
                   </div>
                 </div>
 
                 <div className="cpmku-room-status">
-                  Status:{" "}
+                  Status:{' '}
                   {label(
                     room.status
                   )}
@@ -426,11 +529,17 @@ export default function Rooms() {
                 <div className="cpmku-room-actions">
                   <button
                     type="button"
-                    className="cpmku-room-button"
+                    className="cpmku-room-button cpmku-room-detail-button"
                     onClick={() =>
-                      setSelected(
-                        room
-                      )
+                      setSelected({
+                        ...room,
+                        _buyerName:
+                          buyerName,
+                        _productName:
+                          productName,
+                        _sellerName:
+                          sellerName
+                      })
                     }
                   >
                     Detail
@@ -482,7 +591,8 @@ export default function Rooms() {
                 Buyer
               </span>
               <strong>
-                {selected.buyerName ||
+                {selected._buyerName ||
+                  selected.buyerName ||
                   findUser(
                     selected.buyerUid
                   )?.name ||
@@ -496,7 +606,8 @@ export default function Rooms() {
                 Produk
               </span>
               <strong>
-                {selected.productName ||
+                {selected._productName ||
+                  selected.productName ||
                   selected.productTitle ||
                   selected.productId ||
                   '-'}
@@ -508,7 +619,8 @@ export default function Rooms() {
                 Seller
               </span>
               <strong>
-                {selected.sellerName ||
+                {selected._sellerName ||
+                  selected.sellerName ||
                   findUser(
                     selected.sellerUid
                   )?.name ||
