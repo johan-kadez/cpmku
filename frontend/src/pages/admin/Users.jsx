@@ -1,67 +1,61 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../services/api';
+import {
+  useEffect,
+  useState
+} from 'react';
 
-function getRoleLabel(role) {
-  if (role === 'admin') {
-    return 'Admin';
-  }
+import {
+  api
+} from '../../services/api';
 
-  if (role === 'seller') {
-    return 'Seller';
-  }
-
-  return 'Buyer';
+function getPhoto(
+  user
+) {
+  return (
+    user?.photoUrl ||
+    user?.photoURL ||
+    user?.photo ||
+    ''
+  );
 }
 
-function getStatusLabel(banned) {
-  return banned ? 'Banned' : 'Aktif';
-}
+function Modal({
+  children,
+  onClose
+}) {
+  return (
+    <div
+      className="cpmku-user-modal-bg"
+      onMouseDown={
+        onClose
+      }
+    >
+      <div
+        className="cpmku-user-modal"
+        onMouseDown={event =>
+          event.stopPropagation()
+        }
+      >
+        <button
+          type="button"
+          className="cpmku-user-close"
+          onClick={
+            onClose
+          }
+        >
+          ×
+        </button>
 
-function formatDate(value) {
-  if (!value) {
-    return '-';
-  }
-
-  let date;
-
-  if (
-    typeof value === 'object' &&
-    value.seconds
-  ) {
-    date = new Date(
-      Number(value.seconds) * 1000
-    );
-  } else {
-    date = new Date(value);
-  }
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat(
-    'id-ID',
-    {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }
-  ).format(date);
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export default function Users() {
   const [
-    rows,
-    setRows
+    users,
+    setUsers
   ] = useState([]);
-
-  const [
-    busy,
-    setBusy
-  ] = useState('');
 
   const [
     error,
@@ -69,220 +63,265 @@ export default function Users() {
   ] = useState('');
 
   const [
-    notice,
-    setNotice
+    loading,
+    setLoading
+  ] = useState(false);
+
+  const [
+    selected,
+    setSelected
   ] = useState(null);
 
   const [
-    expandedId,
-    setExpandedId
-  ] = useState('');
-
-  const [
-    confirmAction,
-    setConfirmAction
+    confirm,
+    setConfirm
   ] = useState(null);
 
-  const load = async () => {
-    try {
-      setError('');
-
-      const response =
-        await api(
-          '/admin/users'
+  const load =
+    async () => {
+      try {
+        setLoading(
+          true
         );
 
-      setRows(
-        Array.isArray(
-          response.items
-        )
-          ? response.items
-          : []
-      );
-    } catch (e) {
-      setError(
-        e.message ||
-          'Gagal memuat data user.'
-      );
-    }
-  };
+        setError('');
+
+        const response =
+          await api(
+            '/admin/users'
+          );
+
+        setUsers(
+          Array.isArray(
+            response?.items
+          )
+            ? response.items
+            : []
+        );
+      } catch (
+        requestError
+      ) {
+        setError(
+          requestError?.message ||
+          'Gagal memuat user.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
 
   useEffect(() => {
     load();
   }, []);
 
-  const updateUser = async (
-    user,
-    payload,
-    action,
-    successMessage
-  ) => {
-    const uid =
-      user.uid ||
-      user.id;
+  const ban =
+    async user => {
+      const uid =
+        user?.uid ||
+        user?.id;
 
-    if (
-      !uid ||
-      busy
-    ) {
-      return;
-    }
+      if (
+        !uid ||
+        user.role ===
+          'admin'
+      ) {
+        return;
+      }
 
-    try {
-      setBusy(
-        `${uid}:${action}`
-      );
+      try {
+        setLoading(
+          true
+        );
 
-      setError('');
-      setNotice(null);
+        setConfirm(
+          null
+        );
 
-      await api(
-        `/admin/users/${encodeURIComponent(uid)}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify(
-            payload
-          )
-        }
-      );
+        await api(
+          `/admin/users/${encodeURIComponent(uid)}`,
+          {
+            method:
+              'PATCH',
 
-      await load();
+            body:
+              JSON.stringify({
+                banned:
+                  !Boolean(
+                    user.banned
+                  )
+              })
+          }
+        );
 
-      setNotice({
-        type: 'success',
-        message:
-          successMessage
-      });
-    } catch (e) {
-      setError(
-        e.message ||
-          'Aksi user gagal.'
-      );
-    } finally {
-      setBusy('');
-    }
-  };
+        setSelected(
+          null
+        );
 
-  const requestBan = (
-    user
-  ) => {
-    const uid =
-      user.uid ||
-      user.id;
-
-    if (!uid) {
-      return;
-    }
-
-    if (
-      user.role === 'admin'
-    ) {
-      setError(
-        'Akun admin utama tidak dapat diubah.'
-      );
-      return;
-    }
-
-    const nextBanned =
-      !Boolean(
-        user.banned
-      );
-
-    setConfirmAction({
-      type: nextBanned
-        ? 'ban'
-        : 'unban',
-      user,
-      payload: {
-        banned:
-          nextBanned
-      },
-      message:
-        nextBanned
-          ? `Yakin ingin memban ${user.name || user.email || uid}?`
-          : `Yakin ingin membuka ban ${user.name || user.email || uid}?`,
-      successMessage:
-        nextBanned
-          ? 'User berhasil diban.'
-          : 'Ban user berhasil dibuka.'
-    });
-  };
-
-  const requestRole = (
-    user,
-    role
-  ) => {
-    const uid =
-      user.uid ||
-      user.id;
-
-    if (!uid) {
-      return;
-    }
-
-    if (
-      user.role === 'admin'
-    ) {
-      setError(
-        'Role akun admin utama tidak dapat diubah.'
-      );
-      return;
-    }
-
-    if (
-      user.role === role
-    ) {
-      return;
-    }
-
-    const roleLabel =
-      role === 'seller'
-        ? 'Seller'
-        : 'Buyer';
-
-    setConfirmAction({
-      type: 'role',
-      user,
-      payload: {
-        role
-      },
-      message:
-        `Yakin ingin mengubah ${user.name || user.email || uid} menjadi ${roleLabel}?`,
-      successMessage:
-        `User berhasil diubah menjadi ${roleLabel}.`
-    });
-  };
-
-  const executeConfirm = async () => {
-    if (
-      !confirmAction ||
-      busy
-    ) {
-      return;
-    }
-
-    const {
-      user,
-      payload,
-      type,
-      successMessage
-    } = confirmAction;
-
-    setConfirmAction(null);
-
-    await updateUser(
-      user,
-      payload,
-      type,
-      successMessage
-    );
-  };
+        await load();
+      } catch (
+        actionError
+      ) {
+        setError(
+          actionError?.message ||
+          'Gagal mengubah status user.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
 
   return (
     <section>
+      <style>
+        {`
+          .cpmku-users-list {
+            display: grid;
+            gap: 14px;
+          }
+
+          .cpmku-user-card {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 22px;
+            border: 1px solid rgba(255,255,255,.09);
+            border-radius: 22px;
+            background: rgba(20,20,20,.72);
+          }
+
+          .cpmku-user-name {
+            text-align: center;
+            color: #fff;
+            font-size: 21px;
+            font-weight: 700;
+          }
+
+          .cpmku-user-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 16px;
+          }
+
+          .cpmku-user-button {
+            min-height: 42px;
+            padding: 10px 20px;
+            border: 1px solid rgba(55,119,255,.5);
+            border-radius: 13px;
+            background: linear-gradient(180deg,#172d59,#10224a);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          .cpmku-user-modal-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0,0,0,.74);
+            backdrop-filter: blur(12px);
+          }
+
+          .cpmku-user-modal {
+            position: relative;
+            width: min(520px,100%);
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 26px;
+            border: 1px solid rgba(50,115,255,.4);
+            border-radius: 24px;
+            background: rgba(11,16,27,.98);
+            color: #fff;
+            box-shadow: 0 25px 80px rgba(0,0,0,.55);
+          }
+
+          .cpmku-user-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(70,125,255,.45);
+            border-radius: 14px;
+            background: rgba(23,43,78,.8);
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+          }
+
+          .cpmku-user-photo {
+            display: block;
+            width: 130px;
+            height: 130px;
+            margin: 42px auto 22px;
+            object-fit: cover;
+            border-radius: 28px;
+            border: 1px solid rgba(60,125,255,.45);
+          }
+
+          .cpmku-user-photo-empty {
+            width: 130px;
+            height: 130px;
+            margin: 42px auto 22px;
+            display: grid;
+            place-items: center;
+            border-radius: 28px;
+            background: rgba(24,35,57,.8);
+            color: #4b8dff;
+            font-size: 44px;
+          }
+
+          .cpmku-user-detail {
+            display: grid;
+            gap: 13px;
+          }
+
+          .cpmku-user-detail-row {
+            display: grid;
+            gap: 4px;
+            padding-bottom: 11px;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+          }
+
+          .cpmku-user-detail-row span {
+            color: #8e9ab0;
+            font-size: 13px;
+          }
+
+          .cpmku-user-detail-row strong {
+            word-break: break-word;
+          }
+
+          .cpmku-user-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 22px;
+          }
+
+          .cpmku-user-danger {
+            border-color: rgba(255,75,95,.5);
+            background: linear-gradient(180deg,#642433,#411723);
+          }
+
+          @media(max-width:600px) {
+            .cpmku-user-modal-actions {
+              flex-direction: column;
+            }
+          }
+        `}
+      </style>
+
       <div className="section-head">
         <div>
-          <h2>User</h2>
+          <h2>
+            User
+          </h2>
 
           <p>
             Kelola akun buyer,
@@ -293,10 +332,17 @@ export default function Users() {
 
         <button
           type="button"
-          onClick={load}
-          disabled={Boolean(busy)}
+          className="cpmku-user-button"
+          onClick={
+            load
+          }
+          disabled={
+            loading
+          }
         >
-          Refresh
+          {loading
+            ? 'Memuat...'
+            : 'Refresh'}
         </button>
       </div>
 
@@ -306,369 +352,214 @@ export default function Users() {
         </div>
       )}
 
-      {notice && (
-        <div
-          className={`notice ${
-            notice.type === 'error'
-              ? 'error'
-              : 'success'
-          }`}
-        >
-          {notice.message}
-        </div>
-      )}
+      <div className="cpmku-users-list">
+        {users.map(
+          user => {
+            const id =
+              user.uid ||
+              user.id;
 
-      <div className="admin-manage-list">
-        {rows.map((user) => {
-          const id =
-            user.uid ||
-            user.id;
+            return (
+              <article
+                key={id}
+                className="cpmku-user-card"
+              >
+                <div className="cpmku-user-name">
+                  {user.name ||
+                    user.displayName ||
+                    'User'}
+                </div>
 
-          const isAdmin =
-            user.role ===
-              'admin' ||
-            user.isAdmin === true;
-
-          const isExpanded =
-            expandedId === id;
-
-          const currentBusy =
-            busy.startsWith(
-              `${id}:`
+                <div className="cpmku-user-actions">
+                  <button
+                    type="button"
+                    className="cpmku-user-button"
+                    onClick={() =>
+                      setSelected(
+                        user
+                      )
+                    }
+                  >
+                    Detail
+                  </button>
+                </div>
+              </article>
             );
+          }
+        )}
 
-          return (
-            <article
-              key={id}
-              className="admin-manage-card"
-            >
-              <div className="admin-manage-card-head">
-                <div>
-                  <strong>
-                    {user.name ||
-                      user.displayName ||
-                      user.email ||
-                      'User'}
-                  </strong>
-
-                  <span>
-                    {user.email ||
-                      'Email belum tersedia'}
-                  </span>
-                </div>
-
-                <div>
-                  <span>
-                    {getRoleLabel(
-                      user.role
-                    )}
-                  </span>
-
-                  <span>
-                    {getStatusLabel(
-                      user.banned
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              <div className="admin-manage-card-meta">
-                <div>
-                  <small>
-                    Nomor HP
-                  </small>
-
-                  <b>
-                    {user.phone ||
-                      user.phoneNumber ||
-                      '-'}
-                  </b>
-                </div>
-
-                <div>
-                  <small>
-                    UID
-                  </small>
-
-                  <b>
-                    {id}
-                  </b>
-                </div>
-
-                <div>
-                  <small>
-                    Dibuat
-                  </small>
-
-                  <b>
-                    {formatDate(
-                      user.createdAt
-                    )}
-                  </b>
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div className="admin-detail-panel">
-                  <div>
-                    <small>
-                      Nama
-                    </small>
-
-                    <strong>
-                      {user.name ||
-                        user.displayName ||
-                        '-'}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>
-                      Email
-                    </small>
-
-                    <strong>
-                      {user.email ||
-                        '-'}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>
-                      Nomor HP
-                    </small>
-
-                    <strong>
-                      {user.phone ||
-                        user.phoneNumber ||
-                        '-'}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>
-                      Role
-                    </small>
-
-                    <strong>
-                      {getRoleLabel(
-                        user.role
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>
-                      Status
-                    </small>
-
-                    <strong>
-                      {getStatusLabel(
-                        user.banned
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>
-                      UID
-                    </small>
-
-                    <strong>
-                      {id}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>
-                      Dibuat
-                    </small>
-
-                    <strong>
-                      {formatDate(
-                        user.createdAt
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>
-                      Diperbarui
-                    </small>
-
-                    <strong>
-                      {formatDate(
-                        user.updatedAt
-                      )}
-                    </strong>
-                  </div>
-                </div>
-              )}
-
-              <div className="admin-manage-card-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExpandedId(
-                      isExpanded
-                        ? ''
-                        : id
-                    );
-                  }}
-                  disabled={Boolean(busy)}
-                >
-                  {isExpanded
-                    ? 'Tutup Detail'
-                    : 'Detail User'}
-                </button>
-
-                {!isAdmin && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        requestBan(
-                          user
-                        );
-                      }}
-                      disabled={Boolean(busy)}
-                    >
-                      {currentBusy &&
-                      (
-                        busy.endsWith(
-                          ':ban'
-                        ) ||
-                        busy.endsWith(
-                          ':unban'
-                        )
-                      )
-                        ? 'Memproses...'
-                        : user.banned
-                          ? 'Unban'
-                          : 'Ban'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        requestRole(
-                          user,
-                          'seller'
-                        );
-                      }}
-                      disabled={
-                        Boolean(busy) ||
-                        user.role ===
-                          'seller'
-                      }
-                    >
-                      {currentBusy &&
-                      busy.endsWith(
-                        ':role'
-                      )
-                        ? 'Memproses...'
-                        : 'Jadikan Seller'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        requestRole(
-                          user,
-                          'buyer'
-                        );
-                      }}
-                      disabled={
-                        Boolean(busy) ||
-                        user.role ===
-                          'buyer'
-                      }
-                    >
-                      {currentBusy &&
-                      busy.endsWith(
-                        ':role'
-                      )
-                        ? 'Memproses...'
-                        : 'Jadikan Buyer'}
-                    </button>
-                  </>
-                )}
-
-                {isAdmin && (
-                  <span>
-                    Admin utama
-                  </span>
-                )}
-              </div>
-            </article>
-          );
-        })}
-
-        {!rows.length &&
+        {!users.length &&
           !error && (
             <div className="state">
-              Belum ada user
-              tersimpan saat ini.
+              Tidak ada user.
             </div>
           )}
       </div>
 
-      {confirmAction && (
-        <div
-          className="admin-confirm-overlay"
-          role="presentation"
-          onClick={() => {
-            if (!busy) {
-              setConfirmAction(
-                null
-              );
-            }
-          }}
+      {selected && (
+        <Modal
+          onClose={() =>
+            setSelected(
+              null
+            )
+          }
         >
-          <div
-            className="admin-confirm-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="user-confirm-title"
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
-          >
-            <h3 id="user-confirm-title">
-              Konfirmasi
-            </h3>
+          {getPhoto(
+            selected
+          ) ? (
+            <img
+              src={getPhoto(
+                selected
+              )}
+              alt="Foto profil"
+              className="cpmku-user-photo"
+            />
+          ) : (
+            <div className="cpmku-user-photo-empty">
+              ◈
+            </div>
+          )}
 
-            <p>
-              {confirmAction.message}
-            </p>
+          <h3>
+            Detail User
+          </h3>
 
-            <div>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmAction(
-                    null
-                  );
-                }}
-                disabled={Boolean(busy)}
-              >
-                Batal
-              </button>
+          <div className="cpmku-user-detail">
+            <div className="cpmku-user-detail-row">
+              <span>
+                Nama
+              </span>
+              <strong>
+                {selected.name ||
+                  selected.displayName ||
+                  '-'}
+              </strong>
+            </div>
 
-              <button
-                type="button"
-                onClick={
-                  executeConfirm
-                }
-                disabled={Boolean(busy)}
-              >
-                {busy
-                  ? 'Memproses...'
-                  : 'Lanjutkan'}
-              </button>
+            <div className="cpmku-user-detail-row">
+              <span>
+                Email
+              </span>
+              <strong>
+                {selected.email ||
+                  '-'}
+              </strong>
+            </div>
+
+            <div className="cpmku-user-detail-row">
+              <span>
+                Role
+              </span>
+              <strong>
+                {selected.role ===
+                'seller'
+                  ? 'Seller'
+                  : selected.role ===
+                      'admin'
+                    ? 'Admin'
+                    : 'Buyer'}
+              </strong>
+            </div>
+
+            {selected.role ===
+              'seller' && (
+              <div className="cpmku-user-detail-row">
+                <span>
+                  Nomor
+                </span>
+                <strong>
+                  {selected.phone ||
+                    selected.phoneNumber ||
+                    '-'}
+                </strong>
+              </div>
+            )}
+
+            <div className="cpmku-user-detail-row">
+              <span>
+                Status
+              </span>
+              <strong>
+                {selected.banned
+                  ? 'Banned'
+                  : 'Aktif'}
+              </strong>
             </div>
           </div>
-        </div>
+
+          {selected.role !==
+            'admin' && (
+            <div className="cpmku-user-modal-actions">
+              <button
+                type="button"
+                className="cpmku-user-button cpmku-user-danger"
+                onClick={() =>
+                  setConfirm(
+                    selected
+                  )
+                }
+                disabled={
+                  loading
+                }
+              >
+                {selected.banned
+                  ? 'Unban'
+                  : 'Ban'}
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {confirm && (
+        <Modal
+          onClose={() =>
+            setConfirm(
+              null
+            )
+          }
+        >
+          <h3>
+            Konfirmasi
+          </h3>
+
+          <p>
+            {confirm.banned
+              ? 'Buka ban user ini?'
+              : 'Ban user ini?'}
+          </p>
+
+          <div className="cpmku-user-modal-actions">
+            <button
+              type="button"
+              className="cpmku-user-button"
+              onClick={() =>
+                setConfirm(
+                  null
+                )
+              }
+            >
+              Batal
+            </button>
+
+            <button
+              type="button"
+              className="cpmku-user-button cpmku-user-danger"
+              onClick={() =>
+                ban(
+                  confirm
+                )
+              }
+              disabled={
+                loading
+              }
+            >
+              {loading
+                ? 'Memproses...'
+                : 'Lanjutkan'}
+            </button>
+          </div>
+        </Modal>
       )}
     </section>
   );
