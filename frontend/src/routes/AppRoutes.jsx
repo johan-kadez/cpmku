@@ -153,6 +153,11 @@ export default function AppRoutes() {
         />
 
         <Route
+          path="profile"
+          element={<Profile />}
+        />
+
+        <Route
           path="sellers"
           element={
             <Manage
