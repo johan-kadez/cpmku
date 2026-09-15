@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import {
   Link
 } from 'react-router-dom';
@@ -39,6 +40,40 @@ function getProductImages(product) {
   return [];
 }
 
+function optimizeCloudinaryUrl(url) {
+  if (
+    typeof url !== 'string' ||
+    !url.includes('res.cloudinary.com/') ||
+    !url.includes('/image/upload/')
+  ) {
+    return url;
+  }
+
+  const marker = '/image/upload/';
+  const index = url.indexOf(marker);
+
+  if (index === -1) {
+    return url;
+  }
+
+  const before = url.slice(
+    0,
+    index + marker.length
+  );
+
+  const after = url.slice(
+    index + marker.length
+  );
+
+  if (
+    after.startsWith('f_auto,q_auto,w_500/')
+  ) {
+    return url;
+  }
+
+  return `${before}f_auto,q_auto,w_500/${after}`;
+}
+
 export default function ProductCard({
   product
 }) {
@@ -50,7 +85,10 @@ export default function ProductCard({
     user?.uid
   );
 
-  const [notice, setNotice] = useState('');
+  const [
+    notice,
+    setNotice
+  ] = useState('');
 
   const saved = ids.has(
     product.id
@@ -60,7 +98,11 @@ export default function ProductCard({
     product
   );
 
-  const cover = images[0] || '';
+  const cover = images[0]
+    ? optimizeCloudinaryUrl(
+        images[0]
+      )
+    : '';
 
   const fav = async event => {
     event.preventDefault();
@@ -98,6 +140,7 @@ export default function ProductCard({
             src={cover}
             alt={product.title}
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div
