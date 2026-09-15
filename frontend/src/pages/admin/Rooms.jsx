@@ -274,7 +274,7 @@ export default function Rooms() {
 
           .cpmku-room-actions {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 9px;
             margin-top: 16px;
           }
@@ -302,7 +302,9 @@ export default function Rooms() {
           }
 
           .cpmku-room-detail-button {
-            grid-column: 1 / -1;
+            width: 100%;
+            display: block;
+            box-sizing: border-box;
             text-align: center;
           }
 
@@ -388,8 +390,8 @@ export default function Rooms() {
             }
 
             .cpmku-room-card {
-              aspect-ratio: auto;
-              min-height: 300px;
+              aspect-ratio: 1 / 1;
+              min-height: 0;
             }
           }
         `}
