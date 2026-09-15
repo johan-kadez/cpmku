@@ -1,5 +1,5 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import {
   signInWithPopup,
@@ -13,7 +13,17 @@ import {
 export default function SellerLogin() {
   const nav = useNavigate();
 
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
   const go = async () => {
+    if (busy) {
+      return;
+    }
+
+    setError('');
+    setBusy(true);
+
     try {
       await signInWithPopup(
         auth,
@@ -31,8 +41,13 @@ export default function SellerLogin() {
       }
 
       nav('/seller/dashboard');
-    } catch (e) {
-      alert(e.message);
+    } catch (error) {
+      setError(
+        error?.message ||
+        'Login seller gagal.'
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -41,15 +56,23 @@ export default function SellerLogin() {
       <h1>Login Seller</h1>
 
       <p>
-        Hanya akun seller yang sudah disetujui admin
-        yang dapat masuk.
+        Tunggu persetujuan admin setelah meninjau akun anda
       </p>
+
+      {error && (
+        <div className="notice error">
+          {error}
+        </div>
+      )}
 
       <button
         className="button primary"
         onClick={go}
+        disabled={busy}
       >
-        Login dengan Google
+        {busy
+          ? 'Memproses...'
+          : 'Login dengan Google'}
       </button>
     </section>
   );
