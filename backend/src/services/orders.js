@@ -20,7 +20,9 @@ async function adminUids() {
     return [];
   }
 
-  return [adminUid];
+  return [
+    adminUid
+  ];
 }
 
 export async function createOrder(
@@ -53,15 +55,16 @@ export async function createOrder(
         );
       }
 
-      const p = snap.data();
+      const product =
+        snap.data();
 
       const stock = Number(
-        p.stock
+        product.stock
       );
 
       if (
-        p.status !== 'available' ||
-        p.visibility !== 'public' ||
+        product.status !== 'available' ||
+        product.visibility !== 'public' ||
         !Number.isInteger(stock) ||
         stock < 1
       ) {
@@ -72,7 +75,7 @@ export async function createOrder(
       }
 
       if (
-        p.sellerUid === buyerUid
+        product.sellerUid === buyerUid
       ) {
         throw new HttpError(
           403,
@@ -84,85 +87,53 @@ export async function createOrder(
         .collection('orders')
         .doc();
 
-      const roomRef = db
-        .collection('rooms')
-        .doc(orderRef.id);
-
       const pid =
-        p.productId ||
+        product.productId ||
         productId;
-
-      tx.update(
-        productRef,
-        {
-          status: 'in_transaction',
-          updatedAt:
-            FieldValue.serverTimestamp()
-        }
-      );
 
       tx.set(
         orderRef,
         {
           buyerUid,
-          sellerUid: p.sellerUid,
-          productId: pid,
-          productName: p.title,
-          amount: Number(p.price),
-          roomId: roomRef.id,
-          status: 'in_transaction',
-          paymentStatus: 'pending',
-          createdAt:
-            FieldValue.serverTimestamp(),
-          updatedAt:
-            FieldValue.serverTimestamp()
-        }
-      );
 
-      tx.set(
-        roomRef,
-        {
-          roomId: roomRef.id,
-          orderId: orderRef.id,
-          productId: pid,
-          buyerUid,
-          sellerUid: p.sellerUid,
-          participantUids: [
-            buyerUid,
-            ...admins
-          ],
-          sellerCalled: false,
-          status: 'in_transaction',
-          createdAt:
-            FieldValue.serverTimestamp(),
-          updatedAt:
-            FieldValue.serverTimestamp()
-        }
-      );
+          sellerUid:
+            product.sellerUid,
 
-      tx.set(
-        db
-          .collection('payments')
-          .doc(orderRef.id),
-        {
-          orderId: orderRef.id,
-          productId: pid,
-          buyerUid,
-          sellerUid: p.sellerUid,
-          amount: Number(p.price),
-          paymentMethod: 'qris',
-          status: 'pending',
+          productId:
+            pid,
+
+          productName:
+            product.title || '',
+
+          amount:
+            Number(product.price),
+
+          status:
+            'pending_admin',
+
+          paymentStatus:
+            'waiting_admin',
+
           createdAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         }
       );
 
       return {
-        orderId: orderRef.id,
-        roomId: roomRef.id,
-        productId: pid
+        orderId:
+          orderRef.id,
+
+        roomId:
+          null,
+
+        productId:
+          pid,
+
+        status:
+          'pending_admin'
       };
     }
   );
@@ -179,7 +150,9 @@ export async function doneOrder(
         .doc(orderId);
 
       const orderSnap =
-        await tx.get(orderRef);
+        await tx.get(
+          orderRef
+        );
 
       if (!orderSnap.exists) {
         throw new HttpError(
@@ -192,7 +165,8 @@ export async function doneOrder(
         orderSnap.data();
 
       if (
-        order.buyerUid !== buyerUid
+        order.buyerUid !==
+        buyerUid
       ) {
         throw new HttpError(
           403,
@@ -203,12 +177,25 @@ export async function doneOrder(
       if (
         [
           'completed',
-          'cancelled'
-        ].includes(order.status)
+          'cancelled',
+          'rejected'
+        ].includes(
+          order.status
+        )
       ) {
         throw new HttpError(
           409,
           'Transaksi sudah selesai atau dibatalkan.'
+        );
+      }
+
+      if (
+        order.status !==
+        'in_transaction'
+      ) {
+        throw new HttpError(
+          409,
+          'Order belum disetujui admin.'
         );
       }
 
@@ -230,48 +217,64 @@ export async function doneOrder(
         );
 
       const roomSnap =
-        await tx.get(roomRef);
+        await tx.get(
+          roomRef
+        );
 
       const productRef = db
         .collection('products')
-        .doc(order.productId);
+        .doc(
+          order.productId
+        );
 
       const productSnap =
-        await tx.get(productRef);
+        await tx.get(
+          productRef
+        );
 
-      if (!productSnap.exists) {
+      if (
+        !productSnap.exists
+      ) {
         throw new HttpError(
           409,
           'Produk transaksi tidak ditemukan.'
         );
       }
 
-      const p =
+      const product =
         productSnap.data();
 
       const stock = Math.max(
         0,
-        Number(p.stock) - 1
+        Number(product.stock) - 1
       );
 
       tx.update(
         orderRef,
         {
-          status: 'completed',
+          status:
+            'completed',
+
           completedAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         }
       );
 
-      if (roomSnap.exists) {
+      if (
+        roomSnap.exists
+      ) {
         tx.update(
           roomRef,
           {
-            status: 'completed',
+            status:
+              'completed',
+
             completedAt:
               FieldValue.serverTimestamp(),
+
             updatedAt:
               FieldValue.serverTimestamp()
           }
@@ -283,15 +286,25 @@ export async function doneOrder(
         stock === 0
           ? {
               stock: 0,
-              status: 'sold',
-              visibility: 'private',
+
+              status:
+                'sold',
+
+              visibility:
+                'private',
+
               updatedAt:
                 FieldValue.serverTimestamp()
             }
           : {
               stock,
-              status: 'available',
-              visibility: 'public',
+
+              status:
+                'available',
+
+              visibility:
+                'public',
+
               updatedAt:
                 FieldValue.serverTimestamp()
             }
@@ -299,7 +312,9 @@ export async function doneOrder(
 
       return {
         ok: true,
-        status: 'completed'
+
+        status:
+          'completed'
       };
     }
   );
