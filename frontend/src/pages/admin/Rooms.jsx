@@ -4,68 +4,59 @@ import {
 } from 'react';
 
 import {
-  useNavigate
-} from 'react-router-dom';
-
-import {
   api
 } from '../../services/api';
 
-function getStatusLabel(status) {
-  const labels = {
-    in_transaction: 'Dalam transaksi',
-    completed: 'Selesai',
-    cancelled: 'Dibatalkan',
-    pending: 'Menunggu',
-    verified: 'Terverifikasi',
-    rejected: 'Ditolak'
-  };
-
+function Modal({
+  children,
+  onClose
+}) {
   return (
-    labels[status] ||
-    status ||
-    '-'
+    <div
+      className="cpmku-room-modal-bg"
+      onMouseDown={
+        onClose
+      }
+    >
+      <div
+        className="cpmku-room-modal"
+        onMouseDown={event =>
+          event.stopPropagation()
+        }
+      >
+        <button
+          type="button"
+          className="cpmku-room-close"
+          onClick={
+            onClose
+          }
+        >
+          ×
+        </button>
+
+        {children}
+      </div>
+    </div>
   );
 }
 
-function formatDate(value) {
-  if (!value) {
-    return '-';
-  }
+function label(
+  status
+) {
+  const values = {
+    in_transaction:
+      'Dalam Transaksi',
+    completed:
+      'Selesai',
+    cancelled:
+      'Dibatalkan'
+  };
 
-  let date;
-
-  if (
-    typeof value === 'object' &&
-    typeof value.toDate === 'function'
-  ) {
-    date = value.toDate();
-  } else if (
-    typeof value === 'object' &&
-    typeof value._seconds === 'number'
-  ) {
-    date = new Date(
-      value._seconds * 1000
-    );
-  } else {
-    date = new Date(value);
-  }
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat(
-    'id-ID',
-    {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }
-  ).format(date);
+  return (
+    values[status] ||
+    status ||
+    '-'
+  );
 }
 
 export default function Rooms() {
@@ -75,137 +66,289 @@ export default function Rooms() {
   ] = useState([]);
 
   const [
+    users,
+    setUsers
+  ] = useState([]);
+
+  const [
+    loading,
+    setLoading
+  ] = useState(false);
+
+  const [
     error,
     setError
   ] = useState('');
 
   const [
-    expandedId,
-    setExpandedId
+    selected,
+    setSelected
   ] = useState(null);
 
   const [
-    loadingRoom,
-    setLoadingRoom
-  ] = useState('');
-
-  const [
-    notice,
-    setNotice
+    confirm,
+    setConfirm
   ] = useState(null);
 
-  const navigate =
-    useNavigate();
-
-  const load = async () => {
-    try {
-      setError('');
-
-      const response =
-        await api(
-          '/admin/rooms'
+  const load =
+    async () => {
+      try {
+        setLoading(
+          true
         );
 
-      setRooms(
-        response?.items || []
-      );
-    } catch (error) {
-      setRooms([]);
+        setError('');
 
-      setError(
-        error?.message ||
-        'Gagal memuat room transaksi.'
-      );
-    }
-  };
+        const [
+          roomResponse,
+          userResponse
+        ] = await Promise.all([
+          api(
+            '/admin/list/rooms'
+          ),
+          api(
+            '/admin/users'
+          )
+        ]);
+
+        setRooms(
+          Array.isArray(
+            roomResponse?.items
+          )
+            ? roomResponse.items
+            : []
+        );
+
+        setUsers(
+          Array.isArray(
+            userResponse?.items
+          )
+            ? userResponse.items
+            : []
+        );
+      } catch (
+        requestError
+      ) {
+        setError(
+          requestError?.message ||
+          'Gagal memuat room.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
 
   useEffect(() => {
     load();
   }, []);
 
-  const callSeller = async (
-    room
-  ) => {
-    if (
-      !room?.id
-    ) {
-      return;
-    }
-
-    setLoadingRoom(
-      room.id
-    );
-
-    setError('');
-
-    try {
-      await api(
-        `/rooms/${room.id}/call-seller`,
-        {
-          method: 'POST'
-        }
+  const findUser =
+    uid =>
+      users.find(
+        user =>
+          String(
+            user.uid ||
+            user.id
+          ) ===
+          String(
+            uid || ''
+          )
       );
 
-      setNotice({
-        type: 'success',
-        title: 'Seller dipanggil',
-        message:
-          'Seller sudah diberi notifikasi dan dapat bergabung ke room transaksi.'
-      });
+  const deleteRoom =
+    async room => {
+      try {
+        setLoading(
+          true
+        );
 
-      await load();
-    } catch (error) {
-      setNotice({
-        type: 'error',
-        title: 'Gagal memanggil seller',
-        message:
-          error?.message ||
-          'Terjadi kesalahan saat memanggil seller.'
-      });
-    } finally {
-      setLoadingRoom('');
-    }
-  };
+        setConfirm(
+          null
+        );
 
-  const toggleExpand = (
-    id
-  ) => {
-    setExpandedId(
-      currentId => {
-        if (
-          currentId === id
-        ) {
-          return null;
-        }
+        await api(
+          `/admin/rooms/${encodeURIComponent(room.id)}`,
+          {
+            method:
+              'DELETE'
+          }
+        );
 
-        return id;
+        setSelected(
+          null
+        );
+
+        await load();
+      } catch (
+        requestError
+      ) {
+        setError(
+          requestError?.message ||
+          'Gagal menghapus room.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
       }
-    );
-  };
+    };
 
   return (
-    <section className="admin-manage-page">
-      <div className="section-head admin-section-head">
+    <section>
+      <style>
+        {`
+          .cpmku-room-list {
+            display: grid;
+            gap: 14px;
+          }
+
+          .cpmku-room-card {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 22px;
+            border: 1px solid rgba(255,255,255,.09);
+            border-radius: 22px;
+            background: rgba(20,20,20,.72);
+          }
+
+          .cpmku-room-grid {
+            display: grid;
+            grid-template-columns: repeat(3,minmax(0,1fr));
+            gap: 14px;
+          }
+
+          .cpmku-room-grid span {
+            display: block;
+            color: #729eff;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
+
+          .cpmku-room-grid strong {
+            display: block;
+            margin-top: 5px;
+            color: #fff;
+            word-break: break-word;
+          }
+
+          .cpmku-room-status {
+            margin-top: 13px;
+            color: #9aa6ba;
+          }
+
+          .cpmku-room-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+            margin-top: 16px;
+          }
+
+          .cpmku-room-button {
+            min-height: 42px;
+            padding: 10px 17px;
+            border: 1px solid rgba(55,119,255,.5);
+            border-radius: 13px;
+            background: linear-gradient(180deg,#172d59,#10224a);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          .cpmku-room-danger {
+            border-color: rgba(255,75,95,.5);
+            background: linear-gradient(180deg,#642433,#411723);
+          }
+
+          .cpmku-room-modal-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0,0,0,.74);
+            backdrop-filter: blur(12px);
+          }
+
+          .cpmku-room-modal {
+            position: relative;
+            width: min(520px,100%);
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 26px;
+            border: 1px solid rgba(50,115,255,.4);
+            border-radius: 24px;
+            background: rgba(11,16,27,.98);
+            color: #fff;
+          }
+
+          .cpmku-room-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(70,125,255,.45);
+            border-radius: 14px;
+            background: rgba(23,43,78,.8);
+            color: #fff;
+            font-size: 28px;
+          }
+
+          .cpmku-room-detail {
+            display: grid;
+            gap: 13px;
+            margin-top: 45px;
+          }
+
+          .cpmku-room-detail div {
+            display: grid;
+            gap: 4px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+          }
+
+          .cpmku-room-detail span {
+            color: #8e9ab0;
+            font-size: 13px;
+          }
+
+          @media(max-width:650px) {
+            .cpmku-room-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+        `}
+      </style>
+
+      <div className="section-head">
         <div>
           <span className="admin-card-label">
             Admin
           </span>
 
           <h2>
-            Room Transaksi
+            Room
           </h2>
         </div>
 
         <button
           type="button"
-          onClick={load}
+          className="cpmku-room-button"
+          onClick={
+            load
+          }
           disabled={
-            Boolean(
-              loadingRoom
-            )
+            loading
           }
         >
-          Refresh
+          {loading
+            ? 'Memuat...'
+            : 'Refresh'}
         </button>
       </div>
 
@@ -215,375 +358,230 @@ export default function Rooms() {
         </div>
       )}
 
-      {notice && (
-        <div
-          className={
-            notice.type === 'success'
-              ? 'notice'
-              : 'notice error'
-          }
-        >
-          <strong>
-            {notice.title}
-          </strong>
+      <div className="cpmku-room-list">
+        {rooms.map(
+          room => {
+            const buyer =
+              findUser(
+                room.buyerUid
+              );
 
-          <div>
-            {notice.message}
-          </div>
+            const seller =
+              findUser(
+                room.sellerUid
+              );
 
-          <button
-            type="button"
-            onClick={() => {
-              setNotice(null);
-            }}
-          >
-            Tutup
-          </button>
-        </div>
-      )}
-
-      <div className="admin-manage-list">
-        {rooms.map(room => {
-          const isExpanded =
-            expandedId === room.id;
-
-          const isCalling =
-            loadingRoom === room.id;
-
-          const isActive =
-            room.status ===
-            'in_transaction';
-
-          return (
-            <article
-              key={room.id}
-              className="admin-manage-card"
-              style={{
-                width: '100%'
-              }}
-            >
-              <div className="admin-card-heading">
-                <div>
-                  <span className="admin-card-label">
-                    Room Transaksi
-                  </span>
-
-                  <h3>
-                    {
-                      room.productName ||
-                      room.productTitle ||
-                      room.productId ||
-                      'Produk tidak diketahui'
-                    }
-                  </h3>
-
-                  <p>
-                    Room #{room.id}
-                  </p>
-                </div>
-
-                <span
-                  className={
-                    `admin-status admin-status-${room.status || ''}`
-                  }
-                >
-                  {
-                    getStatusLabel(
-                      room.status
-                    )
-                  }
-                </span>
-              </div>
-
-              <div className="admin-generic-details">
-                <div>
-                  <span>
-                    Produk
-                  </span>
-
-                  <strong>
-                    {
-                      room.productName ||
-                      room.productTitle ||
-                      room.productId ||
-                      '-'
-                    }
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Buyer
-                  </span>
-
-                  <strong>
-                    {
-                      room.buyerName ||
-                      room.buyerEmail ||
-                      room.buyerUid ||
-                      '-'
-                    }
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Seller
-                  </span>
-
-                  <strong>
-                    {
-                      room.sellerName ||
-                      room.sellerEmail ||
-                      room.sellerUid ||
-                      '-'
-                    }
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Status Room
-                  </span>
-
-                  <strong>
-                    {
-                      getStatusLabel(
-                        room.status
-                      )
-                    }
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Seller
-                  </span>
-
-                  <strong>
-                    {
-                      room.sellerCalled
-                        ? 'Sudah dipanggil'
-                        : 'Belum dipanggil'
-                    }
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Dibuat
-                  </span>
-
-                  <strong>
-                    {
-                      formatDate(
-                        room.createdAt
-                      )
-                    }
-                  </strong>
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div className="admin-detail-panel">
-                  <div className="admin-detail-row">
+            return (
+              <article
+                key={
+                  room.id
+                }
+                className="cpmku-room-card"
+              >
+                <div className="cpmku-room-grid">
+                  <div>
                     <span>
-                      Room ID
+                      Buyer
                     </span>
-
                     <strong>
-                      {
-                        room.id ||
-                        '-'
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Order ID
-                    </span>
-
-                    <strong>
-                      {
-                        room.orderId ||
-                        '-'
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Product ID
-                    </span>
-
-                    <strong>
-                      {
-                        room.productId ||
-                        '-'
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Buyer UID
-                    </span>
-
-                    <strong>
-                      {
+                      {room.buyerName ||
+                        buyer?.name ||
                         room.buyerUid ||
-                        '-'
-                      }
+                        '-'}
                     </strong>
                   </div>
 
-                  <div className="admin-detail-row">
+                  <div>
                     <span>
-                      Seller UID
+                      Produk
                     </span>
-
                     <strong>
-                      {
+                      {room.productName ||
+                        room.productTitle ||
+                        room.productId ||
+                        '-'}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Seller
+                    </span>
+                    <strong>
+                      {room.sellerName ||
+                        seller?.name ||
                         room.sellerUid ||
-                        '-'
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Status
-                    </span>
-
-                    <strong>
-                      {
-                        getStatusLabel(
-                          room.status
-                        )
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Seller Dipanggil
-                    </span>
-
-                    <strong>
-                      {
-                        room.sellerCalled
-                          ? 'Ya'
-                          : 'Belum'
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Waktu Seller Dipanggil
-                    </span>
-
-                    <strong>
-                      {
-                        formatDate(
-                          room.sellerCalledAt
-                        )
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Dibuat
-                    </span>
-
-                    <strong>
-                      {
-                        formatDate(
-                          room.createdAt
-                        )
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="admin-detail-row">
-                    <span>
-                      Diperbarui
-                    </span>
-
-                    <strong>
-                      {
-                        formatDate(
-                          room.updatedAt
-                        )
-                      }
+                        '-'}
                     </strong>
                   </div>
                 </div>
-              )}
 
-              <div className="admin-card-actions">
-                <button
-                  type="button"
-                  className="admin-detail-button"
-                  onClick={() => {
-                    toggleExpand(
-                      room.id
-                    );
-                  }}
-                >
-                  {
-                    isExpanded
-                      ? 'Sembunyikan'
-                      : 'Detail Room'
-                  }
-                </button>
+                <div className="cpmku-room-status">
+                  Status:{" "}
+                  {label(
+                    room.status
+                  )}
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigate(
-                      `/chat/${room.id}`
-                    );
-                  }}
-                >
-                  Buka Chat
-                </button>
-
-                {isActive && (
+                <div className="cpmku-room-actions">
                   <button
                     type="button"
-                    onClick={() => {
-                      callSeller(
+                    className="cpmku-room-button"
+                    onClick={() =>
+                      setSelected(
                         room
-                      );
-                    }}
-                    disabled={
-                      isCalling
+                      )
                     }
                   >
-                    {
-                      isCalling
-                        ? 'Memproses...'
-                        : room.sellerCalled
-                          ? 'Panggil Lagi'
-                          : 'Panggil Seller'
-                    }
+                    Detail
                   </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
+
+                  <button
+                    type="button"
+                    className="cpmku-room-button cpmku-room-danger"
+                    onClick={() =>
+                      setConfirm(
+                        room
+                      )
+                    }
+                    disabled={
+                      loading
+                    }
+                  >
+                    Hapus Room
+                  </button>
+                </div>
+              </article>
+            );
+          }
+        )}
 
         {!rooms.length &&
           !error && (
             <div className="state">
-              Tidak ada room transaksi.
+              Tidak ada room.
             </div>
           )}
       </div>
+
+      {selected && (
+        <Modal
+          onClose={() =>
+            setSelected(
+              null
+            )
+          }
+        >
+          <h3>
+            Detail Room
+          </h3>
+
+          <div className="cpmku-room-detail">
+            <div>
+              <span>
+                Buyer
+              </span>
+              <strong>
+                {selected.buyerName ||
+                  findUser(
+                    selected.buyerUid
+                  )?.name ||
+                  selected.buyerUid ||
+                  '-'}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                Produk
+              </span>
+              <strong>
+                {selected.productName ||
+                  selected.productTitle ||
+                  selected.productId ||
+                  '-'}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                Seller
+              </span>
+              <strong>
+                {selected.sellerName ||
+                  findUser(
+                    selected.sellerUid
+                  )?.name ||
+                  selected.sellerUid ||
+                  '-'}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                Status
+              </span>
+              <strong>
+                {label(
+                  selected.status
+                )}
+              </strong>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirm && (
+        <Modal
+          onClose={() =>
+            setConfirm(
+              null
+            )
+          }
+        >
+          <h3>
+            Hapus Room?
+          </h3>
+
+          <p>
+            Room akan dihapus.
+            Riwayat transaksi
+            buyer/seller tidak
+            ikut dihapus.
+          </p>
+
+          <div className="cpmku-room-actions">
+            <button
+              type="button"
+              className="cpmku-room-button"
+              onClick={() =>
+                setConfirm(
+                  null
+                )
+              }
+            >
+              Batal
+            </button>
+
+            <button
+              type="button"
+              className="cpmku-room-button cpmku-room-danger"
+              onClick={() =>
+                deleteRoom(
+                  confirm
+                )
+              }
+              disabled={
+                loading
+              }
+            >
+              {loading
+                ? 'Memproses...'
+                : 'Hapus Room'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }
