@@ -33,6 +33,10 @@ import {
   rupiah
 } from '../../utils/format';
 
+import {
+  optimizeCloudinaryUrl
+} from '../../utils/cloudinary';
+
 import SellerMini from '../../components/seller/SellerMini';
 
 import Notice from '../../components/common/Notice';
@@ -203,6 +207,14 @@ export default function ProductDetail() {
     images[0] ||
     '';
 
+  const optimizedActiveImage =
+    activeImage
+      ? optimizeCloudinaryUrl(
+          activeImage,
+          1200
+        )
+      : '';
+
   const buy =
     async () => {
       if (!user) {
@@ -311,10 +323,10 @@ export default function ProductDetail() {
               '#151515'
           }}
         >
-          {activeImage ? (
+          {optimizedActiveImage ? (
             <img
               src={
-                activeImage
+                optimizedActiveImage
               }
               alt={
                 product.title
@@ -444,8 +456,7 @@ export default function ProductDetail() {
                 }}
               >
                 {
-                  selectedImage +
-                  1
+                  selectedImage + 1
                 }{' '}
                 /{' '}
                 {
@@ -509,12 +520,16 @@ export default function ProductDetail() {
                 >
                   <img
                     src={
-                      image
+                      optimizeCloudinaryUrl(
+                        image,
+                        250
+                      )
                     }
                     alt={`${product.title} ${
                       index + 1
                     }`}
                     loading="lazy"
+                    decoding="async"
                     style={{
                       display:
                         'block',
