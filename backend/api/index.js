@@ -22,10 +22,8 @@ function setCors(res) {
 function setHealthResponse(res) {
   res.status(200).json({
     ok: true,
-
     service:
       'johan-marketplace-backend',
-
     time:
       new Date().toISOString()
   });
@@ -57,7 +55,7 @@ function getSegments(req) {
   return path
     .split('/')
     .map(
-      (segment) =>
+      segment =>
         segment.trim()
     )
     .filter(Boolean);
@@ -98,6 +96,12 @@ async function getAdminMiddleware() {
 async function getSellerMiddleware() {
   return import(
     '../src/middleware/seller.js'
+  );
+}
+
+async function getAdminActions() {
+  return import(
+    '../src/services/adminActions.js'
   );
 }
 
@@ -538,6 +542,134 @@ async function router(
               req,
               res
             )
+        )
+    );
+  }
+
+  if (
+    resource === 'admin' &&
+    segments[1] ===
+      'rooms' &&
+    id &&
+    method === 'DELETE'
+  ) {
+    const {
+      deleteRoom
+    } = await getAdminActions();
+
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireAdmin(
+          req,
+          res,
+          async () => {
+            const result =
+              await deleteRoom(
+                id
+              );
+
+            return res
+              .status(200)
+              .json(result);
+          }
+        )
+    );
+  }
+
+  if (
+    resource === 'admin' &&
+    segments[1] ===
+      'products' &&
+    id &&
+    method === 'DELETE'
+  ) {
+    const {
+      deleteProduct
+    } = await getAdminActions();
+
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireAdmin(
+          req,
+          res,
+          async () => {
+            const result =
+              await deleteProduct(
+                id
+              );
+
+            return res
+              .status(200)
+              .json(result);
+          }
+        )
+    );
+  }
+
+  if (
+    resource === 'admin' &&
+    segments[1] ===
+      'orders' &&
+    id &&
+    method === 'DELETE'
+  ) {
+    const {
+      cancelOrder
+    } = await getAdminActions();
+
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireAdmin(
+          req,
+          res,
+          async () => {
+            const result =
+              await cancelOrder(
+                id
+              );
+
+            return res
+              .status(200)
+              .json(result);
+          }
+        )
+    );
+  }
+
+  if (
+    resource === 'admin' &&
+    segments[1] ===
+      'payments' &&
+    id &&
+    method === 'DELETE'
+  ) {
+    const {
+      deletePayment
+    } = await getAdminActions();
+
+    return requireAuth(
+      req,
+      res,
+      () =>
+        requireAdmin(
+          req,
+          res,
+          async () => {
+            const result =
+              await deletePayment(
+                id
+              );
+
+            return res
+              .status(200)
+              .json(result);
+          }
         )
     );
   }
