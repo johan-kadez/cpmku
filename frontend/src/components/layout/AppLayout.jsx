@@ -42,10 +42,7 @@ export default function AppLayout() {
     useLocation();
 
   const admin =
-    loc.pathname.startsWith(
-      '/admin'
-    ) &&
-    role === 'admin';
+  role === 'admin';
 
   if (
     !loading &&
