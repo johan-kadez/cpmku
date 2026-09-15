@@ -1,12 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import {
+  useEffect,
+  useRef,
+  useState
+} from 'react';
 
-import { useAuth } from '../../context/AuthContext';
-import { api } from '../../services/api';
+import {
+  Link,
+  useNavigate
+} from 'react-router-dom';
+
+import {
+  useAuth
+} from '../../context/AuthContext';
+
+import {
+  api
+} from '../../services/api';
 
 import './Profile.css';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE =
+  5 * 1024 * 1024;
 
 const ALLOWED_TYPES = [
   'image/jpeg',
@@ -25,16 +39,29 @@ export default function Profile() {
   } = useAuth();
 
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
 
-  const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState('');
-  const [error, setError] = useState('');
+  const fileInputRef =
+    useRef(null);
 
-  const [nickname, setNickname] = useState('');
-
-  const [nicknameLoading, setNicknameLoading] =
+  const [uploading, setUploading] =
     useState(false);
+
+  const [preview, setPreview] =
+    useState('');
+
+  const [error, setError] =
+    useState('');
+
+  const [notice, setNotice] =
+    useState('');
+
+  const [nickname, setNickname] =
+    useState('');
+
+  const [
+    nicknameLoading,
+    setNicknameLoading
+  ] = useState(false);
 
   const [sellerName, setSellerName] =
     useState('');
@@ -45,8 +72,10 @@ export default function Profile() {
   const [sellerReason, setSellerReason] =
     useState('');
 
-  const [sellerLoading, setSellerLoading] =
-    useState(false);
+  const [
+    sellerLoading,
+    setSellerLoading
+  ] = useState(false);
 
   useEffect(() => {
     setNickname(
@@ -59,17 +88,32 @@ export default function Profile() {
   useEffect(() => {
     return () => {
       if (preview) {
-        URL.revokeObjectURL(preview);
+        URL.revokeObjectURL(
+          preview
+        );
       }
     };
   }, [preview]);
 
+  const showError = message => {
+    setError(message);
+    setNotice('');
+  };
+
+  const showSuccess = message => {
+    setNotice(message);
+    setError('');
+  };
+
   const loginToProfile = async () => {
+    setError('');
+    setNotice('');
+
     try {
       await login();
       navigate('/profile');
     } catch (error) {
-      alert(
+      showError(
         error?.message ||
         'Login gagal.'
       );
@@ -82,26 +126,34 @@ export default function Profile() {
     }
 
     setError('');
+    setNotice('');
 
     fileInputRef.current?.click();
   };
 
-  const uploadProfilePhoto = async (file) => {
+  const uploadProfilePhoto = async file => {
     if (!file) {
       return;
     }
 
     setError('');
+    setNotice('');
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setError(
+    if (
+      !ALLOWED_TYPES.includes(
+        file.type
+      )
+    ) {
+      showError(
         'Format foto harus JPG, PNG, atau WEBP.'
       );
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      setError(
+    if (
+      file.size > MAX_FILE_SIZE
+    ) {
+      showError(
         'Ukuran foto maksimal 5 MB.'
       );
       return;
@@ -114,14 +166,16 @@ export default function Profile() {
     setUploading(true);
 
     try {
-      const signature = await api(
-        '/profile/photo/signature',
-        {
-          method: 'POST'
-        }
-      );
+      const signature =
+        await api(
+          '/profile/photo/signature',
+          {
+            method: 'POST'
+          }
+        );
 
-      const formData = new FormData();
+      const formData =
+        new FormData();
 
       formData.append(
         'file',
@@ -135,7 +189,9 @@ export default function Profile() {
 
       formData.append(
         'timestamp',
-        String(signature.timestamp)
+        String(
+          signature.timestamp
+        )
       );
 
       formData.append(
@@ -181,7 +237,9 @@ export default function Profile() {
         cloudinaryData = {};
       }
 
-      if (!cloudinaryResponse.ok) {
+      if (
+        !cloudinaryResponse.ok
+      ) {
         throw new Error(
           cloudinaryData.error?.message ||
           'Upload foto ke Cloudinary gagal.'
@@ -199,25 +257,23 @@ export default function Profile() {
         );
       }
 
-      const saved = await api(
-        '/profile/photo/update',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            secureUrl:
-              cloudinaryData.secure_url,
-
-            publicId:
-              cloudinaryData.public_id,
-
-            version:
-              cloudinaryData.version,
-
-            signature:
-              cloudinaryData.signature
-          })
-        }
-      );
+      const saved =
+        await api(
+          '/profile/photo/update',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              secureUrl:
+                cloudinaryData.secure_url,
+              publicId:
+                cloudinaryData.public_id,
+              version:
+                cloudinaryData.version,
+              signature:
+                cloudinaryData.signature
+            })
+          }
+        );
 
       await updateUserPhoto(
         saved.photoURL
@@ -229,7 +285,7 @@ export default function Profile() {
 
       setPreview('');
 
-      alert(
+      showSuccess(
         'Profile photo berhasil diubah.'
       );
     } catch (error) {
@@ -244,7 +300,7 @@ export default function Profile() {
 
       setPreview('');
 
-      setError(
+      showError(
         error?.message ||
         'Gagal mengubah foto profil.'
       );
@@ -257,17 +313,19 @@ export default function Profile() {
     }
   };
 
-  const saveNickname = async (event) => {
+  const saveNickname = async event => {
     event.preventDefault();
+
+    setError('');
+    setNotice('');
 
     const value =
       nickname.trim();
 
     if (!value) {
-      alert(
+      showError(
         'Nickname wajib diisi.'
       );
-
       return;
     }
 
@@ -301,11 +359,11 @@ export default function Profile() {
         value
       );
 
-      alert(
+      showSuccess(
         'Nickname berhasil diubah.'
       );
     } catch (error) {
-      alert(
+      showError(
         error?.message ||
         'Gagal mengubah nickname.'
       );
@@ -315,8 +373,11 @@ export default function Profile() {
   };
 
   const submitSellerApplication =
-    async (event) => {
+    async event => {
       event.preventDefault();
+
+      setError('');
+      setNotice('');
 
       const name =
         sellerName.trim();
@@ -328,26 +389,23 @@ export default function Profile() {
         sellerReason.trim();
 
       if (!name) {
-        alert(
+        showError(
           'Nama seller wajib diisi.'
         );
-
         return;
       }
 
       if (!phone) {
-        alert(
+        showError(
           'Nomor telepon wajib diisi.'
         );
-
         return;
       }
 
       if (!reason) {
-        alert(
+        showError(
           'Alasan menjadi seller wajib diisi.'
         );
-
         return;
       }
 
@@ -370,11 +428,11 @@ export default function Profile() {
         setSellerPhone('');
         setSellerReason('');
 
-        alert(
+        showSuccess(
           'Pendaftaran seller berhasil dikirim dan menunggu persetujuan admin.'
         );
       } catch (error) {
-        alert(
+        showError(
           error?.message ||
           'Gagal mengirim pendaftaran seller.'
         );
@@ -399,6 +457,18 @@ export default function Profile() {
         <div className="profile-card">
           <h1>Profile</h1>
 
+          {error && (
+            <div className="notice error">
+              {error}
+            </div>
+          )}
+
+          {notice && (
+            <div className="notice">
+              {notice}
+            </div>
+          )}
+
           <div className="login-choices">
             <div>
               <span>
@@ -409,14 +479,18 @@ export default function Profile() {
 
               <button
                 className="button primary"
-                onClick={loginToProfile}
+                onClick={
+                  loginToProfile
+                }
               >
                 Sign In dengan Google
               </button>
 
               <button
                 className="button"
-                onClick={loginToProfile}
+                onClick={
+                  loginToProfile
+                }
               >
                 Sign Up dengan Google
               </button>
@@ -458,7 +532,6 @@ export default function Profile() {
   return (
     <section className="profile-page">
       <div className="profile-card">
-
         <div className="profile-header">
           <div className="profile-avatar-wrap">
             {displayedPhoto ? (
@@ -501,7 +574,7 @@ export default function Profile() {
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          onChange={(event) =>
+          onChange={event =>
             uploadProfilePhoto(
               event.target.files?.[0]
             )
@@ -532,7 +605,9 @@ export default function Profile() {
 
           <button
             type="button"
-            onClick={openFilePicker}
+            onClick={
+              openFilePicker
+            }
             disabled={uploading}
           >
             {uploading
@@ -546,11 +621,24 @@ export default function Profile() {
             </div>
           )}
 
+          {notice && (
+            <div className="notice">
+              {notice}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={async () => {
-              await logout();
-              navigate('/');
+              try {
+                await logout();
+                navigate('/');
+              } catch (error) {
+                showError(
+                  error?.message ||
+                  'Logout gagal.'
+                );
+              }
             }}
           >
             Logout
@@ -565,7 +653,9 @@ export default function Profile() {
               </h2>
 
               <form
-                onSubmit={saveNickname}
+                onSubmit={
+                  saveNickname
+                }
               >
                 <label>
                   Nickname
@@ -573,7 +663,7 @@ export default function Profile() {
                   <input
                     type="text"
                     value={nickname}
-                    onChange={(event) =>
+                    onChange={event =>
                       setNickname(
                         event.target.value
                       )
@@ -604,7 +694,9 @@ export default function Profile() {
               </h2>
 
               <p>
-                Isi data berikut untuk mengajukan pendaftaran sebagai seller.
+                Isi data berikut untuk
+                mengajukan pendaftaran
+                sebagai seller.
               </p>
 
               <form
@@ -618,7 +710,7 @@ export default function Profile() {
                   <input
                     type="text"
                     value={sellerName}
-                    onChange={(event) =>
+                    onChange={event =>
                       setSellerName(
                         event.target.value
                       )
@@ -635,7 +727,7 @@ export default function Profile() {
                   <input
                     type="tel"
                     value={sellerPhone}
-                    onChange={(event) =>
+                    onChange={event =>
                       setSellerPhone(
                         event.target.value
                       )
@@ -651,7 +743,7 @@ export default function Profile() {
 
                   <textarea
                     value={sellerReason}
-                    onChange={(event) =>
+                    onChange={event =>
                       setSellerReason(
                         event.target.value
                       )
