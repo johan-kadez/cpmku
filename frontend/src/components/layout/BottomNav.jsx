@@ -1,6 +1,11 @@
-import { NavLink } from 'react-router-dom';
+import {
+  NavLink,
+  useLocation
+} from 'react-router-dom';
 
-import { useAuth } from '../../context/AuthContext';
+import {
+  useAuth
+} from '../../context/AuthContext';
 
 const helpIcon =
   'https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg';
@@ -10,41 +15,43 @@ const profileIcon =
 
 export default function BottomNav() {
   const {
-    user,
-    role
+    user
   } = useAuth();
 
-  const isAdmin =
-    Boolean(user) &&
-    role === 'admin';
+  const location =
+    useLocation();
 
-  const userItems = [
-    ['/','⌂','Home'],
-    ['/products','⛟','Produk'],
-    ['/favorites','♥','Favorite'],
-    ['/transactions','⇄','Transaksi']
+  const isAdminPanel =
+    location.pathname === '/admin' ||
+    location.pathname.startsWith('/admin/');
+
+  const publicItems = [
+    ['/', '⌂', 'Home'],
+    ['/products', '⛟', 'Produk'],
+    ['/favorites', '♥', 'Favorite'],
+    ['/transactions', '⇄', 'Transaksi']
   ];
 
   const adminItems = [
-    ['/admin','⌂','Dashboard'],
-    ['/admin/sellers','♙','Seller'],
-    ['/admin/products','⛟','Produk'],
-    ['/admin/orders','⇄','Order'],
-    ['/admin/payments','◈','Pembayaran'],
-    ['/admin/rooms','▣','Room'],
-    ['/admin/users','♙','User'],
-    ['/admin/settings','⚙','Settings']
+    ['/admin', '⌂', 'Dashboard'],
+    ['/admin/sellers', '♙', 'Seller'],
+    ['/admin/products', '⛟', 'Produk'],
+    ['/admin/orders', '⇄', 'Order'],
+    ['/admin/payments', '◈', 'Pembayaran'],
+    ['/admin/rooms', '▣', 'Room'],
+    ['/admin/users', '♙', 'User'],
+    ['/admin/settings', '⚙', 'Settings']
   ];
 
   const items =
-    isAdmin
+    isAdminPanel
       ? adminItems
-      : userItems;
+      : publicItems;
 
   return (
     <nav
       className={
-        isAdmin
+        isAdminPanel
           ? 'bottom-nav bottom-nav-admin'
           : 'bottom-nav'
       }
@@ -59,20 +66,28 @@ export default function BottomNav() {
               to === '/admin'
             }
           >
-            <b>{icon}</b>
-            <span>{label}</span>
+            <b>
+              {icon}
+            </b>
+
+            <span>
+              {label}
+            </span>
           </NavLink>
         )
       )}
 
-      {!isAdmin && (
+      {!isAdminPanel && (
         <>
           <NavLink to="/help">
             <img
               src={helpIcon}
               alt="Bantuan"
             />
-            <span>Bantuan</span>
+
+            <span>
+              Bantuan
+            </span>
           </NavLink>
 
           <NavLink to="/profile">
@@ -80,8 +95,11 @@ export default function BottomNav() {
               src={profileIcon}
               alt="Profile"
             />
+
             <span>
-              {user ? 'Profile' : 'Login'}
+              {user
+                ? 'Profile'
+                : 'Login'}
             </span>
           </NavLink>
         </>
