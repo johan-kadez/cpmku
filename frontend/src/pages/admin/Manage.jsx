@@ -7,112 +7,106 @@ import {
   api
 } from '../../services/api';
 
-const ACTIONS = {
-  sellers: [
-    [
-      'approved',
-      'Approve'
-    ],
-    [
-      'rejected',
-      'Reject'
-    ]
-  ],
+const STATUS_LABELS = {
+  pending:
+    'Menunggu',
 
-  products: [
-    [
-      'approved',
-      'Approve'
-    ],
-    [
-      'rejected',
-      'Reject'
-    ]
-  ],
+  pending_admin:
+    'Menunggu Persetujuan',
 
-  orders: [
-    [
-      'cancelled',
-      'Batalkan'
-    ]
-  ],
+  approved:
+    'Aktif',
 
-  payments: [
-    [
-      'verified',
-      'Verifikasi'
-    ],
-    [
-      'rejected',
-      'Tolak'
-    ]
-  ]
+  available:
+    'Tersedia',
+
+  in_transaction:
+    'Dalam Transaksi',
+
+  completed:
+    'Selesai',
+
+  cancelled:
+    'Dibatalkan',
+
+  rejected:
+    'Ditolak',
+
+  banned:
+    'Banned',
+
+  verified:
+    'Terverifikasi',
+
+  waiting_admin:
+    'Menunggu Admin'
 };
 
-function getSellerPhoto(row) {
+function statusLabel(
+  value
+) {
   return (
-    row.photoUrl ||
-    row.photoURL ||
-    row.photo ||
-    ''
-  );
-}
-
-function getSellerUid(row) {
-  return (
-    row.uid ||
-    row.userId ||
-    row.id ||
-    ''
-  );
-}
-
-function getSellerStatus(row) {
-  if (row.banned === true) {
-    return 'banned';
-  }
-
-  return row.status || 'pending';
-}
-
-function getStatusLabel(status) {
-  const labels = {
-    pending: 'Menunggu',
-    approved: 'Aktif',
-    rejected: 'Ditolak',
-    banned: 'Diblokir',
-    revoked: 'Dicabut',
-    available: 'Tersedia',
-    in_transaction: 'Dalam transaksi',
-    cancelled: 'Dibatalkan',
-    verified: 'Terverifikasi'
-  };
-
-  return (
-    labels[status] ||
-    status ||
+    STATUS_LABELS[value] ||
+    value ||
     '-'
   );
 }
 
-function formatAmount(value) {
-  const amount = Number(value);
+function getId(
+  row
+) {
+  return (
+    row?.uid ||
+    row?.id ||
+    row?.productId ||
+    row?.orderId ||
+    ''
+  );
+}
 
-  if (!Number.isFinite(amount)) {
+function getPhoto(
+  row
+) {
+  return (
+    row?.photoUrl ||
+    row?.photoURL ||
+    row?.photo ||
+    ''
+  );
+}
+
+function amount(
+  value
+) {
+  const number =
+    Number(value);
+
+  if (
+    !Number.isFinite(
+      number
+    )
+  ) {
     return '-';
   }
 
   return new Intl.NumberFormat(
     'id-ID',
     {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0
+      style:
+        'currency',
+      currency:
+        'IDR',
+      maximumFractionDigits:
+        0
     }
-  ).format(amount);
+  ).format(
+    number
+  );
 }
 
-function formatDate(value) {
+function dateText(
+  value
+) {
   if (!value) {
     return '-';
   }
@@ -120,19 +114,36 @@ function formatDate(value) {
   let date;
 
   if (
-    typeof value === 'object' &&
-    typeof value.toDate === 'function'
+    typeof value ===
+      'object' &&
+    typeof value.toDate ===
+      'function'
   ) {
-    date = value.toDate();
+    date =
+      value.toDate();
   } else if (
-    typeof value === 'object' &&
-    typeof value._seconds === 'number'
+    typeof value ===
+      'object' &&
+    typeof value._seconds ===
+      'number'
   ) {
     date = new Date(
-      value._seconds * 1000
+      value._seconds *
+        1000
+    );
+  } else if (
+    typeof value ===
+      'object' &&
+    typeof value.seconds ===
+      'number'
+  ) {
+    date = new Date(
+      value.seconds *
+        1000
     );
   } else {
-    date = new Date(value);
+    date =
+      new Date(value);
   }
 
   if (
@@ -146,10 +157,280 @@ function formatDate(value) {
   return new Intl.DateTimeFormat(
     'id-ID',
     {
-      dateStyle: 'medium',
-      timeStyle: 'short'
+      dateStyle:
+        'medium',
+      timeStyle:
+        'short'
     }
-  ).format(date);
+  ).format(
+    date
+  );
+}
+
+function AdminModal({
+  title,
+  children,
+  actions,
+  onClose
+}) {
+  return (
+    <div
+      className="cpmku-admin-modal-backdrop"
+      onMouseDown={
+        onClose
+      }
+    >
+      <div
+        className="cpmku-admin-modal"
+        onMouseDown={event =>
+          event.stopPropagation()
+        }
+      >
+        <button
+          type="button"
+          className="cpmku-admin-modal-close"
+          onClick={
+            onClose
+          }
+        >
+          ×
+        </button>
+
+        <h3>
+          {title}
+        </h3>
+
+        <div className="cpmku-admin-modal-content">
+          {children}
+        </div>
+
+        {actions && (
+          <div className="cpmku-admin-modal-actions">
+            {actions}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminStyles() {
+  return (
+    <style>
+      {`
+        .cpmku-admin-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          background: rgba(0,0,0,.72);
+          backdrop-filter: blur(12px);
+        }
+
+        .cpmku-admin-modal {
+          position: relative;
+          width: min(560px, 100%);
+          max-height: 88vh;
+          overflow-y: auto;
+          padding: 26px;
+          border: 1px solid rgba(48,112,255,.35);
+          border-radius: 24px;
+          background: rgba(12,17,29,.97);
+          box-shadow: 0 25px 80px rgba(0,0,0,.55);
+          color: #f4f7ff;
+        }
+
+        .cpmku-admin-modal-close {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          width: 42px;
+          height: 42px;
+          border: 1px solid rgba(80,135,255,.4);
+          border-radius: 14px;
+          background: rgba(24,42,76,.75);
+          color: #fff;
+          font-size: 28px;
+          cursor: pointer;
+        }
+
+        .cpmku-admin-modal h3 {
+          margin: 8px 52px 24px 0;
+          font-size: 24px;
+        }
+
+        .cpmku-admin-list {
+          display: grid;
+          gap: 14px;
+        }
+
+        .cpmku-admin-card {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 22px;
+          border: 1px solid rgba(255,255,255,.09);
+          border-radius: 22px;
+          background: rgba(20,20,20,.72);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+        }
+
+        .cpmku-admin-card-title {
+          text-align: center;
+          font-size: 21px;
+          font-weight: 700;
+          color: #fff;
+        }
+
+        .cpmku-admin-card-subtitle {
+          margin-top: 7px;
+          text-align: center;
+          color: #8e9ab0;
+          font-size: 14px;
+          word-break: break-all;
+        }
+
+        .cpmku-admin-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 9px;
+          margin-top: 16px;
+        }
+
+        .cpmku-admin-button {
+          min-height: 42px;
+          padding: 10px 17px;
+          border: 1px solid rgba(55,119,255,.48);
+          border-radius: 13px;
+          background: linear-gradient(180deg,#172d59,#10224a);
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .cpmku-admin-button:hover {
+          border-color: rgba(80,145,255,.8);
+        }
+
+        .cpmku-admin-button:disabled {
+          opacity: .55;
+          cursor: not-allowed;
+        }
+
+        .cpmku-admin-success {
+          border-color: rgba(47,210,124,.5);
+          background: linear-gradient(180deg,#145b42,#0e3c2e);
+        }
+
+        .cpmku-admin-danger {
+          border-color: rgba(255,75,95,.5);
+          background: linear-gradient(180deg,#642433,#411723);
+        }
+
+        .cpmku-admin-muted {
+          color: #94a0b4;
+        }
+
+        .cpmku-admin-detail-grid {
+          display: grid;
+          gap: 13px;
+        }
+
+        .cpmku-admin-detail-row {
+          display: grid;
+          gap: 4px;
+          padding-bottom: 11px;
+          border-bottom: 1px solid rgba(255,255,255,.07);
+        }
+
+        .cpmku-admin-detail-row span {
+          color: #8d99ae;
+          font-size: 13px;
+        }
+
+        .cpmku-admin-detail-row strong {
+          color: #fff;
+          line-height: 1.45;
+          word-break: break-word;
+        }
+
+        .cpmku-admin-profile {
+          display: grid;
+          justify-items: center;
+          gap: 18px;
+        }
+
+        .cpmku-admin-profile img {
+          width: 130px;
+          height: 130px;
+          object-fit: cover;
+          border-radius: 28px;
+          border: 1px solid rgba(70,125,255,.45);
+        }
+
+        .cpmku-admin-profile-placeholder {
+          width: 130px;
+          height: 130px;
+          display: grid;
+          place-items: center;
+          border-radius: 28px;
+          background: rgba(24,35,57,.8);
+          color: #4c8cff;
+          font-size: 45px;
+        }
+
+        .cpmku-admin-product-image {
+          width: 100%;
+          max-height: 330px;
+          object-fit: contain;
+          border-radius: 18px;
+          background: #080b11;
+        }
+
+        .cpmku-admin-order-top,
+        .cpmku-admin-payment-top {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+        }
+
+        .cpmku-admin-order-top div,
+        .cpmku-admin-payment-top div {
+          min-width: 0;
+        }
+
+        .cpmku-admin-label {
+          display: block;
+          margin-bottom: 5px;
+          color: #729eff;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .cpmku-admin-value {
+          color: #fff;
+          font-weight: 650;
+          word-break: break-word;
+        }
+
+        @media (max-width: 620px) {
+          .cpmku-admin-order-top,
+          .cpmku-admin-payment-top {
+            grid-template-columns: 1fr;
+          }
+
+          .cpmku-admin-modal {
+            padding: 21px;
+            border-radius: 20px;
+          }
+        }
+      `}
+    </style>
+  );
 }
 
 export default function Manage({
@@ -162,1121 +443,981 @@ export default function Manage({
   ] = useState([]);
 
   const [
+    users,
+    setUsers
+  ] = useState([]);
+
+  const [
+    products,
+    setProducts
+  ] = useState([]);
+
+  const [
     error,
     setError
   ] = useState('');
 
   const [
-    expandedId,
-    setExpandedId
+    loading,
+    setLoading
+  ] = useState(false);
+
+  const [
+    detail,
+    setDetail
   ] = useState(null);
 
   const [
-    confirmState,
-    setConfirmState
+    confirm,
+    setConfirm
   ] = useState(null);
 
-  const [
-    loadingAction,
-    setLoadingAction
-  ] = useState('');
+  const load =
+    async () => {
+      try {
+        setLoading(
+          true
+        );
 
-  const load = async () => {
-    try {
-      setError('');
+        setError('');
 
-      const response = await api(
-        `/admin/list/${type}`
-      );
+        const requests = [
+          api(
+            `/admin/list/${type}`
+          )
+        ];
 
-      setRows(
-        response?.items || []
-      );
-    } catch (error) {
-      setRows([]);
+        if (
+          [
+            'sellers',
+            'orders',
+            'payments'
+          ].includes(
+            type
+          )
+        ) {
+          requests.push(
+            api(
+              '/admin/users'
+            )
+          );
+        }
 
-      setError(
-        error?.message ||
-        'Gagal memuat data.'
-      );
-    }
-  };
+        if (
+          type ===
+          'payments'
+        ) {
+          requests.push(
+            api(
+              '/admin/list/products'
+            )
+          );
+        }
+
+        const result =
+          await Promise.all(
+            requests
+          );
+
+        setRows(
+          Array.isArray(
+            result[0]?.items
+          )
+            ? result[0].items
+            : []
+        );
+
+        if (
+          result[1]
+        ) {
+          setUsers(
+            Array.isArray(
+              result[1]?.items
+            )
+              ? result[1].items
+              : []
+          );
+        }
+
+        if (
+          result[2]
+        ) {
+          setProducts(
+            Array.isArray(
+              result[2]?.items
+            )
+              ? result[2].items
+              : []
+          );
+        }
+      } catch (
+        requestError
+      ) {
+        setError(
+          requestError?.message ||
+          'Gagal memuat data.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
 
   useEffect(() => {
     load();
   }, [type]);
 
-  const action = async (
-    id,
-    status
-  ) => {
-    if (
-      type === 'orders'
-    ) {
-      setConfirmState({
-        id,
-        status,
-        kind: 'status'
-      });
-
-      return;
-    }
-
-    if (
-      type === 'sellers' &&
-      status === 'rejected'
-    ) {
-      setConfirmState({
-        id,
-        status,
-        kind: 'status'
-      });
-
-      return;
-    }
-
-    if (
-      type === 'payments'
-    ) {
-      setConfirmState({
-        id,
-        status,
-        kind: 'payment'
-      });
-
-      return;
-    }
-
-    await executeAction(
-      id,
-      status
-    );
-  };
-
-  const executeAction = async (
-    id,
-    status
-  ) => {
-    try {
-      setLoadingAction(
-        `${id}:${status}`
+  const findUser =
+    uid =>
+      users.find(
+        user =>
+          String(
+            user?.uid ||
+            user?.id ||
+            ''
+          ) ===
+          String(
+            uid || ''
+          )
       );
 
-      setError('');
-
-      await api(
-        `/admin/status/${type}/${id}`,
-        {
-          method: 'PATCH',
-
-          body: JSON.stringify({
-            status
-          })
-        }
-      );
-
-      setExpandedId(null);
-
-      await load();
-    } catch (error) {
-      setError(
-        error?.message ||
-        'Gagal memperbarui status.'
-      );
-    } finally {
-      setLoadingAction('');
-    }
-  };
-
-  const banSeller = async (
-    row
-  ) => {
-    const uid =
-      getSellerUid(row);
-
-    if (!uid) {
-      setError(
-        'UID seller tidak ditemukan.'
-      );
-
-      return;
-    }
-
-    setConfirmState({
-      id: uid,
+  const runAction =
+    async (
       row,
-      kind: 'ban'
-    });
-  };
+      status
+    ) => {
+      const id =
+        getId(row);
 
-  const executeBan = async (
-    uid
-  ) => {
-    try {
-      setLoadingAction(
-        `${uid}:ban`
-      );
-
-      setError('');
-
-      await api(
-        `/admin/users/${uid}`,
-        {
-          method: 'PATCH',
-
-          body: JSON.stringify({
-            banned: true
-          })
-        }
-      );
-
-      setExpandedId(null);
-
-      await load();
-    } catch (error) {
-      setError(
-        error?.message ||
-        'Gagal memblokir seller.'
-      );
-    } finally {
-      setLoadingAction('');
-    }
-  };
-
-  const closeConfirm = () => {
-    if (
-      loadingAction
-    ) {
-      return;
-    }
-
-    setConfirmState(null);
-  };
-
-  const confirmAction = async () => {
-    if (
-      !confirmState
-    ) {
-      return;
-    }
-
-    const current =
-      confirmState;
-
-    setConfirmState(null);
-
-    if (
-      current.kind === 'ban'
-    ) {
-      await executeBan(
-        current.id
-      );
-
-      return;
-    }
-
-    await executeAction(
-      current.id,
-      current.status
-    );
-  };
-
-  const toggleExpand = (
-    id
-  ) => {
-    setExpandedId(
-      currentId => {
-        if (
-          currentId === id
-        ) {
-          return null;
-        }
-
-        return id;
+      if (!id) {
+        setError(
+          'ID data tidak ditemukan.'
+        );
+        return;
       }
-    );
-  };
 
-  const getTitle = row => {
-    if (
-      type === 'sellers'
-    ) {
-      return (
-        row.name ||
-        row.email ||
-        row.uid ||
-        row.id
-      );
-    }
+      try {
+        setLoading(
+          true
+        );
 
-    return (
-      row.name ||
-      row.title ||
-      row.productName ||
-      row.productId ||
-      row.orderId ||
-      row.id
-    );
-  };
+        setConfirm(
+          null
+        );
 
-  const renderSeller = row => {
-    const status =
-      getSellerStatus(row);
+        setError('');
 
-    const photo =
-      getSellerPhoto(row);
+        await api(
+          `/admin/status/${type}/${encodeURIComponent(id)}`,
+          {
+            method:
+              'PATCH',
 
-    const uid =
-      getSellerUid(row);
+            body:
+              JSON.stringify({
+                status
+              })
+          }
+        );
 
-    const isExpanded =
-      expandedId === row.id;
+        setDetail(
+          null
+        );
 
-    const isPending =
-      status === 'pending';
+        await load();
+      } catch (
+        actionError
+      ) {
+        setError(
+          actionError?.message ||
+          'Aksi gagal.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
 
-    const isBanned =
-      status === 'banned' ||
-      row.banned === true;
+  const sellerApplications =
+    type === 'sellers'
+      ? rows.filter(
+          row =>
+            (
+              row.status ||
+              'pending'
+            ) ===
+            'pending'
+        )
+      : [];
 
-    const isBanLoading =
-      loadingAction ===
-      `${uid}:ban`;
+  const activeSellers =
+    type === 'sellers'
+      ? users.filter(
+          user =>
+            user.role ===
+            'seller'
+        )
+      : [];
 
-    return (
-      <article
-        key={row.id}
-        className="admin-manage-card admin-seller-card"
-      >
-        <div className="admin-seller-photo-wrap">
-          {photo ? (
-            <img
-              src={photo}
-              alt={
-                row.name ||
-                'Foto seller'
-              }
-              className="admin-seller-photo"
-            />
-          ) : (
-            <div className="admin-seller-photo-placeholder">
-              ◎
+  const sellerDetail =
+    row => (
+      <div className="cpmku-admin-profile">
+        {getPhoto(row) ? (
+          <img
+            src={getPhoto(row)}
+            alt="Foto seller"
+          />
+        ) : (
+          <div className="cpmku-admin-profile-placeholder">
+            ◈
+          </div>
+        )}
+
+        <div className="cpmku-admin-detail-grid">
+          <div className="cpmku-admin-detail-row">
+            <span>
+              Nama
+            </span>
+            <strong>
+              {row.name ||
+                '-'}
+            </strong>
+          </div>
+
+          <div className="cpmku-admin-detail-row">
+            <span>
+              Role
+            </span>
+            <strong>
+              {row.status ===
+              'pending'
+                ? 'Buyer To Seller'
+                : 'Seller'}
+            </strong>
+          </div>
+
+          <div className="cpmku-admin-detail-row">
+            <span>
+              Email
+            </span>
+            <strong>
+              {row.email ||
+                '-'}
+            </strong>
+          </div>
+
+          <div className="cpmku-admin-detail-row">
+            <span>
+              Nomor
+            </span>
+            <strong>
+              {row.phone ||
+                row.phoneNumber ||
+                '-'}
+            </strong>
+          </div>
+
+          {row.status ===
+            'pending' && (
+            <div className="cpmku-admin-detail-row">
+              <span>
+                Alasan
+              </span>
+              <strong>
+                {row.reason ||
+                  row.description ||
+                  '-'}
+              </strong>
             </div>
           )}
+
+          <div className="cpmku-admin-detail-row">
+            <span>
+              Status
+            </span>
+            <strong>
+              {statusLabel(
+                row.banned
+                  ? 'banned'
+                  : row.status
+              )}
+            </strong>
+          </div>
+        </div>
+      </div>
+    );
+
+  const productDetail =
+    row => (
+      <div className="cpmku-admin-detail-grid">
+        {row.images?.length ? (
+          <div>
+            {row.images.map(
+              (
+                image,
+                index
+              ) => (
+                <img
+                  key={
+                    image.publicId ||
+                    index
+                  }
+                  src={
+                    image.url
+                  }
+                  alt={
+                    row.title ||
+                    'Produk'
+                  }
+                  className="cpmku-admin-product-image"
+                  style={{
+                    marginBottom:
+                      10
+                  }}
+                />
+              )
+            )}
+          </div>
+        ) : row.imageUrl ? (
+          <img
+            src={
+              row.imageUrl
+            }
+            alt={
+              row.title ||
+              'Produk'
+            }
+            className="cpmku-admin-product-image"
+          />
+        ) : (
+          <div className="cpmku-admin-muted">
+            Foto produk tidak tersedia.
+          </div>
+        )}
+
+        <div className="cpmku-admin-detail-row">
+          <span>
+            Nama Produk
+          </span>
+          <strong>
+            {row.title ||
+              row.name ||
+              '-'}
+          </strong>
         </div>
 
-        <div className="admin-seller-main">
-          <div className="admin-card-heading">
+        <div className="cpmku-admin-detail-row">
+          <span>
+            ID Produk
+          </span>
+          <strong>
+            {row.productId ||
+              row.id ||
+              '-'}
+          </strong>
+        </div>
+
+        <div className="cpmku-admin-detail-row">
+          <span>
+            Harga
+          </span>
+          <strong>
+            {amount(
+              row.price
+            )}
+          </strong>
+        </div>
+
+        <div className="cpmku-admin-detail-row">
+          <span>
+            Deskripsi
+          </span>
+          <strong>
+            {row.description ||
+              '-'}
+          </strong>
+        </div>
+
+        <div className="cpmku-admin-detail-row">
+          <span>
+            Nama Seller
+          </span>
+          <strong>
+            {row.sellerName ||
+              findUser(
+                row.sellerUid
+              )?.name ||
+              '-'}
+          </strong>
+        </div>
+
+        <div className="cpmku-admin-detail-row">
+          <span>
+            Kategori
+          </span>
+          <strong>
+            {row.category ||
+              '-'}
+          </strong>
+        </div>
+
+        <div className="cpmku-admin-detail-row">
+          <span>
+            Status
+          </span>
+          <strong>
+            {statusLabel(
+              row.status
+            )}
+          </strong>
+        </div>
+      </div>
+    );
+
+  const renderSeller =
+    row => (
+      <article
+        key={
+          row.id
+        }
+        className="cpmku-admin-card"
+      >
+        <div className="cpmku-admin-card-title">
+          {row.name ||
+            'Tanpa Nama'}
+        </div>
+
+        <div className="cpmku-admin-actions">
+          <button
+            type="button"
+            className="cpmku-admin-button"
+            onClick={() =>
+              setDetail({
+                title:
+                  row.status ===
+                  'pending'
+                    ? 'Detail Seller Application'
+                    : 'Detail Seller',
+                content:
+                  sellerDetail(
+                    row
+                  ),
+                row
+              })
+            }
+          >
+            Detail
+          </button>
+
+          {row.status ===
+            'pending' && (
+            <>
+              <button
+                type="button"
+                className="cpmku-admin-button cpmku-admin-success"
+                onClick={() =>
+                  setConfirm({
+                    row,
+                    status:
+                      'approved',
+                    text:
+                      'Setujui pengajuan seller ini?'
+                  })
+                }
+                disabled={
+                  loading
+                }
+              >
+                Approve
+              </button>
+
+              <button
+                type="button"
+                className="cpmku-admin-button cpmku-admin-danger"
+                onClick={() =>
+                  setConfirm({
+                    row,
+                    status:
+                      'rejected',
+                    text:
+                      'Reject pengajuan seller ini?'
+                  })
+                }
+                disabled={
+                  loading
+                }
+              >
+                Reject
+              </button>
+            </>
+          )}
+        </div>
+      </article>
+    );
+
+  const renderProduct =
+    row => (
+      <article
+        key={
+          row.id
+        }
+        className="cpmku-admin-card"
+      >
+        <div className="cpmku-admin-card-title">
+          {row.title ||
+            row.name ||
+            'Produk'}
+        </div>
+
+        <div className="cpmku-admin-card-subtitle">
+          {row.productId ||
+            row.id ||
+            '-'}
+        </div>
+
+        <div className="cpmku-admin-actions">
+          <button
+            type="button"
+            className="cpmku-admin-button"
+            onClick={() =>
+              setDetail({
+                title:
+                  'Detail Produk',
+                content:
+                  productDetail(
+                    row
+                  ),
+                row
+              })
+            }
+          >
+            Detail
+          </button>
+        </div>
+      </article>
+    );
+
+  const renderOrder =
+    row => {
+      const buyer =
+        findUser(
+          row.buyerUid
+        );
+
+      const seller =
+        findUser(
+          row.sellerUid
+        );
+
+      const pending =
+        [
+          'pending_admin',
+          'pending'
+        ].includes(
+          row.status
+        );
+
+      return (
+        <article
+          key={
+            row.id
+          }
+          className="cpmku-admin-card"
+        >
+          <div className="cpmku-admin-order-top">
             <div>
-              <span className="admin-card-label">
+              <span className="cpmku-admin-label">
+                Buyer
+              </span>
+              <div className="cpmku-admin-value">
+                {buyer?.name ||
+                  row.buyerName ||
+                  row.buyerUid ||
+                  '-'}
+              </div>
+            </div>
+
+            <div>
+              <span className="cpmku-admin-label">
+                Produk
+              </span>
+              <div className="cpmku-admin-value">
+                {row.productName ||
+                  row.productId ||
+                  '-'}
+              </div>
+            </div>
+
+            <div>
+              <span className="cpmku-admin-label">
                 Seller
               </span>
-
-              <h3>
-                {
-                  row.name ||
-                  'Tanpa nama'
-                }
-              </h3>
-
-              <p>
-                {
-                  row.email ||
-                  '-'
-                }
-              </p>
-            </div>
-
-            <span
-              className={
-                `admin-status admin-status-${status}`
-              }
-            >
-              {
-                getStatusLabel(
-                  status
-                )
-              }
-            </span>
-          </div>
-
-          <div className="admin-seller-summary">
-            <div>
-              <span>
-                WhatsApp
-              </span>
-
-              <strong>
-                {
-                  row.phone ||
-                  '-'
-                }
-              </strong>
+              <div className="cpmku-admin-value">
+                {seller?.name ||
+                  row.sellerName ||
+                  row.sellerUid ||
+                  '-'}
+              </div>
             </div>
 
             <div>
-              <span>
-                UID
+              <span className="cpmku-admin-label">
+                Status
               </span>
-
-              <strong>
-                {
-                  uid ||
-                  '-'
-                }
-              </strong>
+              <div className="cpmku-admin-value">
+                {statusLabel(
+                  row.status
+                )}
+              </div>
             </div>
           </div>
 
-          {isExpanded && (
-            <div className="admin-detail-panel">
-              <div className="admin-detail-row">
-                <span>
-                  Nama
-                </span>
-
-                <strong>
-                  {
-                    row.name ||
-                    '-'
-                  }
-                </strong>
-              </div>
-
-              <div className="admin-detail-row">
-                <span>
-                  Email
-                </span>
-
-                <strong>
-                  {
-                    row.email ||
-                    '-'
-                  }
-                </strong>
-              </div>
-
-              <div className="admin-detail-row">
-                <span>
-                  Nomor WhatsApp
-                </span>
-
-                <strong>
-                  {
-                    row.phone ||
-                    '-'
-                  }
-                </strong>
-              </div>
-
-              <div className="admin-detail-row">
-                <span>
-                  Tujuan menjadi Seller
-                </span>
-
-                <strong>
-                  {
-                    row.reason ||
-                    row.description ||
-                    '-'
-                  }
-                </strong>
-              </div>
-
-              <div className="admin-detail-row">
-                <span>
-                  Status
-                </span>
-
-                <strong>
-                  {
-                    getStatusLabel(
-                      status
-                    )
-                  }
-                </strong>
-              </div>
-
-              <div className="admin-detail-row">
-                <span>
-                  UID
-                </span>
-
-                <strong>
-                  {
-                    uid ||
-                    '-'
-                  }
-                </strong>
-              </div>
-            </div>
-          )}
-
-          <div className="admin-card-actions">
+          <div className="cpmku-admin-actions">
             <button
               type="button"
-              className="admin-detail-button"
-              onClick={() => {
-                toggleExpand(
-                  row.id
-                );
-              }}
-            >
-              {
-                isExpanded
-                  ? 'Sembunyikan'
-                  : 'Detail'
+              className="cpmku-admin-button"
+              onClick={() =>
+                setDetail({
+                  title:
+                    'Detail Order',
+                  content: (
+                    <div className="cpmku-admin-detail-grid">
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Buyer
+                        </span>
+                        <strong>
+                          {buyer?.name ||
+                            row.buyerUid ||
+                            '-'}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Produk
+                        </span>
+                        <strong>
+                          {row.productName ||
+                            row.productId ||
+                            '-'}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Seller
+                        </span>
+                        <strong>
+                          {seller?.name ||
+                            row.sellerUid ||
+                            '-'}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Nominal
+                        </span>
+                        <strong>
+                          {amount(
+                            row.amount
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Status Order
+                        </span>
+                        <strong>
+                          {statusLabel(
+                            row.status
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Status Pembayaran
+                        </span>
+                        <strong>
+                          {statusLabel(
+                            row.paymentStatus
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Dibuat
+                        </span>
+                        <strong>
+                          {dateText(
+                            row.createdAt
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  ),
+                  row
+                })
               }
+            >
+              Detail
             </button>
 
-            {isPending && (
+            {pending && (
               <>
                 <button
                   type="button"
-                  onClick={() => {
-                    action(
-                      row.id,
-                      'approved'
-                    );
-                  }}
+                  className="cpmku-admin-button cpmku-admin-success"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      status:
+                        'approved',
+                      text:
+                        'Setujui order ini? Produk akan masuk ke transaksi dan room akan dibuat.'
+                    })
+                  }
                   disabled={
-                    loadingAction ===
-                    `${row.id}:approved`
+                    loading
                   }
                 >
-                  {
-                    loadingAction ===
-                    `${row.id}:approved`
-                      ? 'Memproses...'
-                      : 'Approve'
-                  }
+                  Setujui
                 </button>
 
                 <button
                   type="button"
-                  className="admin-danger-button"
-                  onClick={() => {
-                    action(
-                      row.id,
-                      'rejected'
-                    );
-                  }}
+                  className="cpmku-admin-button cpmku-admin-danger"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      status:
+                        'rejected',
+                      text:
+                        'Reject order ini? Order akan dihapus dan produk kembali tersedia.'
+                    })
+                  }
                   disabled={
-                    loadingAction ===
-                    `${row.id}:rejected`
+                    loading
                   }
                 >
-                  {
-                    loadingAction ===
-                    `${row.id}:rejected`
-                      ? 'Memproses...'
-                      : 'Reject'
-                  }
+                  Reject
                 </button>
               </>
             )}
 
-            {!isPending &&
-              !isBanned && (
+            {row.status ===
+              'in_transaction' && (
+              <button
+                type="button"
+                className="cpmku-admin-button cpmku-admin-danger"
+                onClick={() =>
+                  setConfirm({
+                    row,
+                    status:
+                      'cancelled',
+                    text:
+                      'Batalkan order ini? Order, room dan payment pending akan dihapus dan produk kembali tersedia.'
+                  })
+                }
+                disabled={
+                  loading
+                }
+              >
+                Batalkan
+              </button>
+            )}
+          </div>
+        </article>
+      );
+    };
+
+  const renderPayment =
+    row => {
+      const buyer =
+        findUser(
+          row.buyerUid
+        );
+
+      const product =
+        products.find(
+          item =>
+            String(
+              item?.productId ||
+              item?.id ||
+              ''
+            ) ===
+            String(
+              row.productId ||
+              ''
+            )
+        );
+
+      return (
+        <article
+          key={
+            row.id
+          }
+          className="cpmku-admin-card"
+        >
+          <div className="cpmku-admin-payment-top">
+            <div>
+              <span className="cpmku-admin-label">
+                Buyer
+              </span>
+
+              <div className="cpmku-admin-value">
+                {buyer?.name ||
+                  row.buyerName ||
+                  row.buyerUid ||
+                  '-'}
+              </div>
+            </div>
+
+            <div>
+              <span className="cpmku-admin-label">
+                Produk
+              </span>
+
+              <div className="cpmku-admin-value">
+                {row.productName ||
+                  product?.title ||
+                  row.productId ||
+                  '-'}
+              </div>
+            </div>
+          </div>
+
+          <div className="cpmku-admin-actions">
+            <button
+              type="button"
+              className="cpmku-admin-button"
+              onClick={() =>
+                setDetail({
+                  title:
+                    'Detail Pembayaran',
+                  content: (
+                    <div className="cpmku-admin-detail-grid">
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Buyer
+                        </span>
+                        <strong>
+                          {buyer?.name ||
+                            row.buyerUid ||
+                            '-'}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Produk
+                        </span>
+                        <strong>
+                          {row.productName ||
+                            product?.title ||
+                            row.productId ||
+                            '-'}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Nominal
+                        </span>
+                        <strong>
+                          {amount(
+                            row.amount
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Status
+                        </span>
+                        <strong>
+                          {statusLabel(
+                            row.status
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="cpmku-admin-detail-row">
+                        <span>
+                          Order ID
+                        </span>
+                        <strong>
+                          {row.orderId ||
+                            '-'}
+                        </strong>
+                      </div>
+                    </div>
+                  ),
+                  row
+                })
+              }
+            >
+              Detail
+            </button>
+
+            {row.status ===
+              'pending' && (
+              <>
                 <button
                   type="button"
-                  className="admin-danger-button"
-                  onClick={() => {
-                    banSeller(row);
-                  }}
+                  className="cpmku-admin-button cpmku-admin-success"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      status:
+                        'verified',
+                      text:
+                        'Verifikasi pembayaran ini?'
+                    })
+                  }
                   disabled={
-                    isBanLoading
+                    loading
                   }
                 >
-                  {
-                    isBanLoading
-                      ? 'Memproses...'
-                      : 'Ban Seller'
-                  }
+                  Verifikasi
                 </button>
-              )}
-          </div>
-        </div>
-      </article>
-    );
-  };
 
-  const renderPayment = row => {
-    const status =
-      row.status || 'pending';
-
-    const isExpanded =
-      expandedId === row.id;
-
-    const isPending =
-      status === 'pending';
-
-    const verifyLoading =
-      loadingAction ===
-      `${row.id}:verified`;
-
-    const rejectLoading =
-      loadingAction ===
-      `${row.id}:rejected`;
-
-    const buyer =
-      row.buyerName ||
-      row.buyerEmail ||
-      row.buyerUid ||
-      '-';
-
-    const seller =
-      row.sellerName ||
-      row.sellerEmail ||
-      row.sellerUid ||
-      '-';
-
-    const product =
-      row.productName ||
-      row.productTitle ||
-      row.productId ||
-      '-';
-
-    const orderId =
-      row.orderId ||
-      row.id ||
-      '-';
-
-    return (
-      <article
-        key={row.id}
-        className="admin-manage-card"
-        style={{
-          width: '100%'
-        }}
-      >
-        <div className="admin-card-heading">
-          <div>
-            <span className="admin-card-label">
-              Pembayaran
-            </span>
-
-            <h3>
-              {
-                formatAmount(
-                  row.amount
-                )
-              }
-            </h3>
-
-            <p>
-              Order #{orderId}
-            </p>
-          </div>
-
-          <span
-            className={
-              `admin-status admin-status-${status}`
-            }
-          >
-            {
-              getStatusLabel(
-                status
-              )
-            }
-          </span>
-        </div>
-
-        <div
-          className="admin-generic-details"
-          style={{
-            gridTemplateColumns:
-              'repeat(2, minmax(0, 1fr))'
-          }}
-        >
-          <div>
-            <span>
-              Buyer
-            </span>
-
-            <strong>
-              {buyer}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Seller
-            </span>
-
-            <strong>
-              {seller}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Produk
-            </span>
-
-            <strong>
-              {product}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Nominal
-            </span>
-
-            <strong>
-              {
-                formatAmount(
-                  row.amount
-                )
-              }
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Metode Pembayaran
-            </span>
-
-            <strong>
-              {
-                String(
-                  row.paymentMethod ||
-                  row.method ||
-                  '-'
-                ).toUpperCase()
-              }
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Status Pembayaran
-            </span>
-
-            <strong>
-              {
-                getStatusLabel(
-                  status
-                )
-              }
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Status Order
-            </span>
-
-            <strong>
-              {
-                getStatusLabel(
-                  row.orderStatus ||
-                  row.order?.status ||
-                  '-'
-                )
-              }
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Waktu
-            </span>
-
-            <strong>
-              {
-                formatDate(
-                  row.createdAt
-                )
-              }
-            </strong>
-          </div>
-        </div>
-
-        {isExpanded && (
-          <div className="admin-detail-panel">
-            <div className="admin-detail-row">
-              <span>
-                Payment ID
-              </span>
-
-              <strong>
-                {
-                  row.id ||
-                  '-'
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Order ID
-              </span>
-
-              <strong>
-                {
-                  row.orderId ||
-                  '-'
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Buyer UID
-              </span>
-
-              <strong>
-                {
-                  row.buyerUid ||
-                  '-'
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Seller UID
-              </span>
-
-              <strong>
-                {
-                  row.sellerUid ||
-                  '-'
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Product ID
-              </span>
-
-              <strong>
-                {
-                  row.productId ||
-                  '-'
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Nominal
-              </span>
-
-              <strong>
-                {
-                  formatAmount(
-                    row.amount
-                  )
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Metode Pembayaran
-              </span>
-
-              <strong>
-                {
-                  row.paymentMethod ||
-                  row.method ||
-                  '-'
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Status Pembayaran
-              </span>
-
-              <strong>
-                {
-                  getStatusLabel(
-                    status
-                  )
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Status Order
-              </span>
-
-              <strong>
-                {
-                  getStatusLabel(
-                    row.orderStatus ||
-                    row.order?.status ||
-                    '-'
-                  )
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Dibuat
-              </span>
-
-              <strong>
-                {
-                  formatDate(
-                    row.createdAt
-                  )
-                }
-              </strong>
-            </div>
-
-            <div className="admin-detail-row">
-              <span>
-                Diperbarui
-              </span>
-
-              <strong>
-                {
-                  formatDate(
-                    row.updatedAt
-                  )
-                }
-              </strong>
-            </div>
-          </div>
-        )}
-
-        <div className="admin-card-actions">
-          <button
-            type="button"
-            className="admin-detail-button"
-            onClick={() => {
-              toggleExpand(
-                row.id
-              );
-            }}
-          >
-            {
-              isExpanded
-                ? 'Sembunyikan'
-                : 'Detail Pembayaran'
-            }
-          </button>
-
-          {isPending && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  action(
-                    row.id,
-                    'verified'
-                  );
-                }}
-                disabled={
-                  verifyLoading ||
-                  rejectLoading
-                }
-              >
-                {
-                  verifyLoading
-                    ? 'Memproses...'
-                    : 'Verifikasi'
-                }
-              </button>
-
-              <button
-                type="button"
-                className="admin-danger-button"
-                onClick={() => {
-                  action(
-                    row.id,
-                    'rejected'
-                  );
-                }}
-                disabled={
-                  verifyLoading ||
-                  rejectLoading
-                }
-              >
-                {
-                  rejectLoading
-                    ? 'Memproses...'
-                    : 'Tolak'
-                }
-              </button>
-            </>
-          )}
-        </div>
-      </article>
-    );
-  };
-
-  const renderGeneric = row => {
-    const status =
-      row.status || '';
-
-    return (
-      <article
-        key={row.id}
-        className="admin-manage-card"
-      >
-        <div className="admin-card-heading">
-          <div>
-            <span className="admin-card-label">
-              {title}
-            </span>
-
-            <h3>
-              {
-                getTitle(row)
-              }
-            </h3>
-          </div>
-
-          <span
-            className={
-              `admin-status admin-status-${status}`
-            }
-          >
-            {
-              getStatusLabel(
-                status
-              )
-            }
-          </span>
-        </div>
-
-        <div className="admin-generic-details">
-          {type === 'products' && (
-            <>
-              <div>
-                <span>
-                  Produk
-                </span>
-
-                <strong>
-                  {
-                    row.name ||
-                    row.title ||
-                    '-'
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-danger"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      status:
+                        'rejected',
+                      text:
+                        'Tolak pembayaran ini?'
+                    })
                   }
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Seller
-                </span>
-
-                <strong>
-                  {
-                    row.sellerName ||
-                    row.sellerUid ||
-                    '-'
+                  disabled={
+                    loading
                   }
-                </strong>
-              </div>
-            </>
-          )}
-
-          {type === 'orders' && (
-            <>
-              <div>
-                <span>
-                  Order
-                </span>
-
-                <strong>
-                  {
-                    row.id ||
-                    '-'
-                  }
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Produk
-                </span>
-
-                <strong>
-                  {
-                    row.productName ||
-                    row.productId ||
-                    '-'
-                  }
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Buyer
-                </span>
-
-                <strong>
-                  {
-                    row.buyerName ||
-                    row.buyerUid ||
-                    '-'
-                  }
-                </strong>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="admin-card-actions">
-          {(
-            ACTIONS[type] ||
-            []
-          ).map(
-            ([
-              actionStatus,
-              label
-            ]) => (
-              <button
-                type="button"
-                key={actionStatus}
-                className={
-                  actionStatus ===
-                  'rejected' ||
-                  actionStatus ===
-                  'cancelled'
-                    ? 'admin-danger-button'
-                    : ''
-                }
-                onClick={() => {
-                  action(
-                    row.id,
-                    actionStatus
-                  );
-                }}
-                disabled={
-                  loadingAction ===
-                  `${row.id}:${actionStatus}`
-                }
-              >
-                {
-                  loadingAction ===
-                  `${row.id}:${actionStatus}`
-                    ? 'Memproses...'
-                    : label
-                }
-              </button>
-            )
-          )}
-        </div>
-      </article>
-    );
-  };
+                >
+                  Tolak
+                </button>
+              </>
+            )}
+          </div>
+        </article>
+      );
+    };
 
   return (
-    <section className="admin-manage-page">
-      <div className="section-head admin-section-head">
+    <section>
+      <AdminStyles />
+
+      <div className="section-head">
         <div>
           <span className="admin-card-label">
             Admin
@@ -1289,14 +1430,17 @@ export default function Manage({
 
         <button
           type="button"
-          onClick={load}
+          className="cpmku-admin-button"
+          onClick={
+            load
+          }
           disabled={
-            Boolean(
-              loadingAction
-            )
+            loading
           }
         >
-          Refresh
+          {loading
+            ? 'Memuat...'
+            : 'Refresh'}
         </button>
       </div>
 
@@ -1306,69 +1450,121 @@ export default function Manage({
         </div>
       )}
 
-      {confirmState && (
-        <div
-          className="admin-confirm-overlay"
-          role="presentation"
-          onClick={
-            closeConfirm
-          }
-        >
-          <div
-            className="admin-confirm-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="manage-confirm-title"
-            onClick={event => {
-              event.stopPropagation();
+      {type ===
+        'sellers' ? (
+        <>
+          <h3>
+            Seller Application
+          </h3>
+
+          <div className="cpmku-admin-list">
+            {sellerApplications.map(
+              renderSeller
+            )}
+
+            {!sellerApplications.length && (
+              <div className="state">
+                Tidak ada seller application.
+              </div>
+            )}
+          </div>
+
+          <h3
+            style={{
+              marginTop:
+                28
             }}
           >
-            <span className="admin-card-label">
-              Konfirmasi
-            </span>
+            Active Seller
+          </h3>
 
-            <h3 id="manage-confirm-title">
-              {confirmState.kind ===
-              'ban'
-                ? 'Ban Seller?'
-                : confirmState.kind ===
-                  'payment'
-                  ? confirmState.status ===
-                    'verified'
-                    ? 'Verifikasi pembayaran?'
-                    : 'Tolak pembayaran?'
-                  : confirmState.status ===
-                    'rejected'
-                    ? 'Tolak pengajuan seller?'
-                    : 'Batalkan transaksi?'}
-            </h3>
+          <div className="cpmku-admin-list">
+            {activeSellers.map(
+              renderSeller
+            )}
 
-            <p>
-              {confirmState.kind ===
-              'ban'
-                ? 'Seller ini akan diblokir dan status bannya akan tersimpan di akun seller.'
-                : confirmState.kind ===
-                  'payment'
-                  ? confirmState.status ===
-                    'verified'
-                    ? 'Pembayaran akan ditandai terverifikasi dan status pembayaran pada order akan ikut diperbarui.'
-                    : 'Pembayaran akan ditolak dan status pembayaran pada order akan ikut diperbarui.'
-                  : confirmState.status ===
-                    'rejected'
-                    ? 'Pengajuan seller ini akan ditolak.'
-                    : 'Order akan dibatalkan sesuai alur transaksi yang sudah tersedia.'}
-            </p>
+            {!activeSellers.length && (
+              <div className="state">
+                Tidak ada active seller.
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="cpmku-admin-list">
+          {rows.map(
+            row => {
+              if (
+                type ===
+                'products'
+              ) {
+                return renderProduct(
+                  row
+                );
+              }
 
-            <div className="admin-confirm-actions">
+              if (
+                type ===
+                'orders'
+              ) {
+                return renderOrder(
+                  row
+                );
+              }
+
+              return renderPayment(
+                row
+              );
+            }
+          )}
+
+          {!rows.length && (
+            <div className="state">
+              Tidak ada data.
+            </div>
+          )}
+        </div>
+      )}
+
+      {detail && (
+        <AdminModal
+          title={
+            detail.title
+          }
+          onClose={() =>
+            setDetail(
+              null
+            )
+          }
+        >
+          {detail.content}
+        </AdminModal>
+      )}
+
+      {confirm && (
+        <AdminModal
+          title="Konfirmasi"
+          onClose={() => {
+            if (
+              !loading
+            ) {
+              setConfirm(
+                null
+              );
+            }
+          }}
+          actions={
+            <>
               <button
                 type="button"
-                onClick={
-                  closeConfirm
+                className="cpmku-admin-button"
+                onClick={() =>
+                  setConfirm(
+                    null
+                  )
                 }
                 disabled={
-                  Boolean(
-                    loadingAction
-                  )
+                  loading
                 }
               >
                 Batal
@@ -1376,65 +1572,34 @@ export default function Manage({
 
               <button
                 type="button"
-                className={
-                  confirmState.status ===
-                    'verified'
-                    ? ''
-                    : 'admin-danger-button'
-                }
-                onClick={
-                  confirmAction
-                }
-                disabled={
-                  Boolean(
-                    loadingAction
+                className={`cpmku-admin-button ${
+                  confirm.status ===
+                  'approved'
+                    ? 'cpmku-admin-success'
+                    : 'cpmku-admin-danger'
+                }`}
+                onClick={() =>
+                  runAction(
+                    confirm.row,
+                    confirm.status
                   )
                 }
-              >
-                {
-                  confirmState.status ===
-                  'verified'
-                    ? 'Ya, verifikasi'
-                    : 'Ya, lanjutkan'
+                disabled={
+                  loading
                 }
+              >
+                {loading
+                  ? 'Memproses...'
+                  : 'Lanjutkan'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="admin-manage-list">
-        {rows.map(
-          row => {
-            if (
-              type === 'sellers'
-            ) {
-              return renderSeller(
-                row
-              );
-            }
-
-            if (
-              type === 'payments'
-            ) {
-              return renderPayment(
-                row
-              );
-            }
-
-            return renderGeneric(
-              row
-            );
+            </>
           }
-        )}
-
-        {!rows.length &&
-          !error && (
-            <div className="state">
-              Tidak ada data.
-            </div>
-          )}
-      </div>
+        >
+          <p>
+            {confirm.text}
+          </p>
+        </AdminModal>
+      )}
     </section>
   );
 }
