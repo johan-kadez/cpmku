@@ -6,32 +6,64 @@ import {
   saveSettings
 } from "../src/services/admin.js";
 
-import { requireAuth } from "../src/middleware/auth.js";
-import { requireAdmin } from "../src/middleware/admin.js";
+import {
+  approveOrder,
+  rejectOrder,
+  cancelOrder,
+  deleteRoom
+} from "../src/services/adminActions.js";
+
+import {
+  db
+} from "../src/firebase/admin.js";
+
+import {
+  requireAuth
+} from "../src/middleware/auth.js";
+
+import {
+  requireAdmin
+} from "../src/middleware/admin.js";
 
 function getSegments(req) {
-  const url = req.url || "/";
+  const url =
+    req.url || "/";
 
-  const pathname = url.split("?")[0];
+  const pathname =
+    url.split("?")[0];
 
-  const marker = "/api/admin";
+  const marker =
+    "/api/admin";
 
-  const index = pathname.indexOf(marker);
+  const index =
+    pathname.indexOf(
+      marker
+    );
 
   if (index === -1) {
     return [];
   }
 
   return pathname
-    .slice(index + marker.length)
+    .slice(
+      index +
+      marker.length
+    )
     .split("/")
     .filter(Boolean);
 }
 
-function setCors(req, res) {
-  const origin = req.headers.origin;
+function setCors(
+  req,
+  res
+) {
+  const origin =
+    req.headers.origin;
 
-  if (origin === "https://cpmku.vercel.app") {
+  if (
+    origin ===
+    "https://cpmku.vercel.app"
+  ) {
     res.setHeader(
       "Access-Control-Allow-Origin",
       origin
@@ -45,7 +77,7 @@ function setCors(req, res) {
 
   res.setHeader(
     "Access-Control-Allow-Methods",
-    "GET, POST, PATCH, OPTIONS"
+    "GET, POST, PATCH, DELETE, OPTIONS"
   );
 
   res.setHeader(
@@ -54,10 +86,19 @@ function setCors(req, res) {
   );
 }
 
-async function handler(req, res) {
-  setCors(req, res);
+async function handler(
+  req,
+  res
+) {
+  setCors(
+    req,
+    res
+  );
 
-  if (req.method === "OPTIONS") {
+  if (
+    req.method ===
+    "OPTIONS"
+  ) {
     return res
       .status(200)
       .end();
@@ -76,16 +117,21 @@ async function handler(req, res) {
       () => {}
     );
 
-    const segments = getSegments(req);
+    const segments =
+      getSegments(req);
 
-    const resource = segments[0] || "";
+    const resource =
+      segments[0] || "";
 
-    const id = segments[1] || "";
+    const id =
+      segments[1] || "";
 
     if (
-      resource === "dashboard" &&
+      resource ===
+        "dashboard" &&
       !id &&
-      req.method === "GET"
+      req.method ===
+        "GET"
     ) {
       return res
         .status(200)
@@ -95,10 +141,14 @@ async function handler(req, res) {
     }
 
     if (
-      resource === "settings" &&
+      resource ===
+        "settings" &&
       !id
     ) {
-      if (req.method === "GET") {
+      if (
+        req.method ===
+        "GET"
+      ) {
         return res
           .status(200)
           .json(
@@ -108,7 +158,10 @@ async function handler(req, res) {
           );
       }
 
-      if (req.method === "PATCH") {
+      if (
+        req.method ===
+        "PATCH"
+      ) {
         return res
           .status(200)
           .json(
@@ -121,13 +174,18 @@ async function handler(req, res) {
       return res
         .status(405)
         .json({
-          error: "Method not allowed."
+          error:
+            "Method not allowed."
         });
     }
 
-    if (resource === "users") {
+    if (
+      resource ===
+      "users"
+    ) {
       if (
-        req.method === "GET" &&
+        req.method ===
+          "GET" &&
         !id
       ) {
         return res
@@ -139,7 +197,10 @@ async function handler(req, res) {
           );
       }
 
-      if (req.method === "PATCH") {
+      if (
+        req.method ===
+        "PATCH"
+      ) {
         const userId =
           id ||
           req.query?.id ||
@@ -159,7 +220,13 @@ async function handler(req, res) {
           .json(
             await updateUser(
               userId,
-              req.body || {}
+              {
+                banned:
+                  typeof req.body?.banned ===
+                  "boolean"
+                    ? req.body.banned
+                    : undefined
+              }
             )
           );
       }
@@ -167,8 +234,25 @@ async function handler(req, res) {
       return res
         .status(405)
         .json({
-          error: "Method not allowed."
+          error:
+            "Method not allowed."
         });
+    }
+
+    if (
+      resource ===
+        "rooms" &&
+      id &&
+      req.method ===
+        "DELETE"
+    ) {
+      return res
+        .status(200)
+        .json(
+          await deleteRoom(
+            id
+          )
+        );
     }
 
     const statusResources = [
@@ -186,7 +270,8 @@ async function handler(req, res) {
     ) {
       if (
         !id &&
-        req.method === "GET"
+        req.method ===
+          "GET"
       ) {
         return res
           .status(200)
@@ -199,23 +284,110 @@ async function handler(req, res) {
 
       if (
         id &&
-        req.method === "PATCH"
+        req.method ===
+          "PATCH"
       ) {
+        const status =
+          req.body?.status;
+
+        if (
+          resource ===
+          "orders"
+        ) {
+          if (
+            status ===
+            "approved"
+          ) {
+            return res
+              .status(200)
+              .json(
+                await approveOrder(
+                  id
+                )
+              );
+          }
+
+          if (
+            status ===
+            "rejected"
+          ) {
+            return res
+              .status(200)
+              .json(
+                await rejectOrder(
+                  id
+                )
+              );
+          }
+
+          if (
+            status ===
+            "cancelled"
+          ) {
+            return res
+              .status(200)
+              .json(
+                await cancelOrder(
+                  id
+                )
+              );
+          }
+        }
+
+        const result =
+          await setStatus(
+            resource,
+            id,
+            status
+          );
+
+        if (
+          resource ===
+            "sellers" &&
+          status ===
+            "approved"
+        ) {
+          const registrationRef =
+            db
+              .collection(
+                "registrations"
+              )
+              .doc(id);
+
+          const registrationSnap =
+            await registrationRef.get();
+
+          if (
+            registrationSnap.exists
+          ) {
+            const registration =
+              registrationSnap.data();
+
+            const uid =
+              registration.uid;
+
+            if (uid) {
+              await updateUser(
+                uid,
+                {
+                  role:
+                    "seller"
+                }
+              );
+            }
+          }
+        }
+
         return res
           .status(200)
-          .json(
-            await setStatus(
-              resource,
-              id,
-              req.body?.status
-            )
-          );
+          .json(result);
       }
 
       return res
         .status(405)
         .json({
-          error: "Method not allowed."
+          error:
+            "Method not allowed."
         });
     }
 
