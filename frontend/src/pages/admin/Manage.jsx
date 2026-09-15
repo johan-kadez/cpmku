@@ -299,6 +299,24 @@ function AdminStyles() {
           margin-top: 16px;
         }
 
+        .cpmku-admin-detail-button {
+          width: 100%;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .cpmku-admin-modal-actions {
+          display: grid;
+          gap: 9px;
+          margin-top: 18px;
+        }
+
+        .cpmku-admin-modal-actions .cpmku-admin-button {
+          width: 100%;
+          justify-content: center;
+          text-align: center;
+        }
+
         .cpmku-admin-button {
           min-height: 42px;
           padding: 10px 17px;
@@ -640,6 +658,77 @@ export default function Manage({
       }
     };
 
+  const runUserBan =
+    async (
+      row,
+      banned
+    ) => {
+      const id =
+        getId(row);
+
+      if (!id) {
+        setError(
+          'UID user tidak ditemukan.'
+        );
+        return;
+      }
+
+      try {
+        setLoading(
+          true
+        );
+
+        setConfirm(
+          null
+        );
+
+        setError('');
+
+        await api(
+          `/admin/users/${encodeURIComponent(id)}`,
+          {
+            method:
+              'PATCH',
+            body:
+              JSON.stringify({
+                banned
+              })
+          }
+        );
+
+        setDetail(
+          null
+        );
+
+        await load();
+      } catch (
+        actionError
+      ) {
+        setError(
+          actionError?.message ||
+          'Aksi gagal.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
+
+  const openDetail =
+    (
+      titleText,
+      content,
+      actions
+    ) => {
+      setDetail({
+        title:
+          titleText,
+        content,
+        actions
+      });
+    };
+
   const sellerApplications =
     type === 'sellers'
       ? rows.filter(
@@ -892,21 +981,43 @@ export default function Manage({
         <div className="cpmku-admin-actions">
           <button
             type="button"
-            className="cpmku-admin-button"
+            className="cpmku-admin-button cpmku-admin-detail-button"
             onClick={() =>
-              setDetail({
-                title:
-                  row.status ===
+              openDetail(
+                row.status ===
                   'pending'
-                    ? 'Detail Seller Application'
-                    : 'Detail Seller',
-                content:
-                  sellerDetail(
-                    row
-                  ),
-                row
-              })
-            }
+                  ? 'Detail Seller Application'
+                  : 'Detail Seller',
+                sellerDetail(
+                  row
+                ),
+                row.status !==
+                  'pending'
+                  ? (
+                    <button
+                      type="button"
+                      className="cpmku-admin-button cpmku-admin-danger"
+                      onClick={() =>
+                        setConfirm({
+                          row,
+                          action:
+                            'ban',
+                          text:
+                            'Ban seller ini?'
+                        })
+                      }
+                      disabled={
+                        loading ||
+                        row.banned
+                      }
+                    >
+                      {row.banned
+                        ? 'Sudah Banned'
+                        : 'Ban'}
+                    </button>
+                  )
+                  : null
+              )
           >
             Detail
           </button>
@@ -980,18 +1091,34 @@ export default function Manage({
         <div className="cpmku-admin-actions">
           <button
             type="button"
-            className="cpmku-admin-button"
+            className="cpmku-admin-button cpmku-admin-detail-button"
             onClick={() =>
-              setDetail({
-                title:
-                  'Detail Produk',
-                content:
-                  productDetail(
-                    row
-                  ),
-                row
-              })
-            }
+              openDetail(
+                'Detail Produk',
+                productDetail(
+                  row
+                ),
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-danger"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      action:
+                        'product-delete',
+                      status:
+                        'rejected',
+                      text:
+                        'Hapus produk ini? Produk akan disembunyikan dari marketplace.'
+                    })
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Hapus
+                </button>
+              )
           >
             Detail
           </button>
@@ -1077,12 +1204,11 @@ export default function Manage({
           <div className="cpmku-admin-actions">
             <button
               type="button"
-              className="cpmku-admin-button"
+              className="cpmku-admin-button cpmku-admin-detail-button"
               onClick={() =>
-                setDetail({
-                  title:
-                    'Detail Order',
-                  content: (
+                openDetail(
+                  'Detail Order',
+                  (
                     <div className="cpmku-admin-detail-grid">
                       <div className="cpmku-admin-detail-row">
                         <span>
@@ -1162,8 +1288,27 @@ export default function Manage({
                       </div>
                     </div>
                   ),
-                  row
-                })
+                  <button
+                    type="button"
+                    className="cpmku-admin-button cpmku-admin-danger"
+                    onClick={() =>
+                      setConfirm({
+                        row,
+                        action:
+                          'order-delete',
+                        status:
+                          'cancelled',
+                        text:
+                          'Delete order ini? Order akan dibatalkan dan produk dikembalikan tersedia.'
+                      })
+                    }
+                    disabled={
+                      loading
+                    }
+                  >
+                    Delete
+                  </button>
+                )
               }
             >
               Detail
@@ -1296,12 +1441,11 @@ export default function Manage({
           <div className="cpmku-admin-actions">
             <button
               type="button"
-              className="cpmku-admin-button"
+              className="cpmku-admin-button cpmku-admin-detail-button"
               onClick={() =>
-                setDetail({
-                  title:
-                    'Detail Pembayaran',
-                  content: (
+                openDetail(
+                  'Detail Pembayaran',
+                  (
                     <div className="cpmku-admin-detail-grid">
                       <div className="cpmku-admin-detail-row">
                         <span>
@@ -1359,8 +1503,27 @@ export default function Manage({
                       </div>
                     </div>
                   ),
-                  row
-                })
+                  <button
+                    type="button"
+                    className="cpmku-admin-button cpmku-admin-danger"
+                    onClick={() =>
+                      setConfirm({
+                        row,
+                        action:
+                          'payment-delete',
+                        status:
+                          'rejected',
+                        text:
+                          'Delete pembayaran ini? Pembayaran akan ditandai ditolak.'
+                      })
+                    }
+                    disabled={
+                      loading
+                    }
+                  >
+                    Delete
+                  </button>
+                )
               }
             >
               Detail
@@ -1531,6 +1694,9 @@ export default function Manage({
           title={
             detail.title
           }
+          actions={
+            detail.actions
+          }
           onClose={() =>
             setDetail(
               null
@@ -1578,12 +1744,22 @@ export default function Manage({
                     ? 'cpmku-admin-success'
                     : 'cpmku-admin-danger'
                 }`}
-                onClick={() =>
-                  runAction(
+                onClick={() => {
+                  if (
+                    confirm.action ===
+                    'ban'
+                  ) {
+                    return runUserBan(
+                      confirm.row,
+                      true
+                    );
+                  }
+
+                  return runAction(
                     confirm.row,
                     confirm.status
-                  )
-                }
+                  );
+                }}
                 disabled={
                   loading
                 }
