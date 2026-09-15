@@ -6,6 +6,7 @@ import {
 
 import {
   Link,
+  useLocation,
   useNavigate
 } from 'react-router-dom';
 
@@ -39,6 +40,11 @@ export default function Profile() {
   } = useAuth();
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAdminPanel =
+    location.pathname === '/admin' ||
+    location.pathname.startsWith('/admin/');
 
   const fileInputRef =
     useRef(null);
@@ -598,8 +604,16 @@ export default function Profile() {
           )}
 
           {role === 'admin' && (
-            <Link to="/admin">
-              Admin Panel
+            <Link
+              to={
+                isAdminPanel
+                  ? '/'
+                  : '/admin'
+              }
+            >
+              {isAdminPanel
+                ? 'Public Web'
+                : 'Panel Admin'}
             </Link>
           )}
 
