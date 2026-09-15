@@ -12,6 +12,48 @@ import {
 export const PRODUCT_IMAGE_PREFIX =
   'cpmku/products/';
 
+const PRODUCT_ID_CHARACTERS =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+function generateProductId() {
+  let productId = '';
+
+  for (let index = 0; index < 7; index += 1) {
+    const randomIndex = crypto.randomInt(
+      0,
+      PRODUCT_ID_CHARACTERS.length
+    );
+
+    productId +=
+      PRODUCT_ID_CHARACTERS[randomIndex];
+  }
+
+  return productId;
+}
+
+async function generateUniqueProductId() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const productId =
+      generateProductId();
+
+    const ref = db
+      .collection('products')
+      .doc(productId);
+
+    const snapshot =
+      await ref.get();
+
+    if (!snapshot.exists) {
+      return productId;
+    }
+  }
+
+  throw new HttpError(
+    500,
+    'Gagal membuat ID produk unik. Silakan coba lagi.'
+  );
+}
+
 function normalizeImages(product) {
   if (
     Array.isArray(product?.images) &&
@@ -375,7 +417,7 @@ export async function createProduct(
     );
 
   const productId =
-    crypto.randomUUID();
+    await generateUniqueProductId();
 
   const ref = db
     .collection('products')
