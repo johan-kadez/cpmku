@@ -11,6 +11,10 @@ import {
   HttpError
 } from '../utils/errors.js';
 
+import {
+  destroyCloudinaryImages
+} from './cloudinary.js';
+
 function getAdminUid() {
   return String(
     env.adminUid || ''
@@ -73,9 +77,7 @@ export async function approveOrder(
           productRef
         );
 
-      if (
-        !productSnap.exists
-      ) {
+      if (!productSnap.exists) {
         throw new HttpError(
           404,
           'Produk order tidak ditemukan.'
@@ -113,10 +115,8 @@ export async function approveOrder(
         {
           status:
             'in_transaction',
-
           visibility:
             'private',
-
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -127,16 +127,12 @@ export async function approveOrder(
         {
           status:
             'in_transaction',
-
           roomId:
             roomRef.id,
-
           paymentStatus:
             'pending',
-
           approvedAt:
             FieldValue.serverTimestamp(),
-
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -147,21 +143,15 @@ export async function approveOrder(
         {
           roomId:
             roomRef.id,
-
           orderId,
-
           productId:
             order.productId,
-
           productName:
             order.productName || '',
-
           buyerUid:
             order.buyerUid,
-
           sellerUid:
             order.sellerUid,
-
           participantUids:
             [
               order.buyerUid,
@@ -169,16 +159,12 @@ export async function approveOrder(
                 ? [adminUid]
                 : [])
             ],
-
           sellerCalled:
             false,
-
           status:
             'in_transaction',
-
           createdAt:
             FieldValue.serverTimestamp(),
-
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -188,31 +174,22 @@ export async function approveOrder(
         paymentRef,
         {
           orderId,
-
           productId:
             order.productId,
-
           productName:
             order.productName || '',
-
           buyerUid:
             order.buyerUid,
-
           sellerUid:
             order.sellerUid,
-
           amount:
             Number(order.amount),
-
           paymentMethod:
             'qris',
-
           status:
             'pending',
-
           createdAt:
             FieldValue.serverTimestamp(),
-
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -220,12 +197,9 @@ export async function approveOrder(
 
       return {
         ok: true,
-
         status:
           'in_transaction',
-
         orderId,
-
         roomId:
           roomRef.id
       };
@@ -308,34 +282,26 @@ export async function rejectOrder(
         orderRef
       );
 
-      if (
-        roomSnap.exists
-      ) {
+      if (roomSnap.exists) {
         tx.delete(
           roomRef
         );
       }
 
-      if (
-        paymentSnap.exists
-      ) {
+      if (paymentSnap.exists) {
         tx.delete(
           paymentRef
         );
       }
 
-      if (
-        productSnap.exists
-      ) {
+      if (productSnap.exists) {
         tx.update(
           productRef,
           {
             status:
               'available',
-
             visibility:
               'public',
-
             updatedAt:
               FieldValue.serverTimestamp()
           }
@@ -344,10 +310,8 @@ export async function rejectOrder(
 
       return {
         ok: true,
-
         status:
           'rejected',
-
         orderId
       };
     }
@@ -430,34 +394,26 @@ export async function cancelOrder(
         orderRef
       );
 
-      if (
-        roomSnap.exists
-      ) {
+      if (roomSnap.exists) {
         tx.delete(
           roomRef
         );
       }
 
-      if (
-        paymentSnap.exists
-      ) {
+      if (paymentSnap.exists) {
         tx.delete(
           paymentRef
         );
       }
 
-      if (
-        productSnap.exists
-      ) {
+      if (productSnap.exists) {
         tx.update(
           productRef,
           {
             status:
               'available',
-
             visibility:
               'public',
-
             updatedAt:
               FieldValue.serverTimestamp()
           }
@@ -466,14 +422,96 @@ export async function cancelOrder(
 
       return {
         ok: true,
-
         status:
           'cancelled',
-
         orderId
       };
     }
   );
+}
+
+export async function deleteProduct(
+  productId
+) {
+  if (!productId) {
+    throw new HttpError(
+      400,
+      'Product ID wajib diisi.'
+    );
+  }
+
+  const productRef = db
+    .collection('products')
+    .doc(productId);
+
+  const snap =
+    await productRef.get();
+
+  if (!snap.exists) {
+    throw new HttpError(
+      404,
+      'Produk tidak ditemukan.'
+    );
+  }
+
+  const product =
+    snap.data() || {};
+
+  const images =
+    Array.isArray(product.images)
+      ? product.images
+      : product.imageUrl
+        ? [
+            {
+              url:
+                product.imageUrl,
+              publicId: ''
+            }
+          ]
+        : [];
+
+  await productRef.delete();
+
+  await destroyCloudinaryImages(
+    images
+  );
+
+  return {
+    ok: true,
+    productId
+  };
+}
+
+export async function deletePayment(
+  paymentId
+) {
+  if (!paymentId) {
+    throw new HttpError(
+      400,
+      'Payment ID wajib diisi.'
+    );
+  }
+
+  const paymentRef = db
+    .collection('payments')
+    .doc(paymentId);
+
+  const snap =
+    await paymentRef.get();
+
+  if (!snap.exists) {
+    throw new HttpError(
+      404,
+      'Pembayaran tidak ditemukan.'
+    );
+  }
+
+  await paymentRef.delete();
+
+  return {
+    ok: true,
+    paymentId
+  };
 }
 
 export async function deleteRoom(
@@ -504,7 +542,6 @@ export async function deleteRoom(
 
   return {
     ok: true,
-
     roomId
   };
 }
