@@ -32,7 +32,7 @@ export default function Login() {
 
   return (
     <section className="auth-card">
-      <h1>Login as Buyer</h1>
+      <h1>Login to CPMKU</h1>
 
       <p>
         Sign in / Sign up untuk akses full CPMKU
