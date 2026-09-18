@@ -1,23 +1,24 @@
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState
+createContext,
+useContext,
+useEffect,
+useMemo,
+useState
 } from 'react';
 
 import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile
+createUserWithEmailAndPassword,
+onAuthStateChanged,
+signInWithPopup,
+signInWithEmailAndPassword,
+signOut,
+updateProfile
 } from 'firebase/auth';
 
 import {
-  auth,
-  googleProvider,
-  firebaseReady
+auth,
+googleProvider,
+firebaseReady
 } from '../services/firebase';
 
 import { api } from '../services/api';
@@ -25,194 +26,306 @@ import { api } from '../services/api';
 const C = createContext(null);
 
 const ADMIN_UID =
-  import.meta.env.VITE_ADMIN_UID || '';
+import.meta.env.VITE_ADMIN_UID || '';
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState(null);
-  const [banned, setBanned] = useState(false);
+const [user, setUser] = useState(null);
+const [loading, setLoading] = useState(true);
+const [role, setRole] = useState(null);
+const [banned, setBanned] = useState(false);
 
-  useEffect(() => {
-    if (!firebaseReady) {
+useEffect(() => {
+if (!firebaseReady) {
+setLoading(false);
+return;
+}
+
+let alive = true;
+
+const off = onAuthStateChanged(
+  auth,
+  async current => {
+    if (!alive) return;
+
+    setUser(current);
+    setRole(null);
+    setBanned(false);
+
+    if (!current) {
       setLoading(false);
       return;
     }
 
-    let alive = true;
+    const isAdmin =
+      Boolean(ADMIN_UID) &&
+      current.uid === ADMIN_UID;
 
-    const off = onAuthStateChanged(
-      auth,
-      async (current) => {
-        if (!alive) return;
+    if (isAdmin) {
+      setRole('admin');
+      setBanned(false);
+      setLoading(false);
+      return;
+    }
 
-        setUser(current);
-        setRole(null);
-        setBanned(false);
+    try {
+      await current.getIdToken();
 
-        if (!current) {
-          setLoading(false);
-          return;
-        }
+      const result =
+        await api('/me');
 
-        const isAdmin =
-          Boolean(ADMIN_UID) &&
-          current.uid === ADMIN_UID;
+      if (!alive) return;
 
-        if (isAdmin) {
-          setRole('admin');
-          setBanned(false);
-          setLoading(false);
-          return;
-        }
+      setRole(
+        result.user?.role || null
+      );
 
-        try {
-          await current.getIdToken();
+      setBanned(
+        Boolean(result.user?.banned)
+      );
+    } catch (error) {
+      console.error(
+        'Gagal memuat data user:',
+        error
+      );
 
-          const result = await api('/me');
+      if (!alive) return;
 
-          if (!alive) return;
-
-          setRole(
-            result.user?.role || null
-          );
-
-          setBanned(
-            Boolean(result.user?.banned)
-          );
-        } catch (error) {
-          console.error(
-            'Gagal memuat data user:',
-            error
-          );
-
-          if (!alive) return;
-
-          setRole(null);
-          setBanned(false);
-        } finally {
-          if (alive) {
-            setLoading(false);
-          }
-        }
+      setRole(null);
+      setBanned(false);
+    } finally {
+      if (alive) {
+        setLoading(false);
       }
-    );
-
-    return () => {
-      alive = false;
-      off();
-    };
-  }, []);
-
-  const login = async () => {
-    if (!firebaseReady) {
-      throw new Error(
-        'Firebase belum dikonfigurasi.'
-      );
     }
+  }
+);
 
-    return signInWithPopup(
-      auth,
-      googleProvider
-    );
-  };
+return () => {
+  alive = false;
+  off();
+};
 
-  const loginAdmin = async (
-    email,
-    password
-  ) => {
-    if (!firebaseReady) {
-      throw new Error(
-        'Firebase belum dikonfigurasi.'
-      );
-    }
+}, []);
 
-    if (!ADMIN_UID) {
-      throw new Error(
-        'VITE_ADMIN_UID belum dikonfigurasi.'
-      );
-    }
+const login = async () => {
+if (!firebaseReady) {
+throw new Error(
+'Firebase belum dikonfigurasi.'
+);
+}
 
-    const credential =
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+return signInWithPopup(
+  auth,
+  googleProvider
+);
 
-    const loggedInUser =
-      credential.user;
+};
 
-    if (
-      loggedInUser.uid !==
-      ADMIN_UID
-    ) {
-      await signOut(auth);
+const loginWithEmail = async (
+email,
+password
+) => {
+if (!firebaseReady) {
+throw new Error(
+'Firebase belum dikonfigurasi.'
+);
+}
 
-      throw new Error(
-        'Akun ini bukan akun admin.'
-      );
-    }
+return signInWithEmailAndPassword(
+  auth,
+  email.trim(),
+  password
+);
 
-    setUser(loggedInUser);
-    setRole('admin');
-    setBanned(false);
-    setLoading(false);
+};
 
-    return credential;
-  };
+const register = async ({
+name,
+email,
+phone,
+password
+}) => {
+if (!firebaseReady) {
+throw new Error(
+'Firebase belum dikonfigurasi.'
+);
+}
 
-  const logout = () =>
-    signOut(auth);
+const cleanName =
+  String(name || '').trim();
 
-  const updateUserPhoto = async (
-    photoURL
-  ) => {
-    if (!auth.currentUser) {
-      throw new Error(
-        'User belum login.'
-      );
-    }
+const cleanEmail =
+  String(email || '').trim();
 
-    await updateProfile(
-      auth.currentUser,
-      {
-        photoURL
-      }
-    );
+const cleanPhone =
+  String(phone || '').trim();
 
-    await auth.currentUser.reload();
-
-    setUser(auth.currentUser);
-
-    return auth.currentUser;
-  };
-
-  const value = useMemo(
-    () => ({
-      user,
-      loading,
-      role,
-      banned,
-      login,
-      loginAdmin,
-      logout,
-      updateUserPhoto
-    }),
-    [
-      user,
-      loading,
-      role,
-      banned
-    ]
-  );
-
-  return (
-    <C.Provider value={value}>
-      {children}
-    </C.Provider>
+if (!cleanName) {
+  throw new Error(
+    'Nama wajib diisi.'
   );
 }
 
+if (!cleanEmail) {
+  throw new Error(
+    'Email wajib diisi.'
+  );
+}
+
+if (!cleanPhone) {
+  throw new Error(
+    'Nomor wajib diisi.'
+  );
+}
+
+if (!password) {
+  throw new Error(
+    'Password wajib diisi.'
+  );
+}
+
+if (password.length < 6) {
+  throw new Error(
+    'Password minimal 6 karakter.'
+  );
+}
+
+const credential =
+  await createUserWithEmailAndPassword(
+    auth,
+    cleanEmail,
+    password
+  );
+
+try {
+  await updateProfile(
+    credential.user,
+    {
+      displayName: cleanName
+    }
+  );
+
+  await api('/profile/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: cleanName,
+      phone: cleanPhone
+    })
+  });
+
+  await credential.user.reload();
+
+  setUser(auth.currentUser);
+
+  return credential;
+} catch (error) {
+  await signOut(auth);
+
+  throw error;
+}
+
+};
+
+const loginAdmin = async (
+email,
+password
+) => {
+if (!firebaseReady) {
+throw new Error(
+'Firebase belum dikonfigurasi.'
+);
+}
+
+if (!ADMIN_UID) {
+  throw new Error(
+    'VITE_ADMIN_UID belum dikonfigurasi.'
+  );
+}
+
+const credential =
+  await signInWithEmailAndPassword(
+    auth,
+    email,
+    password
+  );
+
+const loggedInUser =
+  credential.user;
+
+if (
+  loggedInUser.uid !==
+  ADMIN_UID
+) {
+  await signOut(auth);
+
+  throw new Error(
+    'Akun ini bukan akun admin.'
+  );
+}
+
+setUser(loggedInUser);
+setRole('admin');
+setBanned(false);
+setLoading(false);
+
+return credential;
+
+};
+
+const logout = () =>
+signOut(auth);
+
+const updateUserPhoto = async (
+photoURL
+) => {
+if (!auth.currentUser) {
+throw new Error(
+'User belum login.'
+);
+}
+
+await updateProfile(
+  auth.currentUser,
+  {
+    photoURL
+  }
+);
+
+await auth.currentUser.reload();
+
+setUser(auth.currentUser);
+
+return auth.currentUser;
+
+};
+
+const value = useMemo(
+() => ({
+user,
+loading,
+role,
+banned,
+login,
+loginWithEmail,
+register,
+loginAdmin,
+logout,
+updateUserPhoto
+}),
+[
+user,
+loading,
+role,
+banned
+]
+);
+
+return (
+<C.Provider value={value}>
+{children}
+</C.Provider>
+);
+}
+
 export const useAuth = () =>
-  useContext(C);
+useContext(C);
