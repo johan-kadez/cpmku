@@ -48,34 +48,32 @@ const PROFILE_TRANSFORMATION =
 'c_fill,g_auto,w_512,h_512';
 
 function createCloudinarySignature(
-parameters
+  parameters
 ) {
-const serialized =
-Object.entries(
-parameters
-)
-.filter(
-([, value]) =>
-value !== undefined &&
-value !== null &&
-value !== ''
-)
-.sort(
-([a], [b]) =>
-a.localeCompare(b)
-)
-.map(
-([key, value]) =>
-${key}=${value}
-)
-.join('&');
+  const serialized =
+    Object.entries(parameters)
+      .filter(
+        ([, value]) =>
+          value !== undefined &&
+          value !== null &&
+          value !== ''
+      )
+      .sort(
+        ([a], [b]) =>
+          a.localeCompare(b)
+      )
+      .map(
+        ([key, value]) =>
+          `${key}=${value}`
+      )
+      .join('&');
 
-return crypto
-.createHash('sha1')
-.update(
-${serialized}${env.cloudinary.apiSecret}
-)
-.digest('hex');
+  return crypto
+    .createHash('sha1')
+    .update(
+      `${serialized}${env.cloudinary.apiSecret}`
+    )
+    .digest('hex');
 }
 
 export const me =
