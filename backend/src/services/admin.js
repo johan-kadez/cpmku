@@ -79,14 +79,108 @@ export async function listCollection(
       .limit(200)
       .get();
 
+  const items =
+    snap.docs.map(
+      (doc) => ({
+        id: doc.id,
+        ...doc.data()
+      })
+    );
+
+  if (
+    name !== 'users'
+  ) {
+    return {
+      items
+    };
+  }
+
+  const sellerRefs =
+    items.map(
+      user =>
+        db
+          .collection('sellers')
+          .doc(
+            user.uid ||
+            user.id
+          )
+          .get()
+    );
+
+  const sellerSnapshots =
+    await Promise.all(
+      sellerRefs
+    );
+
+  const sellerMap =
+    new Map();
+
+  sellerSnapshots.forEach(
+    sellerSnap => {
+      if (
+        sellerSnap.exists
+      ) {
+        sellerMap.set(
+          sellerSnap.id,
+          sellerSnap.data()
+        );
+      }
+    }
+  );
+
+  const normalizedUsers =
+    items.map(
+      user => {
+        const uid =
+          String(
+            user.uid ||
+            user.id ||
+            ''
+          ).trim();
+
+        const seller =
+          sellerMap.get(uid);
+
+        const sellerApproved =
+          seller?.status ===
+            'approved' &&
+          seller?.banned !== true;
+
+        const role =
+          uid === ADMIN_UID
+            ? 'admin'
+            : sellerApproved
+              ? 'seller'
+              : (
+                  user.role ||
+                  'buyer'
+                );
+
+        return {
+          ...user,
+
+          uid,
+
+          role,
+
+          sellerActive:
+            sellerApproved,
+
+          sellerStatus:
+            seller?.status ||
+            null,
+
+          sellerBanned:
+            Boolean(
+              seller?.banned
+            )
+        };
+      }
+    );
+
   return {
     items:
-      snap.docs.map(
-        (doc) => ({
-          id: doc.id,
-          ...doc.data()
-        })
-      )
+      normalizedUsers
   };
 }
 
@@ -182,17 +276,16 @@ export async function setStatus(
     if (
       status === 'approved'
     ) {
+      const sellerUid =
+        registration.uid ||
+        id;
+
       const sellerRef =
         db
           .collection('sellers')
           .doc(
-            registration.uid ||
-              id
+            sellerUid
           );
-
-      const sellerUid =
-        registration.uid ||
-        id;
 
       const batch =
         db.batch();
@@ -373,7 +466,7 @@ export async function setStatus(
             )
             .doc(
               order.roomId ||
-                id
+              id
             );
 
         const paymentRef =
@@ -420,7 +513,7 @@ export async function setStatus(
           product.exists &&
           product.data()
             .status ===
-            'in_transaction'
+          'in_transaction'
         ) {
           transaction.update(
             productRef,
@@ -459,7 +552,7 @@ export async function setStatus(
           payment.exists &&
           payment.data()
             .status ===
-            'pending'
+          'pending'
         ) {
           transaction.update(
             paymentRef,
@@ -847,7 +940,7 @@ export async function saveSettings(
   const qrisUrl =
     String(
       data?.qrisUrl ||
-        ''
+      ''
     ).trim();
 
   const maintenanceMode =
@@ -858,13 +951,13 @@ export async function saveSettings(
   const maintenanceTitle =
     String(
       data?.maintenanceTitle ||
-        ''
+      ''
     ).trim();
 
   const maintenanceMessage =
     String(
       data?.maintenanceMessage ||
-        ''
+      ''
     ).trim();
 
   if (qrisUrl) {
@@ -906,4 +999,4 @@ export async function saveSettings(
   return {
     ok: true
   };
-      }
+}
