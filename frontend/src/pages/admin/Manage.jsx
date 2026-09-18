@@ -267,6 +267,12 @@ function AdminStyles() {
           gap: 14px;
         }
 
+        .cpmku-seller-list {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+        }
+
         .cpmku-admin-card {
           width: 100%;
           box-sizing: border-box;
@@ -275,6 +281,121 @@ function AdminStyles() {
           border-radius: 22px;
           background: rgba(20,20,20,.72);
           box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+        }
+
+        .cpmku-seller-card {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          min-width: 0;
+          min-height: 260px;
+          padding: 22px;
+        }
+
+        .cpmku-seller-profile {
+          display: grid;
+          justify-items: center;
+          text-align: center;
+        }
+
+        .cpmku-seller-avatar,
+        .cpmku-seller-avatar-empty {
+          width: 82px;
+          height: 82px;
+          margin-bottom: 14px;
+          border-radius: 24px;
+        }
+
+        .cpmku-seller-avatar {
+          object-fit: cover;
+          border: 1px solid rgba(65,125,255,.45);
+          background: rgba(24,35,57,.8);
+        }
+
+        .cpmku-seller-avatar-empty {
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(65,125,255,.3);
+          background: rgba(24,35,57,.8);
+          color: #4b8dff;
+          font-size: 30px;
+        }
+
+        .cpmku-seller-name {
+          max-width: 100%;
+          overflow: hidden;
+          color: #fff;
+          font-size: 18px;
+          font-weight: 700;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .cpmku-seller-role {
+          margin-top: 8px;
+          padding: 5px 10px;
+          border: 1px solid rgba(55,119,255,.32);
+          border-radius: 9px;
+          background: rgba(23,45,89,.48);
+          color: #78a5ff;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .cpmku-seller-actions {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 9px;
+          margin-top: 22px;
+        }
+
+        .cpmku-seller-actions .cpmku-admin-button {
+          width: 100%;
+          min-width: 0;
+        }
+
+        .cpmku-seller-actions:has(.cpmku-admin-success) {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .cpmku-admin-edit {
+          border-color: rgba(55,119,255,.55);
+          background: linear-gradient(180deg,#193b7b,#122b5d);
+        }
+
+        .cpmku-admin-edit-form {
+          display: grid;
+          gap: 16px;
+          margin-top: 8px;
+        }
+
+        .cpmku-admin-edit-field {
+          display: grid;
+          gap: 7px;
+        }
+
+        .cpmku-admin-edit-field label {
+          color: #8e9ab0;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .cpmku-admin-edit-field input {
+          width: 100%;
+          box-sizing: border-box;
+          min-height: 46px;
+          padding: 11px 14px;
+          border: 1px solid rgba(75,125,220,.35);
+          border-radius: 13px;
+          outline: none;
+          background: rgba(17,25,40,.92);
+          color: #fff;
+          font-size: 14px;
+        }
+
+        .cpmku-admin-edit-field input:focus {
+          border-color: rgba(80,145,255,.85);
+          box-shadow: 0 0 0 3px rgba(55,119,255,.12);
         }
 
         .cpmku-admin-card-title {
@@ -438,6 +559,12 @@ function AdminStyles() {
           word-break: break-word;
         }
 
+        @media (max-width: 760px) {
+          .cpmku-seller-list {
+            grid-template-columns: 1fr;
+          }
+        }
+
         @media (max-width: 620px) {
           .cpmku-admin-order-top,
           .cpmku-admin-payment-top {
@@ -492,6 +619,21 @@ export default function Manage({
     confirm,
     setConfirm
   ] = useState(null);
+
+  const [
+    editing,
+    setEditing
+  ] = useState(null);
+
+  const [
+    editName,
+    setEditName
+  ] = useState('');
+
+  const [
+    editPhone,
+    setEditPhone
+  ] = useState('');
 
   const load =
     async () => {
@@ -742,6 +884,7 @@ export default function Manage({
           {
             method:
               'PATCH',
+
             body:
               JSON.stringify({
                 banned
@@ -760,6 +903,134 @@ export default function Manage({
         setError(
           actionError?.message ||
           'Aksi gagal.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
+
+  const openSellerEdit =
+    row => {
+      const uid =
+        row?.uid ||
+        row?.id;
+
+      if (
+        !uid ||
+        row?.status !==
+          'approved'
+      ) {
+        return;
+      }
+
+      setEditing(
+        row
+      );
+
+      setEditName(
+        row.name ||
+        row.displayName ||
+        ''
+      );
+
+      setEditPhone(
+        row.phone ||
+        row.phoneNumber ||
+        ''
+      );
+    };
+
+  const closeSellerEdit =
+    () => {
+      if (loading) {
+        return;
+      }
+
+      setEditing(
+        null
+      );
+
+      setEditName(
+        ''
+      );
+
+      setEditPhone(
+        ''
+      );
+    };
+
+  const saveSellerEdit =
+    async () => {
+      const uid =
+        editing?.uid ||
+        editing?.id;
+
+      const name =
+        String(
+          editName || ''
+        ).trim();
+
+      const phone =
+        String(
+          editPhone || ''
+        ).trim();
+
+      if (!uid) {
+        setError(
+          'UID seller tidak ditemukan.'
+        );
+        return;
+      }
+
+      if (!name) {
+        setError(
+          'Nama seller wajib diisi.'
+        );
+        return;
+      }
+
+      try {
+        setLoading(
+          true
+        );
+
+        setError('');
+
+        await api(
+          `/admin/users/${encodeURIComponent(uid)}`,
+          {
+            method:
+              'PATCH',
+
+            body:
+              JSON.stringify({
+                name,
+                phone
+              })
+          }
+        );
+
+        setEditing(
+          null
+        );
+
+        setEditName(
+          ''
+        );
+
+        setEditPhone(
+          ''
+        );
+
+        await load();
+      } catch (
+        actionError
+      ) {
+        setError(
+          actionError?.message ||
+          'Gagal mengubah informasi seller.'
         );
       } finally {
         setLoading(
@@ -796,11 +1067,30 @@ export default function Manage({
 
   const activeSellers =
     type === 'sellers'
-      ? users.filter(
-          user =>
-            user.role ===
-            'seller'
-        )
+      ? users
+          .filter(
+            user =>
+              user.role ===
+              'seller'
+          )
+          .map(
+            user => ({
+              ...user,
+
+              status:
+                'approved',
+
+              banned:
+                Boolean(
+                  user.sellerBanned ??
+                  user.banned
+                ),
+
+              sellerStatus:
+                user.sellerStatus ||
+                'approved'
+            })
+          )
       : [];
 
   const sellerDetail =
@@ -822,8 +1112,10 @@ export default function Manage({
             <span>
               Nama
             </span>
+
             <strong>
               {row.name ||
+                row.displayName ||
                 '-'}
             </strong>
           </div>
@@ -832,11 +1124,12 @@ export default function Manage({
             <span>
               Role
             </span>
+
             <strong>
               {row.status ===
               'pending'
-                ? 'Buyer To Seller'
-                : 'Seller'}
+                ? 'Seller Application'
+                : 'Active Seller'}
             </strong>
           </div>
 
@@ -844,6 +1137,7 @@ export default function Manage({
             <span>
               Email
             </span>
+
             <strong>
               {row.email ||
                 '-'}
@@ -854,6 +1148,7 @@ export default function Manage({
             <span>
               Nomor
             </span>
+
             <strong>
               {row.phone ||
                 row.phoneNumber ||
@@ -867,6 +1162,7 @@ export default function Manage({
               <span>
                 Alasan
               </span>
+
               <strong>
                 {row.reason ||
                   row.description ||
@@ -879,6 +1175,7 @@ export default function Manage({
             <span>
               Status
             </span>
+
             <strong>
               {statusLabel(
                 row.banned
@@ -943,6 +1240,7 @@ export default function Manage({
           <span>
             Nama Produk
           </span>
+
           <strong>
             {row.title ||
               row.name ||
@@ -954,6 +1252,7 @@ export default function Manage({
           <span>
             ID Produk
           </span>
+
           <strong>
             {row.productId ||
               row.id ||
@@ -965,6 +1264,7 @@ export default function Manage({
           <span>
             Harga
           </span>
+
           <strong>
             {amount(
               row.price
@@ -976,6 +1276,7 @@ export default function Manage({
           <span>
             Deskripsi
           </span>
+
           <strong>
             {row.description ||
               '-'}
@@ -986,6 +1287,7 @@ export default function Manage({
           <span>
             Nama Seller
           </span>
+
           <strong>
             {row.sellerName ||
               findUser(
@@ -999,6 +1301,7 @@ export default function Manage({
           <span>
             Kategori
           </span>
+
           <strong>
             {row.category ||
               '-'}
@@ -1009,6 +1312,7 @@ export default function Manage({
           <span>
             Status
           </span>
+
           <strong>
             {statusLabel(
               row.status
@@ -1019,108 +1323,164 @@ export default function Manage({
     );
 
   const renderSeller =
-    row => (
-      <article
-        key={
-          row.id
-        }
-        className="cpmku-admin-card"
-      >
-        <div className="cpmku-admin-card-title">
-          {row.name ||
-            'Tanpa Nama'}
-        </div>
+    row => {
+      const isApplication =
+        row.status ===
+        'pending';
 
-        <div className="cpmku-admin-actions">
-          <button
-            type="button"
-            className="cpmku-admin-button cpmku-admin-detail-button"
-            onClick={() =>
-              openDetail(
-                row.status ===
-                  'pending'
-                  ? 'Detail Seller Application'
-                  : 'Detail Seller',
-                sellerDetail(
-                  row
-                ),
-                row.status !==
-                  'pending'
-                  ? (
-                    <button
-                      type="button"
-                      className="cpmku-admin-button cpmku-admin-danger"
-                      onClick={() =>
-                        setConfirm({
-                          row,
-                          action:
-                            'ban',
-                          text:
-                            'Ban seller ini?'
-                        })
-                      }
-                      disabled={
-                        loading ||
-                        row.banned
-                      }
-                    >
-                      {row.banned
-                        ? 'Sudah Banned'
-                        : 'Ban'}
-                    </button>
-                  )
-                  : null
-              )
-              }
-          >
-            Detail
-          </button>
+      const isBanned =
+        Boolean(
+          row.banned
+        );
 
-          {row.status ===
-            'pending' && (
-            <>
-              <button
-                type="button"
-                className="cpmku-admin-button cpmku-admin-success"
-                onClick={() =>
-                  setConfirm({
-                    row,
-                    status:
-                      'approved',
-                    text:
-                      'Setujui pengajuan seller ini?'
-                  })
-                }
-                disabled={
-                  loading
-                }
-              >
-                Approve
-              </button>
+      const sellerName =
+        row.name ||
+        row.displayName ||
+        'Tanpa Nama';
 
-              <button
-                type="button"
-                className="cpmku-admin-button cpmku-admin-danger"
-                onClick={() =>
-                  setConfirm({
-                    row,
-                    status:
-                      'rejected',
-                    text:
-                      'Reject pengajuan seller ini?'
-                  })
-                }
-                disabled={
-                  loading
-                }
-              >
-                Reject
-              </button>
-            </>
-          )}
-        </div>
-      </article>
-    );
+      const sellerRole =
+        isApplication
+          ? 'Seller Application'
+          : 'Active Seller';
+
+      const uid =
+        row.uid ||
+        row.id ||
+        '';
+
+      return (
+        <article
+          key={
+            uid
+          }
+          className="cpmku-admin-card cpmku-seller-card"
+        >
+          <div className="cpmku-seller-profile">
+            {getPhoto(row) ? (
+              <img
+                src={getPhoto(row)}
+                alt="Foto profil seller"
+                className="cpmku-seller-avatar"
+              />
+            ) : (
+              <div className="cpmku-seller-avatar-empty">
+                ◈
+              </div>
+            )}
+
+            <div className="cpmku-seller-name">
+              {sellerName}
+            </div>
+
+            <div className="cpmku-seller-role">
+              {sellerRole}
+            </div>
+          </div>
+
+          <div className="cpmku-seller-actions">
+            {isApplication ? (
+              <>
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-success"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      status:
+                        'approved',
+                      text:
+                        'Setujui pengajuan seller ini?'
+                    })
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Approve
+                </button>
+
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-danger"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      status:
+                        'rejected',
+                      text:
+                        'Reject pengajuan seller ini?'
+                    })
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Reject
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="cpmku-admin-button"
+                  onClick={() =>
+                    openDetail(
+                      'Detail Seller',
+                      sellerDetail(
+                        row
+                      )
+                    )
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Detail
+                </button>
+
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-edit"
+                  onClick={() =>
+                    openSellerEdit(
+                      row
+                    )
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-danger"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      action:
+                        'ban',
+                      text:
+                        isBanned
+                          ? 'Unban seller ini?'
+                          : 'Ban seller ini?'
+                    })
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  {isBanned
+                    ? 'Unban'
+                    : 'Ban'}
+                </button>
+              </>
+            )}
+          </div>
+        </article>
+      );
+    };
 
   const renderProduct =
     row => (
@@ -1171,7 +1531,7 @@ export default function Manage({
                   Hapus
                 </button>
               )
-              }
+            }
           >
             Detail
           </button>
@@ -1211,6 +1571,7 @@ export default function Manage({
               <span className="cpmku-admin-label">
                 Buyer
               </span>
+
               <div className="cpmku-admin-value">
                 {buyer?.name ||
                   row.buyerName ||
@@ -1223,6 +1584,7 @@ export default function Manage({
               <span className="cpmku-admin-label">
                 Produk
               </span>
+
               <div className="cpmku-admin-value">
                 {row.productName ||
                   row.productId ||
@@ -1234,6 +1596,7 @@ export default function Manage({
               <span className="cpmku-admin-label">
                 Seller
               </span>
+
               <div className="cpmku-admin-value">
                 {seller?.name ||
                   row.sellerName ||
@@ -1246,6 +1609,7 @@ export default function Manage({
               <span className="cpmku-admin-label">
                 Status
               </span>
+
               <div className="cpmku-admin-value">
                 {statusLabel(
                   row.status
@@ -1267,6 +1631,7 @@ export default function Manage({
                         <span>
                           Buyer
                         </span>
+
                         <strong>
                           {buyer?.name ||
                             row.buyerUid ||
@@ -1278,6 +1643,7 @@ export default function Manage({
                         <span>
                           Produk
                         </span>
+
                         <strong>
                           {row.productName ||
                             row.productId ||
@@ -1289,6 +1655,7 @@ export default function Manage({
                         <span>
                           Seller
                         </span>
+
                         <strong>
                           {seller?.name ||
                             row.sellerUid ||
@@ -1300,6 +1667,7 @@ export default function Manage({
                         <span>
                           Nominal
                         </span>
+
                         <strong>
                           {amount(
                             row.amount
@@ -1311,6 +1679,7 @@ export default function Manage({
                         <span>
                           Status Order
                         </span>
+
                         <strong>
                           {statusLabel(
                             row.status
@@ -1322,6 +1691,7 @@ export default function Manage({
                         <span>
                           Status Pembayaran
                         </span>
+
                         <strong>
                           {statusLabel(
                             row.paymentStatus
@@ -1333,6 +1703,7 @@ export default function Manage({
                         <span>
                           Dibuat
                         </span>
+
                         <strong>
                           {dateText(
                             row.createdAt
@@ -1502,6 +1873,7 @@ export default function Manage({
                         <span>
                           Buyer
                         </span>
+
                         <strong>
                           {buyer?.name ||
                             row.buyerUid ||
@@ -1513,6 +1885,7 @@ export default function Manage({
                         <span>
                           Produk
                         </span>
+
                         <strong>
                           {row.productName ||
                             product?.title ||
@@ -1525,6 +1898,7 @@ export default function Manage({
                         <span>
                           Nominal
                         </span>
+
                         <strong>
                           {amount(
                             row.amount
@@ -1536,6 +1910,7 @@ export default function Manage({
                         <span>
                           Status
                         </span>
+
                         <strong>
                           {statusLabel(
                             row.status
@@ -1547,6 +1922,7 @@ export default function Manage({
                         <span>
                           Order ID
                         </span>
+
                         <strong>
                           {row.orderId ||
                             '-'}
@@ -1669,7 +2045,7 @@ export default function Manage({
             Seller Application
           </h3>
 
-          <div className="cpmku-admin-list">
+          <div className="cpmku-admin-list cpmku-seller-list">
             {sellerApplications.map(
               renderSeller
             )}
@@ -1690,7 +2066,7 @@ export default function Manage({
             Active Seller
           </h3>
 
-          <div className="cpmku-admin-list">
+          <div className="cpmku-admin-list cpmku-seller-list">
             {activeSellers.map(
               renderSeller
             )}
@@ -1736,6 +2112,94 @@ export default function Manage({
             </div>
           )}
         </div>
+      )}
+
+      {editing && (
+        <AdminModal
+          title="Edit Seller"
+          onClose={
+            closeSellerEdit
+          }
+          actions={
+            <>
+              <button
+                type="button"
+                className="cpmku-admin-button"
+                onClick={
+                  closeSellerEdit
+                }
+                disabled={
+                  loading
+                }
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                className="cpmku-admin-button cpmku-admin-edit"
+                onClick={
+                  saveSellerEdit
+                }
+                disabled={
+                  loading
+                }
+              >
+                {loading
+                  ? 'Menyimpan...'
+                  : 'Simpan'}
+              </button>
+            </>
+          }
+        >
+          <div className="cpmku-admin-edit-form">
+            <div className="cpmku-admin-edit-field">
+              <label>
+                Nama Seller
+              </label>
+
+              <input
+                type="text"
+                value={
+                  editName
+                }
+                onChange={event =>
+                  setEditName(
+                    event.target.value
+                  )
+                }
+                placeholder="Nama seller"
+                maxLength={80}
+                disabled={
+                  loading
+                }
+              />
+            </div>
+
+            <div className="cpmku-admin-edit-field">
+              <label>
+                Nomor Telepon
+              </label>
+
+              <input
+                type="tel"
+                value={
+                  editPhone
+                }
+                onChange={event =>
+                  setEditPhone(
+                    event.target.value
+                  )
+                }
+                placeholder="Nomor telepon"
+                maxLength={25}
+                disabled={
+                  loading
+                }
+              />
+            </div>
+          </div>
+        </AdminModal>
       )}
 
       {detail && (
@@ -1800,7 +2264,9 @@ export default function Manage({
                   ) {
                     return runUserBan(
                       confirm.row,
-                      true
+                      !Boolean(
+                        confirm.row?.banned
+                      )
                     );
                   }
 
