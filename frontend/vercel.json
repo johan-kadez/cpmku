@@ -5,6 +5,10 @@
       "destination": "https://val79sb62.vercel.app/api/:path*"
     },
     {
+      "source": "/__/auth/:path*",
+      "destination": "https://johan-505816.firebaseapp.com/__/auth/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
