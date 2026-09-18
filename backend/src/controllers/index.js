@@ -70,13 +70,17 @@ a.localeCompare(b)
 )
 .join('&');
 
+.map(
+([key, value]) =>
+"${key}=${value}"
+)
+
 return crypto
 .createHash('sha1')
 .update(
 "${serialized}${env.cloudinary.apiSecret}"
 )
 .digest('hex');
-}
 
 export const me =
 async (req, res) => {
