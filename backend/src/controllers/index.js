@@ -66,14 +66,14 @@ a.localeCompare(b)
 )
 .map(
 ([key, value]) =>
-"${key}=${value}"
+${key}=${value}
 )
 .join('&');
 
 return crypto
 .createHash('sha1')
 .update(
-"${serialized}${env.cloudinary.apiSecret}"
+${serialized}${env.cloudinary.apiSecret}
 )
 .digest('hex');
 }
