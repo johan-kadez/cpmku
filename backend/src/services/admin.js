@@ -740,7 +740,9 @@ export async function updateUser(
   uid,
   {
     banned,
-    role
+    role,
+    name,
+    phone
   } = {}
 ) {
   if (!uid) {
@@ -780,6 +782,127 @@ export async function updateUser(
   const result = {
     ok: true
   };
+
+  const hasName =
+    name !== undefined;
+
+  const hasPhone =
+    phone !== undefined;
+
+  if (
+    hasName ||
+    hasPhone
+  ) {
+    const sellerRef =
+      db
+        .collection('sellers')
+        .doc(uid);
+
+    const sellerSnap =
+      await sellerRef.get();
+
+    if (
+      !sellerSnap.exists
+    ) {
+      throw new HttpError(
+        409,
+        'User ini bukan seller aktif.'
+      );
+    }
+
+    const seller =
+      sellerSnap.data() || {};
+
+    if (
+      seller.status !==
+      'approved'
+    ) {
+      throw new HttpError(
+        409,
+        'Seller belum berstatus aktif.'
+      );
+    }
+
+    const sellerName =
+      hasName
+        ? String(
+            name || ''
+          ).trim()
+        : String(
+            seller.name ||
+            user.name ||
+            ''
+          ).trim();
+
+    const sellerPhone =
+      hasPhone
+        ? String(
+            phone || ''
+          ).trim()
+        : String(
+            seller.phone ||
+            user.phone ||
+            ''
+          ).trim();
+
+    if (
+      !sellerName
+    ) {
+      throw new HttpError(
+        400,
+        'Nama seller wajib diisi.'
+      );
+    }
+
+    const batch =
+      db.batch();
+
+    batch.set(
+      sellerRef,
+      {
+        uid,
+
+        name:
+          sellerName,
+
+        phone:
+          sellerPhone,
+
+        updatedAt:
+          FieldValue.serverTimestamp()
+      },
+      {
+        merge: true
+      }
+    );
+
+    batch.set(
+      userRef,
+      {
+        uid,
+
+        name:
+          sellerName,
+
+        phone:
+          sellerPhone,
+
+        updatedAt:
+          FieldValue.serverTimestamp()
+      },
+      {
+        merge: true
+      }
+    );
+
+    await batch.commit();
+
+    result.name =
+      sellerName;
+
+    result.phone =
+      sellerPhone;
+  }
 
   if (
     typeof banned ===
