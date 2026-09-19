@@ -1093,39 +1093,6 @@ export default function Manage({
           )
       : [];
 
-    const productPending =
-    type === 'products'
-      ? rows.filter(
-          row =>
-            row.status ===
-            'pending'
-        )
-      : [];
-
-  const activeProducts =
-    type === 'products'
-      ? rows.filter(
-          row =>
-            [
-              'approved',
-              'available',
-              'in_transaction',
-              'sold'
-            ].includes(
-              row.status
-            )
-        )
-      : [];
-
-  const rejectedProducts =
-    type === 'products'
-      ? rows.filter(
-          row =>
-            row.status ===
-            'rejected'
-        )
-      : [];
-
   const sellerDetail =
     row => (
       <div className="cpmku-admin-profile">
@@ -1545,48 +1512,9 @@ export default function Manage({
                 productDetail(
                   row
                 ),
-                <>
-                  {row.status ===
-                    'pending' && (
-                    <button
-                      type="button"
-                      className="cpmku-admin-button cpmku-admin-success"
-                      onClick={() =>
-                        setConfirm({
-                          row,
-                          status:
-                            'approved',
-                          text:
-                            'Approve produk ini? Setelah disetujui, produk akan langsung tampil di public marketplace.'
-                        })
-                      }
-                      disabled={
-                        loading
-                      }
-                    >
-                      Approve
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    className="cpmku-admin-button cpmku-admin-danger"
-                    onClick={() =>
-                      setConfirm({
-                        row,
-                        action:
-                          'delete',
-                        text:
-                          'Hapus produk ini? Produk akan disembunyikan dari marketplace.'
-                      })
-                    }
-                    disabled={
-                      loading
-                    }
-                  >
-                    Hapus
-                  </button>
-                </>
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-danger"
                   onClick={() =>
                     setConfirm({
                       row,
@@ -2150,70 +2078,19 @@ export default function Manage({
             )}
           </div>
         </>
-      ) : type === 'products' ? (
-        <>
-          <h3>
-            Product Pending
-          </h3>
-
-          <div className="cpmku-admin-list">
-            {productPending.map(
-              renderProduct
-            )}
-
-            {!productPending.length && (
-              <div className="state">
-                Tidak ada product pending.
-              </div>
-            )}
-          </div>
-
-          <h3
-            style={{
-              marginTop:
-                28
-            }}
-          >
-            Active Product
-          </h3>
-
-          <div className="cpmku-admin-list">
-            {activeProducts.map(
-              renderProduct
-            )}
-
-            {!activeProducts.length && (
-              <div className="state">
-                Tidak ada active product.
-              </div>
-            )}
-          </div>
-
-          <h3
-            style={{
-              marginTop:
-                28
-            }}
-          >
-            Rejected Product
-          </h3>
-
-          <div className="cpmku-admin-list">
-            {rejectedProducts.map(
-              renderProduct
-            )}
-
-            {!rejectedProducts.length && (
-              <div className="state">
-                Tidak ada rejected product.
-              </div>
-            )}
-          </div>
-        </>
       ) : (
         <div className="cpmku-admin-list">
           {rows.map(
             row => {
+              if (
+                type ===
+                'products'
+              ) {
+                return renderProduct(
+                  row
+                );
+              }
+
               if (
                 type ===
                 'orders'
