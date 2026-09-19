@@ -112,7 +112,7 @@ const off = onAuthStateChanged(
     }
    }
   }
- }:
+ };
 
   return () => {
   alive = false;
