@@ -68,37 +68,49 @@ const off = onAuthStateChanged(
     }
 
     try {
-      await current.getIdToken();
+  await current.getIdToken();
 
-      const result =
-        await api('/me');
+  const result =
+    await api('/me');
 
-      if (!alive) return;
+  if (!alive) return;
 
-      setRole(
-        result.user?.role || null
-      );
+  setUser({
+    ...current,
+    ...result.user,
+    displayName:
+      result.user?.name ||
+      current.displayName ||
+      '',
+    photoURL:
+      result.user?.photoURL ||
+      result.user?.photoUrl ||
+      current.photoURL ||
+      ''
+  });
 
-      setBanned(
-        Boolean(result.user?.banned)
-      );
-    } catch (error) {
-      console.error(
-        'Gagal memuat data user:',
-        error
-      );
+  setRole(
+    result.user?.role || null
+  );
 
-      if (!alive) return;
+  setBanned(
+    Boolean(result.user?.banned)
+  );
+} catch (error) {
+  console.error(
+    'Gagal memuat data user:',
+    error
+  );
 
-      setRole(null);
-      setBanned(false);
-    } finally {
-      if (alive) {
-        setLoading(false);
-      }
-    }
+  if (!alive) return;
+
+  setRole(null);
+  setBanned(false);
+} finally {
+  if (alive) {
+    setLoading(false);
   }
-);
+    }
 
 return () => {
   alive = false;
