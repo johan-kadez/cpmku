@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
@@ -12,7 +13,10 @@ import { api } from '../../services/api';
 import { rupiah } from '../../utils/format';
 
 const MAX_IMAGES = 7;
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1600;
+const TARGET_IMAGE_SIZE = 150 * 1024;
+const MAX_COMPRESSED_IMAGE_SIZE = 200 * 1024;
 
 const CATEGORIES = [
   'Mobil',
@@ -58,6 +62,190 @@ function createPreview(file) {
     signature: '',
     uploading: false
   };
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`Foto ${file.name} tidak dapat dibaca.`));
+    };
+
+    image.src = url;
+  });
+}
+
+function canvasToBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => {
+        if (!blob) {
+          reject(
+            new Error('Browser gagal memproses foto.')
+          );
+          return;
+        }
+
+        resolve(blob);
+      },
+      'image/webp',
+      quality
+    );
+  });
+}
+
+async function compressImage(file) {
+  const image = await loadImage(file);
+
+  let width = image.naturalWidth || image.width;
+  let height = image.naturalHeight || image.height;
+
+  if (!width || !height) {
+    throw new Error(
+      `Foto ${file.name} memiliki dimensi yang tidak valid.`
+    );
+  }
+
+  const scale = Math.min(
+    1,
+    MAX_IMAGE_DIMENSION /
+      Math.max(width, height)
+  );
+
+  width = Math.max(
+    1,
+    Math.round(width * scale)
+  );
+
+  height = Math.max(
+    1,
+    Math.round(height * scale)
+  );
+
+  let canvas = document.createElement('canvas');
+  let currentWidth = width;
+  let currentHeight = height;
+
+  async function findBestBlob() {
+    let bestBlob = null;
+
+    for (
+      let quality = 0.82;
+      quality >= 0.25;
+      quality -= 0.05
+    ) {
+      const blob = await canvasToBlob(
+        canvas,
+        quality
+      );
+
+      if (
+        !bestBlob ||
+        blob.size < bestBlob.size
+      ) {
+        bestBlob = blob;
+      }
+
+      if (
+        blob.size <= TARGET_IMAGE_SIZE
+      ) {
+        return blob;
+      }
+    }
+
+    return bestBlob;
+  }
+
+  let blob = null;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    canvas.width = currentWidth;
+    canvas.height = currentHeight;
+
+    const context =
+      canvas.getContext('2d', {
+        alpha: true
+      });
+
+    if (!context) {
+      throw new Error(
+        `Browser tidak dapat memproses foto ${file.name}.`
+      );
+    }
+
+    context.clearRect(
+      0,
+      0,
+      currentWidth,
+      currentHeight
+    );
+
+    context.drawImage(
+      image,
+      0,
+      0,
+      currentWidth,
+      currentHeight
+    );
+
+    blob = await findBestBlob();
+
+    if (
+      blob &&
+      blob.size <= MAX_COMPRESSED_IMAGE_SIZE
+    ) {
+      break;
+    }
+
+    const nextScale = 0.85;
+
+    currentWidth = Math.max(
+      320,
+      Math.round(
+        currentWidth * nextScale
+      )
+    );
+
+    currentHeight = Math.max(
+      320,
+      Math.round(
+        currentHeight * nextScale
+      )
+    );
+  }
+
+  if (
+    !blob ||
+    blob.size > MAX_COMPRESSED_IMAGE_SIZE
+  ) {
+    throw new Error(
+      `Foto ${file.name} masih lebih dari 200 KB setelah dikompres. Silakan gunakan foto dengan resolusi lebih rendah.`
+    );
+  }
+
+  const compressedName =
+    file.name.replace(
+      /\.[^/.]+$/,
+      ''
+    ) + '.webp';
+
+  return new File(
+    [blob],
+    compressedName,
+    {
+      type: 'image/webp',
+      lastModified:
+        Date.now()
+    }
+  );
 }
 
 function formatDate(value) {
@@ -149,6 +337,8 @@ function getStatusClass(status) {
 }
 
 export default function SellerDashboard() {
+  const navigate = useNavigate();
+
   const [user, setUser] = useState(null);
   const [products, setProducts] = useState([]);
 
@@ -334,6 +524,7 @@ export default function SellerDashboard() {
         ? product.category
         : ''
     );
+
     setCategoryOpen(false);
 
     clearImagePreviews();
@@ -355,7 +546,7 @@ export default function SellerDashboard() {
     });
   }
 
-  function handleFilesSelected(event) {
+  async function handleFilesSelected(event) {
     const selectedFiles =
       Array.from(
         event.target.files || []
@@ -387,36 +578,49 @@ export default function SellerDashboard() {
       );
 
     const rejected = [];
+    const validFiles = [];
 
-    const validFiles =
-      files.filter(file => {
-        const validType = [
-          'image/jpeg',
-          'image/png',
-          'image/webp'
-        ].includes(file.type);
+    for (const file of files) {
+      const validType = [
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+      ].includes(file.type);
 
-        const validSize =
-          file.size <= MAX_FILE_SIZE;
+      if (!validType) {
+        rejected.push(
+          `${file.name}: format harus JPG, PNG, atau WebP.`
+        );
+        continue;
+      }
 
-        if (!validType) {
-          rejected.push(
-            `${file.name}: format harus JPG, PNG, atau WebP.`
-          );
+      if (file.size > MAX_FILE_SIZE) {
+        rejected.push(
+          `${file.name}: ukuran foto asli maksimal 2 MB.`
+        );
+        continue;
+      }
 
-          return false;
-        }
+      validFiles.push(file);
+    }
 
-        if (!validSize) {
-          rejected.push(
-            `${file.name}: ukuran maksimal 5 MB.`
-          );
+    const compressedFiles = [];
 
-          return false;
-        }
+    for (const file of validFiles) {
+      try {
+        const compressedFile =
+          await compressImage(file);
 
-        return true;
-      });
+        compressedFiles.push(
+          compressedFile
+        );
+      } catch (compressionError) {
+        rejected.push(
+          compressionError?.message ||
+            `Foto ${file.name} gagal diproses.`
+        );
+      }
+    }
 
     if (rejected.length) {
       setError(
@@ -424,12 +628,12 @@ export default function SellerDashboard() {
       );
     }
 
-    if (!validFiles.length) {
+    if (!compressedFiles.length) {
       return;
     }
 
     const previews =
-      validFiles.map(
+      compressedFiles.map(
         createPreview
       );
 
@@ -906,6 +1110,7 @@ export default function SellerDashboard() {
     }
 
     const product = confirmProduct;
+
     setConfirmProduct(null);
     setError('');
     setSuccess('');
@@ -1435,25 +1640,48 @@ export default function SellerDashboard() {
 
             <div
               style={{
-                textAlign:
-                  'right',
-                fontSize: 13,
-                opacity: 0.7
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                flexWrap: 'wrap'
               }}
             >
-              <div>
-                {user.email ||
-                  user.displayName ||
-                  'Akun Seller'}
-              </div>
+              <button
+                type="button"
+                className="seller-button seller-secondary"
+                onClick={() =>
+                  navigate('/')
+                }
+                disabled={
+                  saving ||
+                  uploading
+                }
+              >
+                Kembali
+              </button>
 
               <div
                 style={{
-                  marginTop: 4
+                  textAlign:
+                    'right',
+                  fontSize: 13,
+                  opacity: 0.7
                 }}
               >
-                {products.length}{' '}
-                produk
+                <div>
+                  {user.email ||
+                    user.displayName ||
+                    'Akun Seller'}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 4
+                  }}
+                >
+                  {products.length}{' '}
+                  produk
+                </div>
               </div>
             </div>
           </div>
@@ -1862,7 +2090,9 @@ export default function SellerDashboard() {
                     }}
                   >
                     JPG, PNG, WebP • maksimal
-                    5 MB per foto • 1–7 foto
+                    2 MB asli • otomatis WebP
+                    • maksimal 1600px • target
+                    ±150 KB, maksimal 200 KB • 1–7 foto
                   </div>
                 </div>
 
