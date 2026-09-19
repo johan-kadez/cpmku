@@ -1512,24 +1512,48 @@ export default function Manage({
                 productDetail(
                   row
                 ),
-                <button
-                  type="button"
-                  className="cpmku-admin-button cpmku-admin-danger"
-                  onClick={() =>
-                    setConfirm({
-                      row,
-                      action:
-                        'delete',
-                      text:
-                        'Hapus produk ini? Produk akan disembunyikan dari marketplace.'
-                    })
-                  }
-                  disabled={
-                    loading
-                  }
-                >
-                  Hapus
-                </button>
+                <>
+                  {row.status ===
+                    'pending' && (
+                    <button
+                      type="button"
+                      className="cpmku-admin-button cpmku-admin-success"
+                      onClick={() =>
+                        setConfirm({
+                          row,
+                          status:
+                            'approved',
+                          text:
+                            'Approve produk ini? Setelah disetujui, produk akan langsung tampil di public marketplace.'
+                        })
+                      }
+                      disabled={
+                        loading
+                      }
+                    >
+                      Approve
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="cpmku-admin-button cpmku-admin-danger"
+                    onClick={() =>
+                      setConfirm({
+                        row,
+                        action:
+                          'delete',
+                        text:
+                          'Hapus produk ini? Produk akan disembunyikan dari marketplace.'
+                      })
+                    }
+                    disabled={
+                      loading
+                    }
+                  >
+                    Hapus
+                  </button>
+                </>
               )
             }
           >
