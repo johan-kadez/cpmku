@@ -109,10 +109,12 @@ const off = onAuthStateChanged(
 } finally {
   if (alive) {
     setLoading(false);
-  }
     }
+   }
+  }
+ }:
 
-return () => {
+  return () => {
   alive = false;
   off();
 };
