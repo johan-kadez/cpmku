@@ -81,21 +81,19 @@ export default function Home() {
   useEffect(() => {
     const sellersQuery = query(
       collection(db, 'sellers'),
-      where('status', '==', 'approved')
+      where('status', '==', 'approved'),
+      where('banned', '==', false)
     );
 
     const unsubscribe = onSnapshot(
       sellersQuery,
       snapshot => {
-        const rows = snapshot.docs
-          .map(doc => ({
-            uid: doc.id,
-            ...doc.data()
-          }))
-          .filter(
-            seller =>
-              seller.banned !== true
-          );
+        const rows = snapshot.docs.map(
+          sellerDoc => ({
+            uid: sellerDoc.id,
+            ...sellerDoc.data()
+          })
+        );
 
         setSellers(rows);
         setSellerError('');
@@ -322,7 +320,7 @@ export default function Home() {
                 event.target.value
               )
             }
-            placeholder="Ketik Disini..."
+            placeholder="Cari mobil atau seller..."
           />
         </div>
 
@@ -401,7 +399,7 @@ export default function Home() {
           filteredSellers.length === 0 &&
           filteredProducts.length === 0 && (
             <div className="cpmku-home-search-empty">
-              Tidak ada yang cocok dengan pencarian.
+              Tidak ada produk atau seller yang cocok dengan pencarian.
             </div>
           )}
 
