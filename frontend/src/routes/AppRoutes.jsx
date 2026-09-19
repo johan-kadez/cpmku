@@ -13,6 +13,7 @@ import Profile from '../pages/public/Profile';
 import Transactions from '../pages/public/Transactions';
 import Favorites from '../pages/public/Favorites';
 import Help from '../pages/public/Help';
+import SellerPage from '../pages/public/SellerPage';
 
 import ProtectedRoute from './ProtectedRoute';
 
@@ -90,6 +91,13 @@ return (
       path="/products/:id"
       element={
         <ProductDetail />
+      }
+    />
+
+    <Route
+      path="/seller/:uid"
+      element={
+        <SellerPage />
       }
     />
 
