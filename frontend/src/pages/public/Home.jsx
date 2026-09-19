@@ -290,19 +290,6 @@ export default function Home() {
       <section className="hero">
         <h1>Welcome To Cpmku</h1>
 
-        <p>
-          Pilih produk, buka transaksi, bayar melalui QRIS utama,
-          lalu tunggu verifikasi admin.
-        </p>
-
-        <Link
-          className="button primary"
-          to="/products"
-        >
-          Lihat Produk
-        </Link>
-      </section>
-
       <section>
         <div className="section-head">
           <div>
@@ -320,7 +307,7 @@ export default function Home() {
                 event.target.value
               )
             }
-            placeholder="Cari mobil atau seller..."
+            placeholder="Ketik Untuk Mencari..."
           />
         </div>
 
@@ -399,7 +386,7 @@ export default function Home() {
           filteredSellers.length === 0 &&
           filteredProducts.length === 0 && (
             <div className="cpmku-home-search-empty">
-              Tidak ada produk atau seller yang cocok dengan pencarian.
+              Tidak ada yang cocok dengan pencarian.
             </div>
           )}
 
