@@ -16,7 +16,7 @@ const MAX_IMAGES = 7;
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 1600;
 const TARGET_IMAGE_SIZE = 150 * 1024;
-const MAX_COMPRESSED_IMAGE_SIZE = 200 * 1024;
+const MAX_COMPRESSED_IMAGE_SIZE = 500 * 1024;
 
 const CATEGORIES = [
   'Mobil',
@@ -227,7 +227,7 @@ async function compressImage(file) {
     blob.size > MAX_COMPRESSED_IMAGE_SIZE
   ) {
     throw new Error(
-      `Foto ${file.name} masih lebih dari 200 KB setelah dikompres. Silakan gunakan foto dengan resolusi lebih rendah.`
+      `Foto ${file.name} masih lebih dari 500 KB setelah dikompres. Silakan pilih foto yang lebih ringan`
     );
   }
 
@@ -436,7 +436,7 @@ export default function SellerDashboard() {
         setProducts([]);
         setLoadingProducts(false);
         setError(
-          'Produk tidak dapat dimuat. Periksa izin Firestore.'
+          'Produk tidak dapat dimuat. Laporkan ke admin/developer'
         );
       }
     );
@@ -487,7 +487,7 @@ export default function SellerDashboard() {
       product.status === 'in_transaction'
     ) {
       setError(
-        'Produk ini sedang tidak dapat diedit.'
+        'Produk ini sedang tidak dapat diedit'
       );
       return;
     }
@@ -566,7 +566,7 @@ export default function SellerDashboard() {
 
     if (remaining <= 0) {
       setError(
-        `Maksimal ${MAX_IMAGES} foto untuk satu produk.`
+        `Maksimal ${MAX_IMAGES} foto untuk satu produk`
       );
       return;
     }
@@ -596,7 +596,7 @@ export default function SellerDashboard() {
 
       if (file.size > MAX_FILE_SIZE) {
         rejected.push(
-          `${file.name}: ukuran foto asli maksimal 2 MB.`
+          `${file.name}: ukuran foto asli maksimal 2 MB`
         );
         continue;
       }
@@ -617,7 +617,7 @@ export default function SellerDashboard() {
       } catch (compressionError) {
         rejected.push(
           compressionError?.message ||
-            `Foto ${file.name} gagal diproses.`
+            `Foto ${file.name} gagal diproses`
         );
       }
     }
@@ -887,9 +887,9 @@ export default function SellerDashboard() {
     }
 
     if (
-      cleanTitle.length > 150
+      cleanTitle.length > 50
     ) {
-      return 'Nama produk maksimal 150 karakter.';
+      return 'Nama produk maksimal 50 karakter.';
     }
 
     if (!cleanDescription) {
@@ -897,9 +897,9 @@ export default function SellerDashboard() {
     }
 
     if (
-      cleanDescription.length > 5000
+      cleanDescription.length > 2000
     ) {
-      return 'Deskripsi produk maksimal 5000 karakter.';
+      return 'Deskripsi produk maksimal 2000 karakter.';
     }
 
     if (
@@ -947,7 +947,7 @@ export default function SellerDashboard() {
       );
 
     if (incompleteImage) {
-      return 'Ada foto yang belum siap untuk disimpan.';
+      return 'Ada foto yang belum siap untuk disimpan';
     }
 
     return '';
@@ -986,7 +986,7 @@ export default function SellerDashboard() {
         uploadedImages.length > MAX_IMAGES
       ) {
         throw new Error(
-          `Jumlah foto harus antara 1 sampai ${MAX_IMAGES}.`
+          `Jumlah foto harus antara 1 sampai ${MAX_IMAGES}`
         );
       }
 
@@ -1001,7 +1001,7 @@ export default function SellerDashboard() {
 
       if (incompleteImage) {
         throw new Error(
-          'Ada foto yang belum berhasil diupload ke Cloudinary.'
+          'Foto yang kamu pilih eror, coba pilih foto lain'
         );
       }
 
@@ -1359,7 +1359,7 @@ export default function SellerDashboard() {
             }}
           >
             Silakan login terlebih dahulu
-            untuk mengelola produk.
+            untuk mengelola produk
           </p>
         </div>
       </div>
@@ -1634,7 +1634,7 @@ export default function SellerDashboard() {
                 }}
               >
                 Tambahkan, edit, atau hapus
-                produk jualanmu.
+                produkmu
               </p>
             </div>
 
@@ -1747,7 +1747,7 @@ export default function SellerDashboard() {
                   fontSize: 13
                 }}
               >
-                Foto produk 1–7 gambar.
+                Foto produk max 7 gambar.
               </p>
             </div>
 
@@ -2089,10 +2089,7 @@ export default function SellerDashboard() {
                       marginTop: 3
                     }}
                   >
-                    JPG, PNG, WebP • maksimal
-                    2 MB asli • otomatis WebP
-                    • maksimal 1600px • target
-                    ±150 KB, maksimal 200 KB • 1–7 foto
+                    Maksimal 7 foto per produk
                   </div>
                 </div>
 
@@ -2140,10 +2137,10 @@ export default function SellerDashboard() {
                     opacity: 0.55
                   }}
                 >
-                  Belum ada foto.
+                  Belum ada foto
                   <br />
                   Pilih minimal 1 foto
-                  dari galeri perangkat.
+                  dari galeri perangkat
                 </div>
               ) : (
                 <div
@@ -2295,7 +2292,6 @@ export default function SellerDashboard() {
                 }}
               >
                 Tambahkan produk pertama
-                menggunakan form di atas.
               </div>
             </div>
           ) : (
