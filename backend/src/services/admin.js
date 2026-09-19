@@ -26,42 +26,69 @@ const ADMIN_UID = String(
 
 export async function dashboard() {
   const [
+    users,
     sellers,
     products,
     orders,
     payments,
     rooms
-  ] = await Promise.all(
-    [
-      'registrations',
-      'products',
-      'orders',
-      'payments',
-      'rooms'
-    ].map(
-      (collection) =>
-        db
-          .collection(collection)
-          .get()
-    )
-  );
+  ] = await Promise.all([
+    db
+      .collection('users')
+      .count()
+      .get(),
+
+    db
+      .collection('sellers')
+      .where('status', '==', 'approved')
+      .get(),
+
+    db
+      .collection('products')
+      .count()
+      .get(),
+
+    db
+      .collection('orders')
+      .count()
+      .get(),
+
+    db
+      .collection('payments')
+      .count()
+      .get(),
+
+    db
+      .collection('rooms')
+      .count()
+      .get()
+  ]);
+
+  const activeSellers =
+    sellers.docs.filter(
+      (doc) =>
+        doc.data()?.banned !== true
+    ).length;
 
   return {
     stats: {
-      registrations:
-        sellers.size,
+      users:
+        users.data().count,
+
+      sellers:
+        activeSellers,
 
       products:
-        products.size,
+        products.data().count,
 
       orders:
-        orders.size,
+        orders.data().count,
 
       payments:
-        payments.size,
+        payments.data().count,
 
       rooms:
-        rooms.size
+        rooms.data().count
     }
   };
 }
