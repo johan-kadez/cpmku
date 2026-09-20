@@ -1,12 +1,47 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function Home() {
   const [expanded, setExpanded] = useState(null);
+  const collapseTimer = useRef(null);
 
-  const toggle = (name) => {
-    setExpanded((current) => (current === name ? null : name));
+  const expand = (name) => {
+    if (collapseTimer.current) {
+      clearTimeout(collapseTimer.current);
+    }
+
+    setExpanded(name);
+
+    collapseTimer.current = setTimeout(() => {
+      setExpanded(null);
+    }, 1800);
   };
+
+  const handleAction = (name, navigate) => {
+    if (expanded !== name) {
+      expand(name);
+      return false;
+    }
+
+    if (collapseTimer.current) {
+      clearTimeout(collapseTimer.current);
+    }
+
+    if (navigate) {
+      navigate();
+    }
+
+    setExpanded(null);
+    return true;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (collapseTimer.current) {
+        clearTimeout(collapseTimer.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -42,27 +77,32 @@ export default function Home() {
             line-height: 1.7;
           }
 
-          .cpmku-home-actions {
+          .cpmku-home-actions,
+          .cpmku-home-socials {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             width: 100%;
+          }
+
+          .cpmku-home-actions {
             margin-top: 20px;
           }
 
           .cpmku-home-socials {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            width: 100%;
             margin-top: 10px;
           }
 
           .cpmku-home-action,
           .cpmku-home-social {
             width: 100%;
-            min-width: 0;
             height: 50px;
+            min-width: 0;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
             padding: 0;
             border: 1px solid rgba(59,130,246,0.18);
             border-radius: 14px;
@@ -71,21 +111,11 @@ export default function Home() {
             -webkit-backdrop-filter: blur(16px) saturate(140%);
             color: #fff;
             text-decoration: none;
-            box-sizing: border-box;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             transition:
-              background .22s ease,
-              border-color .22s ease,
-              box-shadow .22s ease;
-          }
-
-          .cpmku-home-action:hover,
-          .cpmku-home-social:hover {
-            background: rgba(37,99,235,0.12);
-            border-color: rgba(59,130,246,0.34);
+              width .28s cubic-bezier(.22,1,.36,1),
+              background .28s ease,
+              border-color .28s ease,
+              box-shadow .28s ease;
           }
 
           .cpmku-home-action-inner,
@@ -93,30 +123,39 @@ export default function Home() {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            height: 100%;
             gap: 0;
-            white-space: nowrap;
-            transition: gap .22s ease;
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+            transition:
+              width .28s cubic-bezier(.22,1,.36,1),
+              gap .28s cubic-bezier(.22,1,.36,1);
           }
 
           .cpmku-home-action.expanded .cpmku-home-action-inner,
           .cpmku-home-social.expanded .cpmku-home-social-inner {
+            width: 100%;
             gap: 9px;
           }
 
-          .cpmku-home-icon {
+          .cpmku-home-icon,
+          .cpmku-home-cs-icon {
             width: 23px;
             height: 23px;
+            min-width: 23px;
             flex: 0 0 23px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: block;
             object-fit: contain;
+          }
+
+          .cpmku-home-icon {
             color: #fff;
           }
 
           .cpmku-home-product-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 24px;
             line-height: 1;
           }
@@ -125,17 +164,28 @@ export default function Home() {
             max-width: 0;
             opacity: 0;
             overflow: hidden;
+            white-space: nowrap;
             font-size: 14px;
             font-weight: 500;
+            line-height: 1;
+            transform: translateX(-4px);
             transition:
-              max-width .22s ease,
-              opacity .18s ease;
+              max-width .28s cubic-bezier(.22,1,.36,1),
+              opacity .18s ease,
+              transform .28s cubic-bezier(.22,1,.36,1);
           }
 
           .cpmku-home-action.expanded .cpmku-home-label,
           .cpmku-home-social.expanded .cpmku-home-label {
             max-width: 110px;
             opacity: 1;
+            transform: translateX(0);
+          }
+
+          .cpmku-home-action:hover,
+          .cpmku-home-social:hover {
+            background: rgba(37,99,235,0.10);
+            border-color: rgba(59,130,246,0.30);
           }
 
           .cpmku-home-action.expanded {
@@ -149,24 +199,15 @@ export default function Home() {
             color: #60a5fa;
           }
 
-          .cpmku-home-action.expanded:hover {
-            background: rgba(37,99,235,0.22);
-            border-color: rgba(59,130,246,0.65);
-          }
-
           .cpmku-home-cs.expanded {
             background: rgba(239,68,68,0.18);
             border-color: rgba(248,113,113,0.55);
             box-shadow: 0 0 24px rgba(239,68,68,0.14);
           }
 
+          .cpmku-home-cs.expanded .cpmku-home-icon,
           .cpmku-home-cs.expanded .cpmku-home-label {
             color: #f87171;
-          }
-
-          .cpmku-home-cs.expanded:hover {
-            background: rgba(239,68,68,0.22);
-            border-color: rgba(248,113,113,0.65);
           }
 
           .cpmku-home-tiktok.expanded {
@@ -180,11 +221,6 @@ export default function Home() {
             color: #f87171;
           }
 
-          .cpmku-home-tiktok.expanded:hover {
-            background: rgba(239,68,68,0.22);
-            border-color: rgba(248,113,113,0.65);
-          }
-
           .cpmku-home-discord.expanded {
             background: rgba(37,99,235,0.18);
             border-color: rgba(96,165,250,0.55);
@@ -194,18 +230,6 @@ export default function Home() {
           .cpmku-home-discord.expanded .cpmku-home-icon,
           .cpmku-home-discord.expanded .cpmku-home-label {
             color: #60a5fa;
-          }
-
-          .cpmku-home-discord.expanded:hover {
-            background: rgba(37,99,235,0.22);
-            border-color: rgba(96,165,250,0.65);
-          }
-
-          .cpmku-home-cs-icon {
-            width: 23px;
-            height: 23px;
-            flex: 0 0 23px;
-            object-fit: contain;
           }
 
           .cpmku-home-info {
@@ -256,6 +280,12 @@ export default function Home() {
               height: 48px;
             }
 
+            .cpmku-home-action-inner,
+            .cpmku-home-social-inner {
+              width: 48px;
+              height: 48px;
+            }
+
             .cpmku-home-info {
               margin-top: 40px;
               padding: 0 16px;
@@ -289,9 +319,8 @@ export default function Home() {
               }`}
               to="/products"
               onClick={(event) => {
-                if (expanded !== 'products') {
+                if (!handleAction('products', () => {})) {
                   event.preventDefault();
-                  toggle('products');
                 }
               }}
             >
@@ -312,9 +341,8 @@ export default function Home() {
               }`}
               to="/help"
               onClick={(event) => {
-                if (expanded !== 'cs') {
+                if (!handleAction('cs', () => {})) {
                   event.preventDefault();
-                  toggle('cs');
                 }
               }}
             >
@@ -337,13 +365,12 @@ export default function Home() {
               className={`cpmku-home-social cpmku-home-tiktok ${
                 expanded === 'tiktok' ? 'expanded' : ''
               }`}
-              href="https://share.google/OQsYy8Aj59S3232MJ"
+              href="https://www.tiktok.com/@johanmemasak?_r=1&_t=ZS-99sVr6HzMhh"
               target="_blank"
               rel="noopener noreferrer"
               onClick={(event) => {
-                if (expanded !== 'tiktok') {
+                if (!handleAction('tiktok', () => {})) {
                   event.preventDefault();
-                  toggle('tiktok');
                 }
               }}
             >
@@ -368,13 +395,12 @@ export default function Home() {
               className={`cpmku-home-social cpmku-home-discord ${
                 expanded === 'discord' ? 'expanded' : ''
               }`}
-              href="https://share.google/6nJJ8BeHdknMWJOj5"
+              href="https://discord.gg/B96GXNyGEH"
               target="_blank"
               rel="noopener noreferrer"
               onClick={(event) => {
-                if (expanded !== 'discord') {
+                if (!handleAction('discord', () => {})) {
                   event.preventDefault();
-                  toggle('discord');
                 }
               }}
             >
