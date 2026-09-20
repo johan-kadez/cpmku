@@ -278,6 +278,20 @@ export default function Help() {
               rgba(37,99,235,.10);
           }
 
+          .cpmku-help-purpose {
+            margin: 0;
+
+            color: #a5afbf;
+
+            font-size: 14px;
+            line-height: 1.7;
+          }
+
+          .cpmku-help-purpose strong {
+            color: #fff;
+            font-weight: 700;
+          }
+
           @media(max-width:650px) {
             .cpmku-help-contacts {
               gap: 11px;
@@ -326,6 +340,11 @@ export default function Help() {
                 10px
                 56px;
             }
+
+            .cpmku-help-purpose {
+              font-size: 13px;
+              line-height: 1.65;
+            }
           }
         `}
       </style>
@@ -339,46 +358,42 @@ export default function Help() {
       </h1>
 
       <p>
-        Cpmku menggunakan Sistem Admin
-        sebagai perantara transaksi.
-        Untuk masalah transaksi, gunakan
-        chat pada room transaksi sebelum
-        menekan DONE.
+        Temukan kontak resmi CPMKU
+        untuk mendapatkan bantuan,
+        melaporkan kendala, atau
+        mendapatkan informasi terbaru
+        mengenai CPMKU.
       </p>
 
       <div className="help-card">
         <h2>
-          Alur transaksi
+          Bantuan CPMKU
         </h2>
 
-        <ol>
-          <li>
-            Pilih produk yang tersedia.
-          </li>
-
-          <li>
-            Buat order dan lihat QRIS.
-          </li>
-
-          <li>
-            Bayar manual menggunakan
-            Product ID sebagai identifikasi.
-          </li>
-
-          <li>
-            Admin memverifikasi pembayaran
-            dan memanggil seller.
-          </li>
-
-          <li>
-            Gunakan chat jika ada kendala.
-          </li>
-
-          <li>
-            Buyer menekan DONE setelah
-            menerima item.
-          </li>
-        </ol>
+        <p className="cpmku-help-purpose">
+          Halaman bantuan CPMKU digunakan
+          sebagai pusat kontak resmi untuk
+          membantu pengguna ketika mengalami
+          kendala atau membutuhkan informasi.
+          <br />
+          <br />
+          Untuk masalah transaksi, gunakan
+          <strong>
+            {' '}Customer Service
+          </strong>
+          . Untuk kebutuhan yang berkaitan
+          dengan pengembangan atau teknis
+          CPMKU, hubungi
+          <strong>
+            {' '}Developer
+          </strong>
+          . Untuk mendapatkan informasi dan
+          update dari CPMKU, bergabung dengan
+          <strong>
+            {' '}CPMKU Community
+          </strong>
+          .
+        </p>
 
         <div className="cpmku-help-contacts">
           {contacts.map(
