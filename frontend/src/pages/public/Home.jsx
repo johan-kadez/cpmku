@@ -77,9 +77,9 @@ export default function Home() {
             align-items: center;
             justify-content: center;
             transition:
-              background .2s ease,
-              border-color .2s ease,
-              box-shadow .2s ease;
+              background .22s ease,
+              border-color .22s ease,
+              box-shadow .22s ease;
           }
 
           .cpmku-home-action:hover,
@@ -97,9 +97,7 @@ export default function Home() {
             height: 100%;
             gap: 0;
             white-space: nowrap;
-            transition:
-              gap .2s ease,
-              transform .2s ease;
+            transition: gap .22s ease;
           }
 
           .cpmku-home-action.expanded .cpmku-home-action-inner,
@@ -131,13 +129,83 @@ export default function Home() {
             font-weight: 500;
             transition:
               max-width .22s ease,
-              opacity .16s ease;
+              opacity .18s ease;
           }
 
           .cpmku-home-action.expanded .cpmku-home-label,
           .cpmku-home-social.expanded .cpmku-home-label {
-            max-width: 100px;
+            max-width: 110px;
             opacity: 1;
+          }
+
+          .cpmku-home-action.expanded {
+            background: rgba(37,99,235,0.18);
+            border-color: rgba(59,130,246,0.55);
+            box-shadow: 0 0 24px rgba(37,99,235,0.14);
+          }
+
+          .cpmku-home-action.expanded .cpmku-home-icon,
+          .cpmku-home-action.expanded .cpmku-home-label {
+            color: #60a5fa;
+          }
+
+          .cpmku-home-action.expanded:hover {
+            background: rgba(37,99,235,0.22);
+            border-color: rgba(59,130,246,0.65);
+          }
+
+          .cpmku-home-cs.expanded {
+            background: rgba(239,68,68,0.18);
+            border-color: rgba(248,113,113,0.55);
+            box-shadow: 0 0 24px rgba(239,68,68,0.14);
+          }
+
+          .cpmku-home-cs.expanded .cpmku-home-label {
+            color: #f87171;
+          }
+
+          .cpmku-home-cs.expanded:hover {
+            background: rgba(239,68,68,0.22);
+            border-color: rgba(248,113,113,0.65);
+          }
+
+          .cpmku-home-tiktok.expanded {
+            background: rgba(239,68,68,0.18);
+            border-color: rgba(248,113,113,0.55);
+            box-shadow: 0 0 24px rgba(239,68,68,0.14);
+          }
+
+          .cpmku-home-tiktok.expanded .cpmku-home-icon,
+          .cpmku-home-tiktok.expanded .cpmku-home-label {
+            color: #f87171;
+          }
+
+          .cpmku-home-tiktok.expanded:hover {
+            background: rgba(239,68,68,0.22);
+            border-color: rgba(248,113,113,0.65);
+          }
+
+          .cpmku-home-discord.expanded {
+            background: rgba(37,99,235,0.18);
+            border-color: rgba(96,165,250,0.55);
+            box-shadow: 0 0 24px rgba(37,99,235,0.14);
+          }
+
+          .cpmku-home-discord.expanded .cpmku-home-icon,
+          .cpmku-home-discord.expanded .cpmku-home-label {
+            color: #60a5fa;
+          }
+
+          .cpmku-home-discord.expanded:hover {
+            background: rgba(37,99,235,0.22);
+            border-color: rgba(96,165,250,0.65);
+          }
+
+          .cpmku-home-cs-icon {
+            width: 23px;
+            height: 23px;
+            flex: 0 0 23px;
+            object-fit: contain;
           }
 
           .cpmku-home-info {
@@ -231,6 +299,7 @@ export default function Home() {
                 <span className="cpmku-home-icon cpmku-home-product-icon">
                   ⛟
                 </span>
+
                 <span className="cpmku-home-label">
                   Lihat Produk
                 </span>
@@ -238,7 +307,7 @@ export default function Home() {
             </Link>
 
             <Link
-              className={`cpmku-home-action ${
+              className={`cpmku-home-action cpmku-home-cs ${
                 expanded === 'cs' ? 'expanded' : ''
               }`}
               to="/help"
@@ -251,10 +320,11 @@ export default function Home() {
             >
               <span className="cpmku-home-action-inner">
                 <img
-                  className="cpmku-home-icon"
+                  className="cpmku-home-cs-icon"
                   src="https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg"
                   alt=""
                 />
+
                 <span className="cpmku-home-label">
                   CS Contact
                 </span>
@@ -264,7 +334,7 @@ export default function Home() {
 
           <div className="cpmku-home-socials">
             <a
-              className={`cpmku-home-social ${
+              className={`cpmku-home-social cpmku-home-tiktok ${
                 expanded === 'tiktok' ? 'expanded' : ''
               }`}
               href="https://share.google/OQsYy8Aj59S3232MJ"
@@ -295,7 +365,7 @@ export default function Home() {
             </a>
 
             <a
-              className={`cpmku-home-social ${
+              className={`cpmku-home-social cpmku-home-discord ${
                 expanded === 'discord' ? 'expanded' : ''
               }`}
               href="https://share.google/6nJJ8BeHdknMWJOj5"
@@ -316,7 +386,7 @@ export default function Home() {
                   xmlns="http://www.w3.org/2000/svg"
                   aria-hidden="true"
                 >
-                  <path d="M19.54 5.1A16.9 16.9 0 0 0 15.4 3.82l-.53 1.08a15.4 15.4 0 0 0-4.74 0L9.6 3.82A16.9 16.9 0 0 0 5.46 5.1C2.84 9.03 2.13 12.86 2.48 16.64a16.8 16.8 0 0 0 5.08 2.57l1.23-1.67a10.6 10.6 0 0 1-1.93-.93l.47-.36c3.72 1.74 7.77 1.74 11.45 0l.48.36c-.62.36-1.27.67-1.94.93l1.23 1.67a16.8 16.8 0 0 0 5.08-2.57c.41-4.38-.7-8.17-2.59-11.54ZM8.73 14.42c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.9 2.28-2.03 2.28Zm6.54 0c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.05 2.28s-.91 2.28-2.05 2.28Z" />
+                  <path d="M19.54 5.1A16.9 16.9 0 0 0 15.4 3.82l-.53 1.08a15.4 15.4 0 0 0-4.74 0L9.6 3.82A16.9 16.9 0 0 0 5.46 5.1C2.84 9.03 2.13 12.86 2.48 16.64a16.8 16.8 0 0 0 5.08 2.57l1.23-1.67a10.6 10.6 0 0 1-1.93-.93l.47-.36c3.72 1.74 7.77 1.74 11.45 0l.48.36c-.62.36-1.27.67-1.94.93l1.23 1.67a16.8 16.8 0 0 0 5.08-2.57c.41-4.38-.7-8.17-2.59-11.54ZM8.73 14.42c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.9 2.28-2.03 2.28Zm6.54 0c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.91 2.28-2.05 2.28Z" />
                 </svg>
 
                 <span className="cpmku-home-label">
