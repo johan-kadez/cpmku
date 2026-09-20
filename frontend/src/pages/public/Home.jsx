@@ -17,7 +17,7 @@ export default function Home() {
     }, 1800);
   };
 
-  const handleAction = (name, navigate) => {
+  const handleAction = (name) => {
     if (expanded !== name) {
       expand(name);
       return false;
@@ -25,10 +25,6 @@ export default function Home() {
 
     if (collapseTimer.current) {
       clearTimeout(collapseTimer.current);
-    }
-
-    if (navigate) {
-      navigate();
     }
 
     setExpanded(null);
@@ -79,8 +75,9 @@ export default function Home() {
 
           .cpmku-home-actions,
           .cpmku-home-socials {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            display: flex;
+            justify-content: center;
+            align-items: center;
             gap: 10px;
             width: 100%;
           }
@@ -95,9 +92,10 @@ export default function Home() {
 
           .cpmku-home-action,
           .cpmku-home-social {
-            width: 100%;
+            width: 50px;
             height: 50px;
-            min-width: 0;
+            min-width: 50px;
+            max-width: 50px;
             box-sizing: border-box;
             display: flex;
             align-items: center;
@@ -113,19 +111,29 @@ export default function Home() {
             text-decoration: none;
             transition:
               width .28s cubic-bezier(.22,1,.36,1),
+              min-width .28s cubic-bezier(.22,1,.36,1),
+              max-width .28s cubic-bezier(.22,1,.36,1),
               background .28s ease,
               border-color .28s ease,
               box-shadow .28s ease;
           }
 
+          .cpmku-home-action.expanded,
+          .cpmku-home-social.expanded {
+            width: 145px;
+            min-width: 145px;
+            max-width: 145px;
+          }
+
           .cpmku-home-action-inner,
           .cpmku-home-social-inner {
+            width: 50px;
+            min-width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0;
-            width: 50px;
-            height: 50px;
             flex-shrink: 0;
             transition:
               width .28s cubic-bezier(.22,1,.36,1),
@@ -134,7 +142,7 @@ export default function Home() {
 
           .cpmku-home-action.expanded .cpmku-home-action-inner,
           .cpmku-home-social.expanded .cpmku-home-social-inner {
-            width: 100%;
+            width: 145px;
             gap: 9px;
           }
 
@@ -168,7 +176,7 @@ export default function Home() {
             font-size: 14px;
             font-weight: 500;
             line-height: 1;
-            transform: translateX(-4px);
+            transform: translateX(-5px);
             transition:
               max-width .28s cubic-bezier(.22,1,.36,1),
               opacity .18s ease,
@@ -177,7 +185,7 @@ export default function Home() {
 
           .cpmku-home-action.expanded .cpmku-home-label,
           .cpmku-home-social.expanded .cpmku-home-label {
-            max-width: 110px;
+            max-width: 100px;
             opacity: 1;
             transform: translateX(0);
           }
@@ -277,13 +285,29 @@ export default function Home() {
 
             .cpmku-home-action,
             .cpmku-home-social {
+              width: 48px;
+              min-width: 48px;
+              max-width: 48px;
               height: 48px;
+            }
+
+            .cpmku-home-action.expanded,
+            .cpmku-home-social.expanded {
+              width: 140px;
+              min-width: 140px;
+              max-width: 140px;
             }
 
             .cpmku-home-action-inner,
             .cpmku-home-social-inner {
               width: 48px;
+              min-width: 48px;
               height: 48px;
+            }
+
+            .cpmku-home-action.expanded .cpmku-home-action-inner,
+            .cpmku-home-social.expanded .cpmku-home-social-inner {
+              width: 140px;
             }
 
             .cpmku-home-info {
@@ -319,7 +343,7 @@ export default function Home() {
               }`}
               to="/products"
               onClick={(event) => {
-                if (!handleAction('products', () => {})) {
+                if (!handleAction('products')) {
                   event.preventDefault();
                 }
               }}
@@ -341,7 +365,7 @@ export default function Home() {
               }`}
               to="/help"
               onClick={(event) => {
-                if (!handleAction('cs', () => {})) {
+                if (!handleAction('cs')) {
                   event.preventDefault();
                 }
               }}
@@ -369,7 +393,7 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(event) => {
-                if (!handleAction('tiktok', () => {})) {
+                if (!handleAction('tiktok')) {
                   event.preventDefault();
                 }
               }}
@@ -399,7 +423,7 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(event) => {
-                if (!handleAction('discord', () => {})) {
+                if (!handleAction('discord')) {
                   event.preventDefault();
                 }
               }}
