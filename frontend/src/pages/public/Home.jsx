@@ -81,20 +81,11 @@ export default function Home() {
             transform: translateY(-1px);
           }
 
-          .cpmku-home-product-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 8px;
-            font-size: 20px;
-            line-height: 1;
-          }
-
-          .cpmku-home-logo {
+          .cpmku-home-actions img {
             width: 22px;
             height: 22px;
             object-fit: contain;
-            display: block;
+            margin-right: 8px;
           }
 
           .cpmku-home-info {
@@ -176,13 +167,11 @@ export default function Home() {
 
           <div className="cpmku-home-actions">
             <Link to="/products">
-              <span className="cpmku-home-product-icon">⛟</span>
               Lihat Produk
             </Link>
 
             <Link to="/help">
               <img
-                className="cpmku-home-logo"
                 src="https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg"
                 alt=""
               />
@@ -195,26 +184,16 @@ export default function Home() {
               href="https://share.google/OQsYy8Aj59S3232MJ"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="TikTok"
             >
-              <img
-                className="cpmku-home-logo"
-                src="https://www.tiktok.com/favicon.ico"
-                alt="TikTok"
-              />
+              TikTok
             </a>
 
             <a
               href="https://share.google/6nJJ8BeHdknMWJOj5"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Discord"
             >
-              <img
-                className="cpmku-home-logo"
-                src="https://cdn.simpleicons.org/discord/ffffff"
-                alt="Discord"
-              />
+              Discord
             </a>
           </div>
         </section>
