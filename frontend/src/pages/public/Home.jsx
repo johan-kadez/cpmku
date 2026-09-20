@@ -81,11 +81,20 @@ export default function Home() {
             transform: translateY(-1px);
           }
 
-          .cpmku-home-actions img {
+          .cpmku-home-social-icon {
+            width: 21px;
+            height: 21px;
+            margin-right: 8px;
+            flex-shrink: 0;
+            display: block;
+          }
+
+          .cpmku-home-cs-icon {
             width: 22px;
             height: 22px;
-            object-fit: contain;
             margin-right: 8px;
+            flex-shrink: 0;
+            object-fit: contain;
           }
 
           .cpmku-home-info {
@@ -139,6 +148,12 @@ export default function Home() {
               padding: 11px 10px;
             }
 
+            .cpmku-home-social-icon {
+              width: 19px;
+              height: 19px;
+              margin-right: 7px;
+            }
+
             .cpmku-home-info {
               margin-top: 40px;
               padding: 0 16px;
@@ -172,6 +187,7 @@ export default function Home() {
 
             <Link to="/help">
               <img
+                className="cpmku-home-cs-icon"
                 src="https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg"
                 alt=""
               />
@@ -184,7 +200,20 @@ export default function Home() {
               href="https://share.google/OQsYy8Aj59S3232MJ"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="TikTok"
             >
+              <svg
+                className="cpmku-home-social-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M16.6 5.82A4.55 4.55 0 0 1 14.1 3h-3.04v12.23a2.67 2.67 0 1 1-2.67-2.67c.23 0 .46.03.67.08V9.55a5.68 5.68 0 1 0 5.04 5.65V9a7.54 7.54 0 0 0 4.42 1.42V7.38a4.56 4.56 0 0 1-1.92-1.56Z"
+                  fill="currentColor"
+                />
+              </svg>
               TikTok
             </a>
 
@@ -192,7 +221,17 @@ export default function Home() {
               href="https://share.google/6nJJ8BeHdknMWJOj5"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Discord"
             >
+              <svg
+                className="cpmku-home-social-icon"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M19.54 5.1A16.9 16.9 0 0 0 15.4 3.82l-.53 1.08a15.4 15.4 0 0 0-4.74 0L9.6 3.82A16.9 16.9 0 0 0 5.46 5.1C2.84 9.03 2.13 12.86 2.48 16.64a16.8 16.8 0 0 0 5.08 2.57l1.23-1.67a10.6 10.6 0 0 1-1.93-.93l.47-.36c3.72 1.74 7.77 1.74 11.45 0l.48.36c-.62.36-1.27.67-1.94.93l1.23 1.67a16.8 16.8 0 0 0 5.08-2.57c.41-4.38-.7-8.17-2.59-11.54ZM8.73 14.42c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.9 2.28-2.03 2.28Zm6.54 0c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.9 2.28-2.03 2.28Z" />
+              </svg>
               Discord
             </a>
           </div>
@@ -227,3 +266,4 @@ export default function Home() {
     </>
   );
 }
+```1
