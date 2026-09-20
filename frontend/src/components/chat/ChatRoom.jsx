@@ -73,27 +73,47 @@ export default function ChatRoom({
     PAYMENT_CONFIG.qrisUrl
   );
 
-  useEffect(
-    () =>
-      onSnapshot(
-        doc(
-          db,
-          'settings',
-          'main'
-        ),
-        snap => {
-          if (
-            snap.exists()
-          ) {
-            setQrisUrl(
-              snap.data()
-                .qrisUrl || ''
-            );
-          }
-        }
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      doc(
+        db,
+        'settings',
+        'main'
       ),
-    []
-  );
+      snap => {
+        if (
+          snap.exists()
+        ) {
+          setQrisUrl(
+            snap.data()
+              .qrisUrl || ''
+          );
+        }
+      },
+      () => {}
+    );
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!floating) {
+      return;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow =
+      'hidden';
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, [
+    floating
+  ]);
 
   if (!room) {
     return null;
@@ -122,44 +142,43 @@ export default function ChatRoom({
     }
   };
 
-  const done =
-    async () => {
-      if (
-        role !== 'buyer' ||
-        room.status !==
-          'in_transaction'
-      ) {
-        return;
-      }
+  const done = async () => {
+    if (
+      role !== 'buyer' ||
+      room.status !==
+        'in_transaction'
+    ) {
+      return;
+    }
 
-      try {
-        await api(
-          `/orders/${room.orderId}/done`,
-          {
-            method:
-              'POST'
-          }
-        );
+    try {
+      await api(
+        `/orders/${room.orderId}/done`,
+        {
+          method:
+            'POST'
+        }
+      );
 
-        showToast(
-          'Transaksi selesai',
-          'Transaksi berhasil diselesaikan.'
-        );
-      } catch (error) {
-        showToast(
-          'Transaksi gagal diselesaikan',
-          error?.message ||
-            'Terjadi kesalahan.'
-        );
-      }
-    };
+      showToast(
+        'Transaksi selesai',
+        'Transaksi berhasil diselesaikan.'
+      );
+    } catch (error) {
+      showToast(
+        'Transaksi gagal diselesaikan',
+        error?.message ||
+          'Terjadi kesalahan.'
+      );
+    }
+  };
 
   return (
     <section
       className={
         floating
           ? 'chat-room floating-chat-room'
-          : 'chat-room'
+          : 'chat-room transaction-chat-room'
       }
     >
       <header>
@@ -171,24 +190,20 @@ export default function ChatRoom({
             }
           </b>
 
-          {!floating && (
-            <small>
-              Buyer + Seller + Admin
-            </small>
-          )}
+          <small>
+            Buyer + Seller + Admin
+          </small>
         </div>
 
         <div className="chat-header-actions">
-          {!floating && (
-            <button
-              type="button"
-              onClick={() =>
-                setQris(true)
-              }
-            >
-              Lihat QRIS
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() =>
+              setQris(true)
+            }
+          >
+            Lihat QRIS
+          </button>
 
           {floating && (
             <button
@@ -204,58 +219,63 @@ export default function ChatRoom({
       </header>
 
       {error && (
-        <div className="notice error">
+        <div className="notice error chat-error">
           {error}
         </div>
       )}
 
       <div className="messages">
-        {messages.map(
-          message => {
-            const messageRole =
-              message.role ||
-              message.senderRole ||
-              'buyer';
+        {messages.length === 0 ? (
+          <div className="chat-empty">
+            Belum ada pesan.
+          </div>
+        ) : (
+          messages.map(
+            message => {
+              const messageRole =
+                message.role ||
+                message.senderRole ||
+                'buyer';
 
-            return (
-              <div
-                className={
-                  `msg ${
-                    message.senderUid ===
-                    user?.uid
-                      ? 'mine'
-                      : ''
-                  }`
-                }
-                key={
-                  message.id
-                }
-              >
-                <b>
-                  {
-                    message.senderName
-                  }{' '}
-                  <small>
-                    •{' '}
-                    {
-                      messageRole
-                    }
-                  </small>
-                </b>
-
-                <p>
-                  {
-                    message.body
+              return (
+                <div
+                  className={
+                    `msg ${
+                      message.senderUid ===
+                      user?.uid
+                        ? 'mine'
+                        : ''
+                    }`
                   }
-                </p>
-              </div>
-            );
-          }
+                  key={
+                    message.id
+                  }
+                >
+                  <b>
+                    {
+                      message.senderName
+                    }{' '}
+                    <small>
+                      •{' '}
+                      {
+                        messageRole
+                      }
+                    </small>
+                  </b>
+
+                  <p>
+                    {
+                      message.body
+                    }
+                  </p>
+                </div>
+              );
+            }
+          )
         )}
       </div>
 
-      {role ===
-        'buyer' &&
+      {role === 'buyer' &&
         room.status ===
           'in_transaction' && (
           <div className="chat-actions">
@@ -269,6 +289,7 @@ export default function ChatRoom({
         )}
 
       <form
+        className="chat-composer"
         onSubmit={submit}
       >
         <input
@@ -279,9 +300,13 @@ export default function ChatRoom({
             )
           }
           placeholder="Tulis pesan..."
+          autoComplete="off"
         />
 
-        <button type="submit">
+        <button
+          type="submit"
+          disabled={!text.trim()}
+        >
           Kirim
         </button>
       </form>
