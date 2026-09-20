@@ -11,12 +11,16 @@ import {
   env
 } from '../config/env.js';
 
+import {
+  approveOrder,
+  rejectOrder
+} from './adminActions.js';
+
 const COLLECTIONS = {
   sellers: 'registrations',
   products: 'products',
   orders: 'orders',
   payments: 'payments',
-  rooms: 'rooms',
   users: 'users'
 };
 
@@ -66,7 +70,7 @@ export async function dashboard() {
 
   const activeSellers =
     sellers.docs.filter(
-      (doc) =>
+      doc =>
         doc.data()?.banned !== true
     ).length;
 
@@ -108,7 +112,7 @@ export async function listCollection(
 
   const items =
     snap.docs.map(
-      (doc) => ({
+      doc => ({
         id: doc.id,
         ...doc.data()
       })
@@ -216,6 +220,47 @@ export async function setStatus(
   id,
   status
 ) {
+  if (!id) {
+    throw new HttpError(
+      400,
+      'ID data wajib diisi.'
+    );
+  }
+
+  if (
+    type === 'orders'
+  ) {
+    if (
+      status === 'approved'
+    ) {
+      return approveOrder(id);
+    }
+
+    if (
+      status === 'rejected'
+    ) {
+      return rejectOrder(id);
+    }
+
+    if (
+      status !== 'cancelled'
+    ) {
+      throw new HttpError(
+        400,
+        'Status order tidak valid.'
+      );
+    }
+  }
+
+  if (
+    type === 'rooms'
+  ) {
+    throw new HttpError(
+      400,
+      'Room tidak menggunakan status approve/reject. Gunakan lifecycle transaksi.'
+    );
+  }
+
   const collection =
     COLLECTIONS[type];
 
@@ -244,10 +289,6 @@ export async function setStatus(
     payments: [
       'verified',
       'rejected'
-    ],
-
-    rooms: [
-      'cancelled'
     ]
   };
 
@@ -259,13 +300,6 @@ export async function setStatus(
     throw new HttpError(
       400,
       'Status tidak valid.'
-    );
-  }
-
-  if (!id) {
-    throw new HttpError(
-      400,
-      'ID data wajib diisi.'
     );
   }
 
@@ -424,25 +458,34 @@ export async function setStatus(
         updatedAt:
           FieldValue.serverTimestamp()
       });
-    } else {
-      await ref.update({
+
+      return {
+        ok: true,
         status:
-          'rejected',
-
-        visibility:
-          'private',
-
-        rejectedAt:
-          FieldValue.serverTimestamp(),
-
-        updatedAt:
-          FieldValue.serverTimestamp()
-      });
+          'approved',
+        actualStatus:
+          'available'
+      };
     }
+
+    await ref.update({
+      status:
+        'rejected',
+
+      visibility:
+        'private',
+
+      rejectedAt:
+        FieldValue.serverTimestamp(),
+
+      updatedAt:
+        FieldValue.serverTimestamp()
+    });
 
     return {
       ok: true,
-      status
+      status:
+        'rejected'
     };
   }
 
@@ -450,8 +493,21 @@ export async function setStatus(
     type === 'orders' &&
     status === 'cancelled'
   ) {
+    const order =
+      snap.data();
+
+    if (
+      order.status !==
+      'in_transaction'
+    ) {
+      throw new HttpError(
+        409,
+        'Order tidak sedang aktif.'
+      );
+    }
+
     return db.runTransaction(
-      async (transaction) => {
+      async transaction => {
         const fresh =
           await transaction.get(
             ref
@@ -464,11 +520,11 @@ export async function setStatus(
           );
         }
 
-        const order =
+        const current =
           fresh.data();
 
         if (
-          order.status !==
+          current.status !==
           'in_transaction'
         ) {
           throw new HttpError(
@@ -479,28 +535,22 @@ export async function setStatus(
 
         const productRef =
           db
-            .collection(
-              'products'
-            )
+            .collection('products')
             .doc(
-              order.productId
+              current.productId
             );
 
         const roomRef =
           db
-            .collection(
-              'rooms'
-            )
+            .collection('rooms')
             .doc(
-              order.roomId ||
+              current.roomId ||
               id
             );
 
         const paymentRef =
           db
-            .collection(
-              'payments'
-            )
+            .collection('payments')
             .doc(id);
 
         const [
@@ -538,9 +588,8 @@ export async function setStatus(
 
         if (
           product.exists &&
-          product.data()
-            .status ===
-          'in_transaction'
+          product.data()?.status ===
+            'in_transaction'
         ) {
           transaction.update(
             productRef,
@@ -577,15 +626,17 @@ export async function setStatus(
 
         if (
           payment.exists &&
-          payment.data()
-            .status ===
-          'pending'
+          payment.data()?.status ===
+            'pending'
         ) {
           transaction.update(
             paymentRef,
             {
               status:
                 'rejected',
+
+              rejectedAt:
+                FieldValue.serverTimestamp(),
 
               updatedAt:
                 FieldValue.serverTimestamp()
@@ -608,12 +659,29 @@ export async function setStatus(
     const payment =
       snap.data();
 
+    if (
+      ![
+        'pending'
+      ].includes(
+        payment.status
+      )
+    ) {
+      throw new HttpError(
+        409,
+        'Pembayaran ini sudah diproses.'
+      );
+    }
+
     const orderRef =
       db
         .collection('orders')
         .doc(
-          payment.orderId
+          payment.orderId ||
+          id
         );
+
+    const orderSnap =
+      await orderRef.get();
 
     if (
       status === 'verified'
@@ -629,13 +697,17 @@ export async function setStatus(
           FieldValue.serverTimestamp()
       });
 
-      await orderRef.update({
-        paymentStatus:
-          'verified',
+      if (
+        orderSnap.exists
+      ) {
+        await orderRef.update({
+          paymentStatus:
+            'verified',
 
-        updatedAt:
-          FieldValue.serverTimestamp()
-      });
+          updatedAt:
+            FieldValue.serverTimestamp()
+        });
+      }
     } else {
       await ref.update({
         status:
@@ -648,30 +720,18 @@ export async function setStatus(
           FieldValue.serverTimestamp()
       });
 
-      await orderRef.update({
-        paymentStatus:
-          'rejected',
+      if (
+        orderSnap.exists
+      ) {
+        await orderRef.update({
+          paymentStatus:
+            'rejected',
 
-        updatedAt:
-          FieldValue.serverTimestamp()
-      });
+          updatedAt:
+            FieldValue.serverTimestamp()
+        });
+      }
     }
-
-    return {
-      ok: true,
-      status
-    };
-  }
-
-  if (
-    type === 'rooms'
-  ) {
-    await ref.update({
-      status,
-
-      updatedAt:
-        FieldValue.serverTimestamp()
-    });
 
     return {
       ok: true,
@@ -1124,9 +1184,7 @@ export async function saveSettings(
   }
 
   await db
-    .collection(
-      'settings'
-    )
+    .collection('settings')
     .doc('main')
     .set(
       {
