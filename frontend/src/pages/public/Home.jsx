@@ -8,7 +8,7 @@ export default function Home() {
           .cpmku-home {
             max-width: 900px;
             margin: 0 auto;
-            padding: 18px 0 110px;
+            padding: 8px 0 110px;
           }
 
           .cpmku-home-intro {
@@ -16,7 +16,7 @@ export default function Home() {
             flex-direction: column;
             align-items: center;
             text-align: center;
-            padding: 34px 20px 0;
+            padding: 12px 20px 0;
           }
 
           .cpmku-home-intro h1 {
@@ -29,74 +29,106 @@ export default function Home() {
 
           .cpmku-home-intro p {
             max-width: 720px;
-            margin: 16px auto 0;
+            margin: 14px auto 0;
             color: #9ba7bb;
             font-size: 15px;
             line-height: 1.7;
           }
 
-          .cpmku-home-actions {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            width: 100%;
-            margin-top: 24px;
-          }
-
-          .cpmku-home-actions .button {
-            min-width: 140px;
-            text-align: center;
-          }
-
+          .cpmku-home-actions,
           .cpmku-home-socials {
             display: flex;
             justify-content: center;
             gap: 12px;
             width: 100%;
-            margin-top: 12px;
           }
 
+          .cpmku-home-actions {
+            margin-top: 20px;
+          }
+
+          .cpmku-home-socials {
+            margin-top: 10px;
+          }
+
+          .cpmku-home-actions a,
           .cpmku-home-socials a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             min-width: 140px;
+            min-height: 48px;
             box-sizing: border-box;
-            text-align: center;
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(59,130,246,0.18);
+            background: rgba(18,24,36,0.58);
+            backdrop-filter: blur(16px) saturate(140%);
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
+            color: #fff;
+            text-decoration: none;
+            box-shadow: none;
+            transition:
+              background .18s ease,
+              border-color .18s ease,
+              transform .18s ease;
+          }
+
+          .cpmku-home-actions a:hover,
+          .cpmku-home-socials a:hover {
+            background: rgba(37,99,235,0.12);
+            border-color: rgba(59,130,246,0.34);
+            transform: translateY(-1px);
+          }
+
+          .cpmku-home-product-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            font-size: 20px;
+            line-height: 1;
+          }
+
+          .cpmku-home-logo {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
+            display: block;
           }
 
           .cpmku-home-info {
-            margin-top: 52px;
-            padding: 28px 24px;
-            border: 1px solid rgba(255,255,255,.08);
-            border-radius: 22px;
-            background: rgba(20,20,20,.58);
-            box-shadow:
-              inset 0 1px 0 rgba(255,255,255,.03),
-              0 18px 45px rgba(0,0,0,.14);
+            max-width: 760px;
+            margin: 48px auto 0;
+            padding: 0 20px;
+            text-align: center;
           }
 
           .cpmku-home-info h2 {
-            margin: 0 0 18px;
+            margin: 0 0 16px;
             color: #fff;
             font-size: 22px;
+            line-height: 1.3;
           }
 
           .cpmku-home-info p {
             margin: 0;
             color: #a3adbd;
             font-size: 14px;
-            line-height: 1.8;
+            line-height: 1.85;
           }
 
           .cpmku-home-info p + p {
-            margin-top: 14px;
+            margin-top: 12px;
           }
 
           @media(max-width:560px) {
             .cpmku-home {
-              padding-top: 8px;
+              padding-top: 4px;
             }
 
             .cpmku-home-intro {
-              padding-top: 26px;
+              padding: 8px 16px 0;
             }
 
             .cpmku-home-intro h1 {
@@ -108,15 +140,25 @@ export default function Home() {
               gap: 8px;
             }
 
-            .cpmku-home-actions .button,
+            .cpmku-home-actions a,
             .cpmku-home-socials a {
               min-width: 0;
               flex: 1;
+              min-height: 46px;
+              padding: 11px 10px;
             }
 
             .cpmku-home-info {
-              margin-top: 42px;
-              padding: 24px 20px;
+              margin-top: 40px;
+              padding: 0 16px;
+            }
+
+            .cpmku-home-info h2 {
+              font-size: 20px;
+            }
+
+            .cpmku-home-info p {
+              font-size: 13.5px;
             }
           }
         `}
@@ -133,34 +175,46 @@ export default function Home() {
           </p>
 
           <div className="cpmku-home-actions">
-            <Link
-              className="button primary"
-              to="/products"
-            >
+            <Link to="/products">
+              <span className="cpmku-home-product-icon">⛟</span>
               Lihat Produk
             </Link>
 
-            <Link
-              className="button"
-              to="/help"
-            >
+            <Link to="/help">
+              <img
+                className="cpmku-home-logo"
+                src="https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg"
+                alt=""
+              />
               CS Contact
             </Link>
           </div>
 
           <div className="cpmku-home-socials">
             <a
-              className="button"
-              href=""
+              href="https://share.google/OQsYy8Aj59S3232MJ"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="TikTok"
             >
-              TikTok
+              <img
+                className="cpmku-home-logo"
+                src="https://www.tiktok.com/favicon.ico"
+                alt="TikTok"
+              />
             </a>
 
             <a
-              className="button"
-              href=""
+              href="https://share.google/6nJJ8BeHdknMWJOj5"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Discord"
             >
-              Discord
+              <img
+                className="cpmku-home-logo"
+                src="https://cdn.simpleicons.org/discord/ffffff"
+                alt="Discord"
+              />
             </a>
           </div>
         </section>
