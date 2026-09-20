@@ -33,9 +33,10 @@ export async function approveOrder(
 
   return db.runTransaction(
     async tx => {
-      const orderRef = db
-        .collection('orders')
-        .doc(orderId);
+      const orderRef =
+        db
+          .collection('orders')
+          .doc(orderId);
 
       const orderSnap =
         await tx.get(
@@ -66,11 +67,12 @@ export async function approveOrder(
         );
       }
 
-      const productRef = db
-        .collection('products')
-        .doc(
-          order.productId
-        );
+      const productRef =
+        db
+          .collection('products')
+          .doc(
+            order.productId
+          );
 
       const productSnap =
         await tx.get(
@@ -99,13 +101,15 @@ export async function approveOrder(
         );
       }
 
-      const roomRef = db
-        .collection('rooms')
-        .doc(orderId);
+      const roomRef =
+        db
+          .collection('rooms')
+          .doc(orderId);
 
-      const paymentRef = db
-        .collection('payments')
-        .doc(orderId);
+      const paymentRef =
+        db
+          .collection('payments')
+          .doc(orderId);
 
       const adminUid =
         getAdminUid();
@@ -115,8 +119,10 @@ export async function approveOrder(
         {
           status:
             'in_transaction',
+
           visibility:
             'private',
+
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -127,12 +133,16 @@ export async function approveOrder(
         {
           status:
             'in_transaction',
+
           roomId:
             roomRef.id,
+
           paymentStatus:
             'pending',
+
           approvedAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -143,15 +153,21 @@ export async function approveOrder(
         {
           roomId:
             roomRef.id,
+
           orderId,
+
           productId:
             order.productId,
+
           productName:
             order.productName || '',
+
           buyerUid:
             order.buyerUid,
+
           sellerUid:
             order.sellerUid,
+
           participantUids:
             [
               order.buyerUid,
@@ -159,12 +175,16 @@ export async function approveOrder(
                 ? [adminUid]
                 : [])
             ],
+
           sellerCalled:
             false,
+
           status:
             'in_transaction',
+
           createdAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -174,22 +194,31 @@ export async function approveOrder(
         paymentRef,
         {
           orderId,
+
           productId:
             order.productId,
+
           productName:
             order.productName || '',
+
           buyerUid:
             order.buyerUid,
+
           sellerUid:
             order.sellerUid,
+
           amount:
             Number(order.amount),
+
           paymentMethod:
             'qris',
+
           status:
             'pending',
+
           createdAt:
             FieldValue.serverTimestamp(),
+
           updatedAt:
             FieldValue.serverTimestamp()
         }
@@ -197,9 +226,12 @@ export async function approveOrder(
 
       return {
         ok: true,
+
         status:
           'in_transaction',
+
         orderId,
+
         roomId:
           roomRef.id
       };
@@ -219,9 +251,10 @@ export async function rejectOrder(
 
   return db.runTransaction(
     async tx => {
-      const orderRef = db
-        .collection('orders')
-        .doc(orderId);
+      const orderRef =
+        db
+          .collection('orders')
+          .doc(orderId);
 
       const orderSnap =
         await tx.get(
@@ -252,56 +285,69 @@ export async function rejectOrder(
         );
       }
 
-      const productRef = db
-        .collection('products')
-        .doc(
-          order.productId
-        );
+      const productRef =
+        db
+          .collection('products')
+          .doc(
+            order.productId
+          );
 
-      const roomRef = db
-        .collection('rooms')
-        .doc(
-          order.roomId || orderId
-        );
+      const roomRef =
+        db
+          .collection('rooms')
+          .doc(
+            order.roomId ||
+            orderId
+          );
 
-      const paymentRef = db
-        .collection('payments')
-        .doc(orderId);
+      const paymentRef =
+        db
+          .collection('payments')
+          .doc(orderId);
 
       const [
         productSnap,
         roomSnap,
         paymentSnap
-      ] = await Promise.all([
-        tx.get(productRef),
-        tx.get(roomRef),
-        tx.get(paymentRef)
-      ]);
+      ] =
+        await Promise.all([
+          tx.get(productRef),
+          tx.get(roomRef),
+          tx.get(paymentRef)
+        ]);
 
       tx.delete(
         orderRef
       );
 
-      if (roomSnap.exists) {
+      if (
+        roomSnap.exists
+      ) {
         tx.delete(
           roomRef
         );
       }
 
-      if (paymentSnap.exists) {
+      if (
+        paymentSnap.exists
+      ) {
         tx.delete(
           paymentRef
         );
       }
 
-      if (productSnap.exists) {
+      if (
+        productSnap.exists
+      ) {
         tx.update(
           productRef,
           {
             status:
               'available',
+
             visibility:
               'public',
+
             updatedAt:
               FieldValue.serverTimestamp()
           }
@@ -310,8 +356,10 @@ export async function rejectOrder(
 
       return {
         ok: true,
+
         status:
           'rejected',
+
         orderId
       };
     }
@@ -330,9 +378,10 @@ export async function cancelOrder(
 
   return db.runTransaction(
     async tx => {
-      const orderRef = db
-        .collection('orders')
-        .doc(orderId);
+      const orderRef =
+        db
+          .collection('orders')
+          .doc(orderId);
 
       const orderSnap =
         await tx.get(
@@ -364,56 +413,69 @@ export async function cancelOrder(
         );
       }
 
-      const productRef = db
-        .collection('products')
-        .doc(
-          order.productId
-        );
+      const productRef =
+        db
+          .collection('products')
+          .doc(
+            order.productId
+          );
 
-      const roomRef = db
-        .collection('rooms')
-        .doc(
-          order.roomId || orderId
-        );
+      const roomRef =
+        db
+          .collection('rooms')
+          .doc(
+            order.roomId ||
+            orderId
+          );
 
-      const paymentRef = db
-        .collection('payments')
-        .doc(orderId);
+      const paymentRef =
+        db
+          .collection('payments')
+          .doc(orderId);
 
       const [
         productSnap,
         roomSnap,
         paymentSnap
-      ] = await Promise.all([
-        tx.get(productRef),
-        tx.get(roomRef),
-        tx.get(paymentRef)
-      ]);
+      ] =
+        await Promise.all([
+          tx.get(productRef),
+          tx.get(roomRef),
+          tx.get(paymentRef)
+        ]);
 
       tx.delete(
         orderRef
       );
 
-      if (roomSnap.exists) {
+      if (
+        roomSnap.exists
+      ) {
         tx.delete(
           roomRef
         );
       }
 
-      if (paymentSnap.exists) {
+      if (
+        paymentSnap.exists
+      ) {
         tx.delete(
           paymentRef
         );
       }
 
-      if (productSnap.exists) {
+      if (
+        productSnap.exists
+      ) {
         tx.update(
           productRef,
           {
             status:
               'available',
+
             visibility:
               'public',
+
             updatedAt:
               FieldValue.serverTimestamp()
           }
@@ -422,8 +484,10 @@ export async function cancelOrder(
 
       return {
         ok: true,
+
         status:
           'cancelled',
+
         orderId
       };
     }
@@ -440,9 +504,10 @@ export async function deleteProduct(
     );
   }
 
-  const productRef = db
-    .collection('products')
-    .doc(productId);
+  const productRef =
+    db
+      .collection('products')
+      .doc(productId);
 
   const snap =
     await productRef.get();
@@ -457,27 +522,45 @@ export async function deleteProduct(
   const product =
     snap.data() || {};
 
+  if (
+    product.status ===
+    'in_transaction'
+  ) {
+    throw new HttpError(
+      409,
+      'Produk sedang dalam transaksi dan tidak dapat dihapus.'
+    );
+  }
+
   const images =
-    Array.isArray(product.images)
+    Array.isArray(
+      product.images
+    )
       ? product.images
       : product.imageUrl
         ? [
             {
               url:
                 product.imageUrl,
-              publicId: ''
+
+              publicId:
+                ''
             }
           ]
         : [];
 
   await productRef.delete();
 
-  await destroyCloudinaryImages(
-    images
-  );
+  try {
+    await destroyCloudinaryImages(
+      images
+    );
+  } catch {
+  }
 
   return {
     ok: true,
+
     productId
   };
 }
@@ -492,9 +575,10 @@ export async function deletePayment(
     );
   }
 
-  const paymentRef = db
-    .collection('payments')
-    .doc(paymentId);
+  const paymentRef =
+    db
+      .collection('payments')
+      .doc(paymentId);
 
   const snap =
     await paymentRef.get();
@@ -506,10 +590,28 @@ export async function deletePayment(
     );
   }
 
+  const payment =
+    snap.data() || {};
+
+  if (
+    [
+      'pending',
+      'verified'
+    ].includes(
+      payment.status
+    )
+  ) {
+    throw new HttpError(
+      409,
+      'Pembayaran aktif atau terverifikasi tidak dapat dihapus.'
+    );
+  }
+
   await paymentRef.delete();
 
   return {
     ok: true,
+
     paymentId
   };
 }
@@ -524,9 +626,10 @@ export async function deleteRoom(
     );
   }
 
-  const roomRef = db
-    .collection('rooms')
-    .doc(roomId);
+  const roomRef =
+    db
+      .collection('rooms')
+      .doc(roomId);
 
   const snap =
     await roomRef.get();
@@ -538,10 +641,24 @@ export async function deleteRoom(
     );
   }
 
+  const room =
+    snap.data() || {};
+
+  if (
+    room.status ===
+    'in_transaction'
+  ) {
+    throw new HttpError(
+      409,
+      'Room sedang dalam transaksi dan tidak dapat dihapus.'
+    );
+  }
+
   await roomRef.delete();
 
   return {
     ok: true,
+
     roomId
   };
 }
