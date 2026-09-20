@@ -1,7 +1,16 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { api } from '../../services/api';
+
+import {
+  useNavigate
+} from 'react-router-dom';
+
+import {
+  useAuth
+} from '../../context/AuthContext';
+
+import {
+  api
+} from '../../services/api';
 
 export default function SellerApply() {
   const {
@@ -9,99 +18,167 @@ export default function SellerApply() {
     login
   } = useAuth();
 
-  const nav = useNavigate();
+  const nav =
+    useNavigate();
 
-  const [form, setForm] = useState({
-    name: user?.displayName || '',
-    phone: '',
-    email: user?.email || '',
-    reason: '',
-    photoUrl: user?.photoURL || ''
+  const [
+    form,
+    setForm
+  ] = useState({
+    name:
+      user?.displayName ||
+      '',
+
+    phone:
+      '',
+
+    email:
+      user?.email ||
+      '',
+
+    reason:
+      '',
+
+    photoUrl:
+      user?.photoURL ||
+      ''
   });
 
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState({
-    type: '',
-    message: ''
+  const [
+    busy,
+    setBusy
+  ] = useState(false);
+
+  const [
+    notice,
+    setNotice
+  ] = useState({
+    type:
+      '',
+
+    message:
+      ''
   });
 
-  const updateField = (field, value) => {
-    setForm(current => ({
-      ...current,
-      [field]: value
-    }));
-  };
+  const updateField =
+    (
+      field,
+      value
+    ) => {
+      setForm(
+        current => ({
+          ...current,
 
-  const loginGoogle = async () => {
-    if (busy) {
-      return;
-    }
+          [field]:
+            value
+        })
+      );
+    };
 
-    setNotice({
-      type: '',
-      message: ''
-    });
+  const loginGoogle =
+    async () => {
+      if (busy) {
+        return;
+      }
 
-    try {
-      await login();
-    } catch (error) {
       setNotice({
-        type: 'error',
+        type:
+          '',
+
         message:
-          error?.message ||
-          'Login Google gagal.'
+          ''
       });
-    }
-  };
 
-  const submit = async event => {
-    event.preventDefault();
+      try {
+        await login();
+      } catch (
+        error
+      ) {
+        setNotice({
+          type:
+            'error',
 
-    if (busy) {
-      return;
-    }
+          message:
+            error?.message ||
+            'Login Google gagal.'
+        });
+      }
+    };
 
-    setNotice({
-      type: '',
-      message: ''
-    });
+  const submit =
+    async event => {
+      event.preventDefault();
 
-    setBusy(true);
+      if (busy) {
+        return;
+      }
 
-    try {
-      await api(
-        '/sellers/apply',
-        {
-          method: 'POST',
-          body: JSON.stringify(form)
-        }
+      setNotice({
+        type:
+          '',
+
+        message:
+          ''
+      });
+
+      setBusy(
+        true
       );
 
-      setNotice({
-        type: 'success',
-        message:
-          'Pengajuan seller berhasil dikirim dan menunggu Admin.'
-      });
+      try {
+        await api(
+          '/seller/apply',
+          {
+            method:
+              'POST',
 
-      setTimeout(() => {
-        nav('/profile');
-      }, 900);
-    } catch (error) {
-      setNotice({
-        type: 'error',
-        message:
-          error?.message ||
-          'Gagal mengirim pengajuan seller.'
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
+            body:
+              JSON.stringify(
+                form
+              )
+          }
+        );
+
+        setNotice({
+          type:
+            'success',
+
+          message:
+            'Pengajuan seller berhasil dikirim dan menunggu Admin.'
+        });
+
+        setTimeout(
+          () => {
+            nav(
+              '/profile'
+            );
+          },
+          900
+        );
+      } catch (
+        error
+      ) {
+        setNotice({
+          type:
+            'error',
+
+          message:
+            error?.message ||
+            'Gagal mengirim pengajuan seller.'
+        });
+      } finally {
+        setBusy(
+          false
+        );
+      }
+    };
 
   if (!user) {
     return (
       <section className="auth-card">
-        <h1>Daftar Seller</h1>
+        <h1>
+          Daftar Seller
+        </h1>
 
         <p>
           Sign In Google terlebih dahulu
@@ -111,7 +188,8 @@ export default function SellerApply() {
         {notice.message && (
           <div
             className={`notice ${
-              notice.type === 'error'
+              notice.type ===
+              'error'
                 ? 'error'
                 : ''
             }`}
@@ -122,8 +200,12 @@ export default function SellerApply() {
 
         <button
           className="button primary"
-          onClick={loginGoogle}
-          disabled={busy}
+          onClick={
+            loginGoogle
+          }
+          disabled={
+            busy
+          }
         >
           Login Google
         </button>
@@ -134,18 +216,23 @@ export default function SellerApply() {
   return (
     <form
       className="form-card"
-      onSubmit={submit}
+      onSubmit={
+        submit
+      }
     >
       <span className="eyebrow">
-        LOGIN AS SELLER · SIGN UP
+        DAFTAR SELLER
       </span>
 
-      <h1>Daftar Seller</h1>
+      <h1>
+        Daftar Seller
+      </h1>
 
       {notice.message && (
         <div
           className={`notice ${
-            notice.type === 'error'
+            notice.type ===
+            'error'
               ? 'error'
               : ''
           }`}
@@ -159,12 +246,15 @@ export default function SellerApply() {
 
         <input
           required
-          value={form.name}
-          onChange={event =>
-            updateField(
-              'name',
-              event.target.value
-            )
+          value={
+            form.name
+          }
+          onChange={
+            event =>
+              updateField(
+                'name',
+                event.target.value
+              )
           }
         />
       </label>
@@ -174,12 +264,15 @@ export default function SellerApply() {
 
         <input
           required
-          value={form.phone}
-          onChange={event =>
-            updateField(
-              'phone',
-              event.target.value
-            )
+          value={
+            form.phone
+          }
+          onChange={
+            event =>
+              updateField(
+                'phone',
+                event.target.value
+              )
           }
         />
       </label>
@@ -190,12 +283,15 @@ export default function SellerApply() {
         <input
           required
           type="email"
-          value={form.email}
-          onChange={event =>
-            updateField(
-              'email',
-              event.target.value
-            )
+          value={
+            form.email
+          }
+          onChange={
+            event =>
+              updateField(
+                'email',
+                event.target.value
+              )
           }
         />
       </label>
@@ -205,12 +301,15 @@ export default function SellerApply() {
 
         <textarea
           required
-          value={form.reason}
-          onChange={event =>
-            updateField(
-              'reason',
-              event.target.value
-            )
+          value={
+            form.reason
+          }
+          onChange={
+            event =>
+              updateField(
+                'reason',
+                event.target.value
+              )
           }
         />
       </label>
@@ -221,19 +320,24 @@ export default function SellerApply() {
         <input
           required
           type="url"
-          value={form.photoUrl}
-          onChange={event =>
-            updateField(
-              'photoUrl',
-              event.target.value
-            )
+          value={
+            form.photoUrl
+          }
+          onChange={
+            event =>
+              updateField(
+                'photoUrl',
+                event.target.value
+              )
           }
         />
       </label>
 
       <button
         className="button primary"
-        disabled={busy}
+        disabled={
+          busy
+        }
       >
         {busy
           ? 'Mengirim...'
