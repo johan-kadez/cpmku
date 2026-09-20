@@ -1,420 +1,196 @@
-import {
-  useEffect,
-  useMemo,
-  useState
-} from 'react';
-
-import {
-  Link
-} from 'react-router-dom';
-
-import {
-  collection,
-  onSnapshot,
-  query,
-  where
-} from 'firebase/firestore';
-
-import {
-  useProducts
-} from '../../hooks/useProducts';
-
-import {
-  db
-} from '../../services/firebase';
-
-import ProductGrid from '../../components/product/ProductGrid';
-
-import Avatar from '../../components/common/Avatar';
-
-function SellerSearchCard({
-  seller
-}) {
-  return (
-    <article className="cpmku-home-seller-card">
-      <div className="cpmku-home-seller-top">
-        <Avatar
-          src={seller.photoUrl}
-          name={seller.name}
-        />
-
-        <div className="cpmku-home-seller-info">
-          <div className="cpmku-home-seller-name">
-            {seller.name || 'Seller'}
-          </div>
-        </div>
-      </div>
-
-      <div className="cpmku-home-seller-actions">
-        <Link
-          to={`/seller/${seller.uid}`}
-          className="cpmku-home-seller-button"
-        >
-          Lihat seller
-        </Link>
-      </div>
-    </article>
-  );
-}
+import { Link } from 'react-router-dom';
 
 export default function Home() {
-  const {
-    products,
-    error
-  } = useProducts();
-
-  const [
-    sellers,
-    setSellers
-  ] = useState([]);
-
-  const [
-    sellerError,
-    setSellerError
-  ] = useState('');
-
-  const [
-    q,
-    setQ
-  ] = useState('');
-
-  useEffect(() => {
-    const sellersQuery = query(
-      collection(db, 'sellers'),
-      where('status', '==', 'approved'),
-      where('banned', '==', false)
-    );
-
-    const unsubscribe = onSnapshot(
-      sellersQuery,
-      snapshot => {
-        const rows = snapshot.docs.map(
-          sellerDoc => ({
-            uid: sellerDoc.id,
-            ...sellerDoc.data()
-          })
-        );
-
-        setSellers(rows);
-        setSellerError('');
-      },
-      snapshotError => {
-        setSellerError(
-          snapshotError?.message ||
-          'Gagal memuat seller.'
-        );
-      }
-    );
-
-    return unsubscribe;
-  }, []);
-
-  const searchText = q
-    .trim()
-    .toLowerCase();
-
-  const filteredProducts = useMemo(
-    () => {
-      if (!searchText) {
-        return products.slice(0, 8);
-      }
-
-      return products
-        .filter(product => {
-          const searchable = [
-            product.title,
-            product.category,
-            product.description,
-            product.sellerName
-          ]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase();
-
-          return searchable.includes(
-            searchText
-          );
-        })
-        .slice(0, 8);
-    },
-    [
-      products,
-      searchText
-    ]
-  );
-
-  const filteredSellers = useMemo(
-    () => {
-      if (!searchText) {
-        return [];
-      }
-
-      return sellers
-        .filter(seller => {
-          const name = String(
-            seller.name ||
-            seller.displayName ||
-            ''
-          )
-            .toLowerCase()
-            .trim();
-
-          return name.includes(
-            searchText
-          );
-        })
-        .slice(0, 8);
-    },
-    [
-      sellers,
-      searchText
-    ]
-  );
-
-  const isSearching =
-    Boolean(searchText);
-
   return (
     <>
       <style>
         {`
-          .cpmku-home-seller-section {
-            margin-top: 34px;
+          .cpmku-home {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 18px 0 110px;
           }
 
-          .cpmku-home-seller-list {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-          }
-
-          .cpmku-home-seller-card {
-            min-width: 0;
-            box-sizing: border-box;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,.09);
-            border-radius: 22px;
-            background: rgba(20,20,20,.72);
-            box-shadow:
-              inset 0 1px 0 rgba(255,255,255,.03),
-              0 12px 35px rgba(0,0,0,.16);
-          }
-
-          .cpmku-home-seller-top {
+          .cpmku-home-intro {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 14px;
-            min-width: 0;
+            text-align: center;
+            padding: 34px 20px 0;
           }
 
-          .cpmku-home-seller-top .avatar {
-            flex: 0 0 auto;
-            width: 58px;
-            height: 58px;
-            object-fit: cover;
-            border-radius: 18px;
-            border: 1px solid rgba(65,125,255,.4);
-            background: rgba(24,35,57,.8);
-          }
-
-          .cpmku-home-seller-info {
-            min-width: 0;
-          }
-
-          .cpmku-home-seller-name {
-            overflow: hidden;
+          .cpmku-home-intro h1 {
+            margin: 0;
             color: #fff;
-            font-size: 17px;
-            font-weight: 700;
-            text-overflow: ellipsis;
+            font-size: clamp(28px, 6vw, 42px);
+            line-height: 1.15;
             white-space: nowrap;
           }
 
-          .cpmku-home-seller-actions {
-            display: flex;
-            margin-top: 18px;
+          .cpmku-home-intro p {
+            max-width: 720px;
+            margin: 16px auto 0;
+            color: #9ba7bb;
+            font-size: 15px;
+            line-height: 1.7;
           }
 
-          .cpmku-home-seller-button {
+          .cpmku-home-actions {
             display: flex;
-            align-items: center;
             justify-content: center;
+            gap: 12px;
             width: 100%;
-            min-height: 42px;
-            box-sizing: border-box;
-            padding: 9px 15px;
-            border: 1px solid rgba(55,119,255,.5);
-            border-radius: 13px;
-            background: linear-gradient(
-              180deg,
-              #172d59,
-              #10224a
-            );
-            color: #fff;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            transition:
-              border-color .2s ease,
-              transform .2s ease,
-              background .2s ease;
+            margin-top: 24px;
           }
 
-          .cpmku-home-seller-button:hover {
-            border-color: rgba(90,150,255,.8);
-            background: linear-gradient(
-              180deg,
-              #193b7b,
-              #122b5d
-            );
-            transform: translateY(-1px);
-          }
-
-          .cpmku-home-search-empty {
-            padding: 24px;
-            border: 1px solid rgba(255,255,255,.07);
-            border-radius: 18px;
-            background: rgba(255,255,255,.025);
-            color: #8995aa;
+          .cpmku-home-actions .button {
+            min-width: 140px;
             text-align: center;
           }
 
-          @media(max-width:760px) {
-            .cpmku-home-seller-list {
-              grid-template-columns: 1fr;
+          .cpmku-home-socials {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            margin-top: 12px;
+          }
+
+          .cpmku-home-socials a {
+            min-width: 140px;
+            box-sizing: border-box;
+            text-align: center;
+          }
+
+          .cpmku-home-info {
+            margin-top: 52px;
+            padding: 28px 24px;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 22px;
+            background: rgba(20,20,20,.58);
+            box-shadow:
+              inset 0 1px 0 rgba(255,255,255,.03),
+              0 18px 45px rgba(0,0,0,.14);
+          }
+
+          .cpmku-home-info h2 {
+            margin: 0 0 18px;
+            color: #fff;
+            font-size: 22px;
+          }
+
+          .cpmku-home-info p {
+            margin: 0;
+            color: #a3adbd;
+            font-size: 14px;
+            line-height: 1.8;
+          }
+
+          .cpmku-home-info p + p {
+            margin-top: 14px;
+          }
+
+          @media(max-width:560px) {
+            .cpmku-home {
+              padding-top: 8px;
+            }
+
+            .cpmku-home-intro {
+              padding-top: 26px;
+            }
+
+            .cpmku-home-intro h1 {
+              font-size: 27px;
+            }
+
+            .cpmku-home-actions,
+            .cpmku-home-socials {
+              gap: 8px;
+            }
+
+            .cpmku-home-actions .button,
+            .cpmku-home-socials a {
+              min-width: 0;
+              flex: 1;
+            }
+
+            .cpmku-home-info {
+              margin-top: 42px;
+              padding: 24px 20px;
             }
           }
         `}
       </style>
 
-      <section className="hero">
-        <h1>Welcome To Cpmku</h1>
+      <main className="cpmku-home">
+        <section className="cpmku-home-intro">
+          <h1>Welcome to CPMKU</h1>
 
-        <p>
-          Pilih produk, buka transaksi, bayar melalui QRIS utama,
-          lalu tunggu verifikasi admin
-        </p>
+          <p>
+            Temukan berbagai produk dari seller CPMKU, lihat detail produk,
+            dan lakukan transaksi melalui platform yang dirancang khusus
+            untuk komunitas Car Parking Multiplayer.
+          </p>
 
-        <Link
-          className="button primary"
-          to="/products"
-        >
-          Lihat Produk
-        </Link>
-      </section>
+          <div className="cpmku-home-actions">
+            <Link
+              className="button primary"
+              to="/products"
+            >
+              Lihat Produk
+            </Link>
 
-      <section>
-        <div className="section-head">
-          <div>
-            <h2>
-              {isSearching
-                ? 'Hasil pencarian'
-                : 'Produk tersedia'}
-            </h2>
+            <Link
+              className="button"
+              to="/help"
+            >
+              CS Contact
+            </Link>
           </div>
 
-          <input
-            value={q}
-            onChange={event =>
-              setQ(
-                event.target.value
-              )
-            }
-            placeholder="Ketik Untuk Mencari"
-          />
-        </div>
+          <div className="cpmku-home-socials">
+            <a
+              className="button"
+              href=""
+            >
+              TikTok
+            </a>
 
-        {error && (
-          <div className="notice error">
-            {error}
+            <a
+              className="button"
+              href=""
+            >
+              Discord
+            </a>
           </div>
-        )}
-
-        {sellerError && (
-          <div className="notice error">
-            {sellerError}
-          </div>
-        )}
-
-        {isSearching &&
-          filteredSellers.length > 0 && (
-            <section className="cpmku-home-seller-section">
-              <div className="section-head">
-                <div>
-                  <span className="eyebrow">
-                    SELLER
-                  </span>
-
-                  <h2>
-                    Seller ditemukan
-                  </h2>
-                </div>
-              </div>
-
-              <div className="cpmku-home-seller-list">
-                {filteredSellers.map(
-                  seller => (
-                    <SellerSearchCard
-                      key={seller.uid}
-                      seller={seller}
-                    />
-                  )
-                )}
-              </div>
-            </section>
-          )}
-
-        <section
-          className={
-            isSearching &&
-            filteredSellers.length > 0
-              ? 'cpmku-home-seller-section'
-              : ''
-          }
-        >
-          <div className="section-head">
-            <div>
-              {isSearching && (
-                <span className="eyebrow">
-                  PRODUK
-                </span>
-              )}
-
-              <h2>
-                {isSearching
-                  ? 'Produk ditemukan'
-                  : 'Produk tersedia'}
-              </h2>
-            </div>
-          </div>
-
-          <ProductGrid
-            products={
-              filteredProducts
-            }
-          />
         </section>
 
-        {isSearching &&
-          filteredSellers.length === 0 &&
-          filteredProducts.length === 0 && (
-            <div className="cpmku-home-search-empty">
-              Tidak ada yang cocok dengan pencarian.
-            </div>
-          )}
+        <section className="cpmku-home-info">
+          <h2>Tentang CPMKU</h2>
 
-        {!isSearching &&
-          products.length > 8 && (
-            <p className="center">
-              <Link
-                className="button"
-                to="/products"
-              >
-                Lihat semua produk
-              </Link>
-            </p>
-          )}
-      </section>
+          <p>
+            CPMKU adalah marketplace yang mempertemukan pemain Car Parking
+            Multiplayer dengan seller dalam satu platform. Kami menyediakan
+            tempat untuk menemukan, menawarkan, dan melakukan transaksi
+            berbagai produk yang tersedia.
+          </p>
+
+          <p>
+            Produk berasal dari seller yang telah melalui proses pendaftaran
+            dan persetujuan yang akan disetujui oleh admin.
+          </p>
+
+          <p>
+            Setiap transaksi mengikuti alur yang tersedia di platform agar
+            proses jual beli lebih terstruktur.
+          </p>
+
+          <p>
+            CPMKU dikembangkan khusus untuk memberikan pengalaman marketplace
+            yang lebih sederhana bagi pemain Car Parking Multiplayer.
+          </p>
+        </section>
+      </main>
     </>
   );
 }
