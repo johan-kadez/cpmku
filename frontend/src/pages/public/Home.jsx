@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 
 export default function Home() {
+  const [expanded, setExpanded] = useState(null);
+
+  const toggle = (name) => {
+    setExpanded((current) => (current === name ? null : name));
+  };
+
   return (
     <>
       <style>
@@ -35,66 +42,102 @@ export default function Home() {
             line-height: 1.7;
           }
 
-          .cpmku-home-actions,
-          .cpmku-home-socials {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            width: 100%;
-          }
-
           .cpmku-home-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            width: 100%;
             margin-top: 20px;
           }
 
           .cpmku-home-socials {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            width: 100%;
             margin-top: 10px;
           }
 
-          .cpmku-home-actions a,
-          .cpmku-home-socials a {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 140px;
-            min-height: 48px;
-            box-sizing: border-box;
-            padding: 12px 16px;
-            border-radius: 14px;
+          .cpmku-home-action,
+          .cpmku-home-social {
+            width: 100%;
+            min-width: 0;
+            height: 50px;
+            padding: 0;
             border: 1px solid rgba(59,130,246,0.18);
+            border-radius: 14px;
             background: rgba(18,24,36,0.58);
             backdrop-filter: blur(16px) saturate(140%);
             -webkit-backdrop-filter: blur(16px) saturate(140%);
             color: #fff;
             text-decoration: none;
-            box-shadow: none;
+            box-sizing: border-box;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition:
-              background .18s ease,
-              border-color .18s ease,
-              transform .18s ease;
+              background .2s ease,
+              border-color .2s ease,
+              box-shadow .2s ease;
           }
 
-          .cpmku-home-actions a:hover,
-          .cpmku-home-socials a:hover {
+          .cpmku-home-action:hover,
+          .cpmku-home-social:hover {
             background: rgba(37,99,235,0.12);
             border-color: rgba(59,130,246,0.34);
-            transform: translateY(-1px);
           }
 
-          .cpmku-home-social-icon {
-            width: 21px;
-            height: 21px;
-            margin-right: 8px;
-            flex-shrink: 0;
-            display: block;
+          .cpmku-home-action-inner,
+          .cpmku-home-social-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            gap: 0;
+            white-space: nowrap;
+            transition:
+              gap .2s ease,
+              transform .2s ease;
           }
 
-          .cpmku-home-cs-icon {
-            width: 22px;
-            height: 22px;
-            margin-right: 8px;
-            flex-shrink: 0;
+          .cpmku-home-action.expanded .cpmku-home-action-inner,
+          .cpmku-home-social.expanded .cpmku-home-social-inner {
+            gap: 9px;
+          }
+
+          .cpmku-home-icon {
+            width: 23px;
+            height: 23px;
+            flex: 0 0 23px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             object-fit: contain;
+            color: #fff;
+          }
+
+          .cpmku-home-product-icon {
+            font-size: 24px;
+            line-height: 1;
+          }
+
+          .cpmku-home-label {
+            max-width: 0;
+            opacity: 0;
+            overflow: hidden;
+            font-size: 14px;
+            font-weight: 500;
+            transition:
+              max-width .22s ease,
+              opacity .16s ease;
+          }
+
+          .cpmku-home-action.expanded .cpmku-home-label,
+          .cpmku-home-social.expanded .cpmku-home-label {
+            max-width: 100px;
+            opacity: 1;
           }
 
           .cpmku-home-info {
@@ -140,18 +183,9 @@ export default function Home() {
               gap: 8px;
             }
 
-            .cpmku-home-actions a,
-            .cpmku-home-socials a {
-              min-width: 0;
-              flex: 1;
-              min-height: 46px;
-              padding: 11px 10px;
-            }
-
-            .cpmku-home-social-icon {
-              width: 19px;
-              height: 19px;
-              margin-right: 7px;
+            .cpmku-home-action,
+            .cpmku-home-social {
+              height: 48px;
             }
 
             .cpmku-home-info {
@@ -181,58 +215,114 @@ export default function Home() {
           </p>
 
           <div className="cpmku-home-actions">
-            <Link to="/products">
-              Lihat Produk
+            <Link
+              className={`cpmku-home-action ${
+                expanded === 'products' ? 'expanded' : ''
+              }`}
+              to="/products"
+              onClick={(event) => {
+                if (expanded !== 'products') {
+                  event.preventDefault();
+                  toggle('products');
+                }
+              }}
+            >
+              <span className="cpmku-home-action-inner">
+                <span className="cpmku-home-icon cpmku-home-product-icon">
+                  ⛟
+                </span>
+                <span className="cpmku-home-label">
+                  Lihat Produk
+                </span>
+              </span>
             </Link>
 
-            <Link to="/help">
-              <img
-                className="cpmku-home-cs-icon"
-                src="https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg"
-                alt=""
-              />
-              CS Contact
+            <Link
+              className={`cpmku-home-action ${
+                expanded === 'cs' ? 'expanded' : ''
+              }`}
+              to="/help"
+              onClick={(event) => {
+                if (expanded !== 'cs') {
+                  event.preventDefault();
+                  toggle('cs');
+                }
+              }}
+            >
+              <span className="cpmku-home-action-inner">
+                <img
+                  className="cpmku-home-icon"
+                  src="https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg"
+                  alt=""
+                />
+                <span className="cpmku-home-label">
+                  CS Contact
+                </span>
+              </span>
             </Link>
           </div>
 
           <div className="cpmku-home-socials">
             <a
+              className={`cpmku-home-social ${
+                expanded === 'tiktok' ? 'expanded' : ''
+              }`}
               href="https://share.google/OQsYy8Aj59S3232MJ"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="TikTok"
+              onClick={(event) => {
+                if (expanded !== 'tiktok') {
+                  event.preventDefault();
+                  toggle('tiktok');
+                }
+              }}
             >
-              <svg
-                className="cpmku-home-social-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  d="M16.6 5.82A4.55 4.55 0 0 1 14.1 3h-3.04v12.23a2.67 2.67 0 1 1-2.67-2.67c.23 0 .46.03.67.08V9.55a5.68 5.68 0 1 0 5.04 5.65V9a7.54 7.54 0 0 0 4.42 1.42V7.38a4.56 4.56 0 0 1-1.92-1.56Z"
+              <span className="cpmku-home-social-inner">
+                <svg
+                  className="cpmku-home-icon"
+                  viewBox="0 0 24 24"
                   fill="currentColor"
-                />
-              </svg>
-              TikTok
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path d="M16.6 5.82A4.55 4.55 0 0 1 14.1 3h-3.04v12.23a2.67 2.67 0 1 1-2.67-2.67c.23 0 .46.03.67.08V9.55a5.68 5.68 0 1 0 5.04 5.65V9a7.54 7.54 0 0 0 4.42 1.42V7.38a4.56 4.56 0 0 1-1.92-1.56Z" />
+                </svg>
+
+                <span className="cpmku-home-label">
+                  TikTok
+                </span>
+              </span>
             </a>
 
             <a
+              className={`cpmku-home-social ${
+                expanded === 'discord' ? 'expanded' : ''
+              }`}
               href="https://share.google/6nJJ8BeHdknMWJOj5"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Discord"
+              onClick={(event) => {
+                if (expanded !== 'discord') {
+                  event.preventDefault();
+                  toggle('discord');
+                }
+              }}
             >
-              <svg
-                className="cpmku-home-social-icon"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path d="M19.54 5.1A16.9 16.9 0 0 0 15.4 3.82l-.53 1.08a15.4 15.4 0 0 0-4.74 0L9.6 3.82A16.9 16.9 0 0 0 5.46 5.1C2.84 9.03 2.13 12.86 2.48 16.64a16.8 16.8 0 0 0 5.08 2.57l1.23-1.67a10.6 10.6 0 0 1-1.93-.93l.47-.36c3.72 1.74 7.77 1.74 11.45 0l.48.36c-.62.36-1.27.67-1.94.93l1.23 1.67a16.8 16.8 0 0 0 5.08-2.57c.41-4.38-.7-8.17-2.59-11.54ZM8.73 14.42c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.9 2.28-2.03 2.28Zm6.54 0c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.9 2.28-2.03 2.28Z" />
-              </svg>
-              Discord
+              <span className="cpmku-home-social-inner">
+                <svg
+                  className="cpmku-home-icon"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path d="M19.54 5.1A16.9 16.9 0 0 0 15.4 3.82l-.53 1.08a15.4 15.4 0 0 0-4.74 0L9.6 3.82A16.9 16.9 0 0 0 5.46 5.1C2.84 9.03 2.13 12.86 2.48 16.64a16.8 16.8 0 0 0 5.08 2.57l1.23-1.67a10.6 10.6 0 0 1-1.93-.93l.47-.36c3.72 1.74 7.77 1.74 11.45 0l.48.36c-.62.36-1.27.67-1.94.93l1.23 1.67a16.8 16.8 0 0 0 5.08-2.57c.41-4.38-.7-8.17-2.59-11.54ZM8.73 14.42c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.03 2.28 0 1.26-.9 2.28-2.03 2.28Zm6.54 0c-1.11 0-2.03-1.02-2.03-2.28s.9-2.28 2.03-2.28c1.14 0 2.05 1.02 2.05 2.28s-.91 2.28-2.05 2.28Z" />
+                </svg>
+
+                <span className="cpmku-home-label">
+                  Discord
+                </span>
+              </span>
             </a>
           </div>
         </section>
@@ -266,3 +356,4 @@ export default function Home() {
     </>
   );
 }
+```1
