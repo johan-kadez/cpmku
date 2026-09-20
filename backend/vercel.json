@@ -1,19 +1,9 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
   "rewrites": [
-    {
-      "source": "/api/cron/cleanup",
-      "destination": "/api/cron/cleanup"
-    },
     {
       "source": "/api/:path*",
       "destination": "/api/index?path=:path*"
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/cleanup",
-      "schedule": "0 3 * * *"
     }
   ],
   "headers": [
@@ -22,7 +12,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "*"
+          "value": "https://cpmku.vercel.app"
         },
         {
           "key": "Access-Control-Allow-Methods",
@@ -31,6 +21,10 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Authorization, Content-Type"
+        },
+        {
+          "key": "Vary",
+          "value": "Origin"
         }
       ]
     }
