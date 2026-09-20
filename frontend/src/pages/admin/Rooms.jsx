@@ -7,13 +7,16 @@ import {
   api
 } from '../../services/api';
 
+import ChatRoom from '../../components/chat/ChatRoom';
+
 function Modal({
   children,
-  onClose
+  onClose,
+  className = ''
 }) {
   return (
     <div
-      className="cpmku-room-modal-bg"
+      className={`cpmku-room-modal-bg ${className}`}
       onMouseDown={
         onClose
       }
@@ -30,6 +33,7 @@ function Modal({
           onClick={
             onClose
           }
+          aria-label="Tutup"
         >
           ×
         </button>
@@ -94,6 +98,11 @@ export default function Rooms() {
   const [
     selected,
     setSelected
+  ] = useState(null);
+
+  const [
+    selectedChat,
+    setSelectedChat
   ] = useState(null);
 
   const [
@@ -168,6 +177,47 @@ export default function Rooms() {
           )
       );
 
+  const prepareRoom =
+    room => {
+      const buyer =
+        findUser(
+          room.buyerUid
+        );
+
+      const seller =
+        findUser(
+          room.sellerUid
+        );
+
+      const buyerName =
+        room.buyerName ||
+        buyer?.name ||
+        room.buyerUid ||
+        '-';
+
+      const productName =
+        room.productName ||
+        room.productTitle ||
+        room.productId ||
+        '-';
+
+      const sellerName =
+        room.sellerName ||
+        seller?.name ||
+        room.sellerUid ||
+        '-';
+
+      return {
+        ...room,
+        _buyerName:
+          buyerName,
+        _productName:
+          productName,
+        _sellerName:
+          sellerName
+      };
+    };
+
   const deleteRoom =
     async room => {
       try {
@@ -188,6 +238,10 @@ export default function Rooms() {
         );
 
         setSelected(
+          null
+        );
+
+        setSelectedChat(
           null
         );
 
@@ -279,6 +333,12 @@ export default function Rooms() {
             margin-top: 16px;
           }
 
+          .cpmku-room-actions-top {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+          }
+
           .cpmku-room-button {
             width: 100%;
             min-height: 42px;
@@ -306,6 +366,17 @@ export default function Rooms() {
             display: block;
             box-sizing: border-box;
             text-align: center;
+          }
+
+          .cpmku-room-chat-button {
+            border-color:
+              rgba(80,145,255,.6);
+            background:
+              linear-gradient(
+                180deg,
+                #1c3b78,
+                #142c5a
+              );
           }
 
           .cpmku-room-danger {
@@ -342,10 +413,59 @@ export default function Rooms() {
             color: #fff;
           }
 
+          .cpmku-room-chat-modal-bg {
+            padding: 12px;
+          }
+
+          .cpmku-room-chat-modal {
+            width:
+              min(
+                760px,
+                100%
+              );
+
+            height:
+              min(
+                88vh,
+                760px
+              );
+
+            max-height:
+              88vh;
+
+            padding: 0;
+
+            overflow: hidden;
+          }
+
+          .cpmku-room-chat-modal .chat-room {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+
+            border-radius: 24px;
+
+            overflow: hidden;
+          }
+
+          .cpmku-room-chat-modal .chat-room > header {
+            padding-right: 62px;
+          }
+
+          .cpmku-room-chat-modal .messages {
+            min-height: 0;
+            overflow-y: auto;
+          }
+
+          .cpmku-room-chat-modal .chat-composer {
+            flex-shrink: 0;
+          }
+
           .cpmku-room-close {
             position: absolute;
             top: 14px;
             right: 14px;
+            z-index: 20;
             width: 42px;
             height: 42px;
             border: 1px solid rgba(70,125,255,.45);
@@ -393,6 +513,25 @@ export default function Rooms() {
               aspect-ratio: 1 / 1;
               min-height: 0;
             }
+
+            .cpmku-room-actions-top {
+              grid-template-columns: 1fr 1fr;
+            }
+
+            .cpmku-room-chat-modal-bg {
+              padding: 8px;
+            }
+
+            .cpmku-room-chat-modal {
+              width: 100%;
+              height: 92vh;
+              max-height: 92vh;
+              border-radius: 20px;
+            }
+
+            .cpmku-room-chat-modal .chat-room {
+              border-radius: 20px;
+            }
           }
         `}
       </style>
@@ -433,33 +572,10 @@ export default function Rooms() {
       <div className="cpmku-room-list">
         {rooms.map(
           room => {
-            const buyer =
-              findUser(
-                room.buyerUid
+            const preparedRoom =
+              prepareRoom(
+                room
               );
-
-            const seller =
-              findUser(
-                room.sellerUid
-              );
-
-            const buyerName =
-              room.buyerName ||
-              buyer?.name ||
-              room.buyerUid ||
-              '-';
-
-            const productName =
-              room.productName ||
-              room.productTitle ||
-              room.productId ||
-              '-';
-
-            const sellerName =
-              room.sellerName ||
-              seller?.name ||
-              room.sellerUid ||
-              '-';
 
             return (
               <article
@@ -473,15 +589,16 @@ export default function Rooms() {
                     <span>
                       Buyer
                     </span>
+
                     <strong
                       title={
                         shortText(
-                          buyerName
+                          preparedRoom._buyerName
                         )
                       }
                     >
                       {shortText(
-                        buyerName
+                        preparedRoom._buyerName
                       )}
                     </strong>
                   </div>
@@ -490,15 +607,16 @@ export default function Rooms() {
                     <span>
                       Produk
                     </span>
+
                     <strong
                       title={
                         shortText(
-                          productName
+                          preparedRoom._productName
                         )
                       }
                     >
                       {shortText(
-                        productName
+                        preparedRoom._productName
                       )}
                     </strong>
                   </div>
@@ -507,15 +625,16 @@ export default function Rooms() {
                     <span>
                       Seller
                     </span>
+
                     <strong
                       title={
                         shortText(
-                          sellerName
+                          preparedRoom._sellerName
                         )
                       }
                     >
                       {shortText(
-                        sellerName
+                        preparedRoom._sellerName
                       )}
                     </strong>
                   </div>
@@ -529,23 +648,31 @@ export default function Rooms() {
                 </div>
 
                 <div className="cpmku-room-actions">
-                  <button
-                    type="button"
-                    className="cpmku-room-button cpmku-room-detail-button"
-                    onClick={() =>
-                      setSelected({
-                        ...room,
-                        _buyerName:
-                          buyerName,
-                        _productName:
-                          productName,
-                        _sellerName:
-                          sellerName
-                      })
-                    }
-                  >
-                    Detail
-                  </button>
+                  <div className="cpmku-room-actions-top">
+                    <button
+                      type="button"
+                      className="cpmku-room-button cpmku-room-detail-button"
+                      onClick={() =>
+                        setSelected(
+                          preparedRoom
+                        )
+                      }
+                    >
+                      Detail
+                    </button>
+
+                    <button
+                      type="button"
+                      className="cpmku-room-button cpmku-room-chat-button"
+                      onClick={() =>
+                        setSelectedChat(
+                          preparedRoom
+                        )
+                      }
+                    >
+                      Chat
+                    </button>
+                  </div>
 
                   <button
                     type="button"
@@ -592,14 +719,17 @@ export default function Rooms() {
               <span>
                 Buyer
               </span>
+
               <strong>
-                {selected._buyerName ||
+                {
+                  selected._buyerName ||
                   selected.buyerName ||
                   findUser(
                     selected.buyerUid
                   )?.name ||
                   selected.buyerUid ||
-                  '-'}
+                  '-'
+                }
               </strong>
             </div>
 
@@ -607,12 +737,15 @@ export default function Rooms() {
               <span>
                 Produk
               </span>
+
               <strong>
-                {selected._productName ||
+                {
+                  selected._productName ||
                   selected.productName ||
                   selected.productTitle ||
                   selected.productId ||
-                  '-'}
+                  '-'
+                }
               </strong>
             </div>
 
@@ -620,14 +753,17 @@ export default function Rooms() {
               <span>
                 Seller
               </span>
+
               <strong>
-                {selected._sellerName ||
+                {
+                  selected._sellerName ||
                   selected.sellerName ||
                   findUser(
                     selected.sellerUid
                   )?.name ||
                   selected.sellerUid ||
-                  '-'}
+                  '-'
+                }
               </strong>
             </div>
 
@@ -635,12 +771,51 @@ export default function Rooms() {
               <span>
                 Status
               </span>
+
               <strong>
                 {label(
                   selected.status
                 )}
               </strong>
             </div>
+
+            <div>
+              <span>
+                Room ID
+              </span>
+
+              <strong>
+                {
+                  selected.id ||
+                  '-'
+                }
+              </strong>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {selectedChat && (
+        <Modal
+          className="cpmku-room-chat-modal-bg"
+          onClose={() =>
+            setSelectedChat(
+              null
+            )
+          }
+        >
+          <div className="cpmku-room-chat-modal">
+            <ChatRoom
+              room={
+                selectedChat
+              }
+              floating={false}
+              onClose={() =>
+                setSelectedChat(
+                  null
+                )
+              }
+            />
           </div>
         </Modal>
       )}
