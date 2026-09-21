@@ -1,99 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
+import './ForgotPassword.css';
 
 const OTP_LENGTH = 6;
-const ORBIT_RADIUS = 82;
-const ORBIT_SCALE = 0.85;
-const ORBIT_DURATION = 1900;
-const ORBIT_FRAMES = 90;
-const SUCCESS_REVEAL_DELAY = 1770;
-const SUCCESS_HOLD = 1000;
 
-// Akhir tiap fase animasi, dihitung dari 0 sampai 1 dari ORBIT_DURATION:
-// kumpul ke tengah -> menyebar jadi lingkaran -> berputar -> menyusut ke tengah.
-const PHASE_GATHER = 0.12;
-const PHASE_SPREAD = 0.26;
-const PHASE_SPIN = 0.82;
+// Animasi "verifying" minimal tampil selama ini, biar tidak berkedip
+// kalau server membalas terlalu cepat.
+const MIN_VERIFY_MS = 1200;
 
-const easeInOutCubic = t =>
-  t < 0.5
-    ? 4 * t * t * t
-    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+// Lama animasi sukses / gagal. Harus sama dengan durasi di ForgotPassword.css.
+const SUCCESS_DURATION = 1500;
+const FAIL_DURATION = 420;
 
-const easeOutCubic = t =>
-  1 - Math.pow(1 - t, 3);
-
-// Posisi satu kotak OTP pada progress tertentu (0 sampai 1).
-// x dan y dihitung dari tengah stage; start = posisi awal kotak di baris.
-function getOrbitFrame(progress, start, baseAngle, radius) {
-  if (progress < PHASE_GATHER) {
-    const k = easeInOutCubic(
-      progress / PHASE_GATHER
-    );
-
-    return {
-      x: start.x * (1 - k),
-      y: start.y * (1 - k),
-      rotate: 0,
-      scale: 1 - (1 - ORBIT_SCALE) * k,
-      opacity: 1
-    };
-  }
-
-  if (progress < PHASE_SPREAD) {
-    const k = easeOutCubic(
-      (progress - PHASE_GATHER) /
-      (PHASE_SPREAD - PHASE_GATHER)
-    );
-
-    return {
-      x: Math.cos(baseAngle) * radius * k,
-      y: Math.sin(baseAngle) * radius * k,
-      rotate: 0,
-      scale: ORBIT_SCALE,
-      opacity: 1
-    };
-  }
-
-  if (progress < PHASE_SPIN) {
-    const k = easeInOutCubic(
-      (progress - PHASE_SPREAD) /
-      (PHASE_SPIN - PHASE_SPREAD)
-    );
-
-    const spin = k * 360;
+// Arah tiap kotak di lingkaran animasi (heksagon, kotak pertama di atas).
+const ORBIT_UNITS = Array.from(
+  { length: OTP_LENGTH },
+  (_, index) => {
     const angle =
-      baseAngle + (spin * Math.PI) / 180;
+      (Math.PI * 2 * index) / OTP_LENGTH -
+      Math.PI / 2;
 
     return {
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
-      rotate: spin,
-      scale: ORBIT_SCALE,
-      opacity: 1
+      x: Math.cos(angle).toFixed(3),
+      y: Math.sin(angle).toFixed(3)
     };
   }
-
-  const k = easeInOutCubic(
-    (progress - PHASE_SPIN) /
-    (1 - PHASE_SPIN)
-  );
-
-  const spin = 360 + k * 120;
-  const angle =
-    baseAngle + (spin * Math.PI) / 180;
-
-  const distance = radius * (1 - k);
-
-  return {
-    x: Math.cos(angle) * distance,
-    y: Math.sin(angle) * distance,
-    rotate: spin,
-    scale: ORBIT_SCALE * (1 - 0.4 * k),
-    opacity: 1 - k * k
-  };
-}
+);
 
 export default function ForgotPassword() {
   const nav = useNavigate();
@@ -114,7 +47,6 @@ export default function ForgotPassword() {
   const cooldownTimerRef = useRef(null);
   const verificationTimerRef = useRef(null);
   const animationTimersRef = useRef([]);
-  const otpAnimationsRef = useRef([]);
 
   useEffect(() => {
     return () => {
@@ -129,27 +61,45 @@ export default function ForgotPassword() {
       animationTimersRef.current.forEach(timer => {
         clearTimeout(timer);
       });
-
-      otpAnimationsRef.current.forEach(animation => {
-        try {
-          animation.cancel();
-        } catch {
-          // Ignore cancelled animations during unmount.
-        }
-      });
     };
   }, []);
 
+  // Sukses: setelah animasi selesai, lanjut ke step password.
   useEffect(() => {
     if (otpState !== 'success') {
       return;
     }
 
-    const frame = requestAnimationFrame(() => {
-      playSuccessAnimation();
-    });
+    const timer = setTimeout(() => {
+      setStep('password');
+      setOtpState('idle');
+      setOtp(Array(OTP_LENGTH).fill(''));
+      setError('');
+      setSuccess('');
+      setBusy(false);
+    }, SUCCESS_DURATION);
 
-    return () => cancelAnimationFrame(frame);
+    return () => clearTimeout(timer);
+  }, [otpState]);
+
+  // Gagal: setelah animasi selesai, tampilkan kotak OTP lagi dengan status error.
+  useEffect(() => {
+    if (otpState !== 'failed') {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setOtpState('error');
+      setBusy(false);
+
+      const focusTimer = setTimeout(() => {
+        inputRefs.current[0]?.focus();
+      }, 650);
+
+      animationTimersRef.current.push(focusTimer);
+    }, FAIL_DURATION);
+
+    return () => clearTimeout(timer);
   }, [otpState]);
 
   const setInputRef = (element, index) => {
@@ -396,6 +346,9 @@ export default function ForgotPassword() {
     setBusy(true);
     setError('');
     setSuccess('');
+    setOtpState('verifying');
+
+    const startedAt = Date.now();
 
     try {
       const result = await api(
@@ -415,170 +368,35 @@ export default function ForgotPassword() {
         );
       }
 
+      await waitForMinVerify(startedAt);
+
       setResetToken(result.resetToken);
       setOtpState('success');
     } catch (error) {
-      setOtpState('error');
+      await waitForMinVerify(startedAt);
 
       setError(
         getOtpErrorMessage(error)
       );
 
-      setBusy(false);
+      setOtpState('failed');
+    }
+  };
 
-      const timer = setTimeout(() => {
-        inputRefs.current[0]?.focus();
-      }, 650);
+  const waitForMinVerify = startedAt =>
+    new Promise(resolve => {
+      const remaining = Math.max(
+        0,
+        MIN_VERIFY_MS - (Date.now() - startedAt)
+      );
+
+      const timer = setTimeout(
+        resolve,
+        remaining
+      );
 
       animationTimersRef.current.push(timer);
-    }
-  };
-
-  const playSuccessAnimation = () => {
-    const cells = inputRefs.current.filter(Boolean);
-
-    if (cells.length !== OTP_LENGTH) {
-      return;
-    }
-
-    otpAnimationsRef.current.forEach(animation => {
-      try {
-        animation.cancel();
-      } catch {
-        // Ignore cancelled animations.
-      }
     });
-
-    otpAnimationsRef.current = [];
-
-    const stage = cells[0].closest(
-      '.cpmku-otp-stage'
-    );
-
-    if (!stage) {
-      return;
-    }
-
-    const stageRect =
-      stage.getBoundingClientRect();
-
-    const stageCenterX =
-      stageRect.width / 2;
-
-    const stageCenterY =
-      stageRect.height / 2;
-
-    // Lingkaran dibatasi supaya tidak keluar dari stage di layar kecil.
-    const radius = Math.min(
-      ORBIT_RADIUS,
-      stageCenterY - 34
-    );
-
-    cells.forEach((cell, index) => {
-      const rect =
-        cell.getBoundingClientRect();
-
-      // Posisi awal kotak relatif ke tengah stage.
-      const start = {
-        x:
-          rect.left -
-          stageRect.left +
-          rect.width / 2 -
-          stageCenterX,
-
-        y:
-          rect.top -
-          stageRect.top +
-          rect.height / 2 -
-          stageCenterY
-      };
-
-      const baseAngle =
-        (Math.PI * 2 * index) /
-        OTP_LENGTH -
-        Math.PI / 2;
-
-      const keyframes = [];
-
-      for (
-        let i = 0;
-        i <= ORBIT_FRAMES;
-        i += 1
-      ) {
-        const progress =
-          i / ORBIT_FRAMES;
-
-        const frame = getOrbitFrame(
-          progress,
-          start,
-          baseAngle,
-          radius
-        );
-
-        // transform dihitung dari posisi asli kotak di baris,
-        // jadi yang dipakai selisih terhadap posisi awal.
-        keyframes.push({
-          transform:
-            `translate(${frame.x - start.x}px, ${frame.y - start.y}px) ` +
-            `rotate(${frame.rotate}deg) ` +
-            `scale(${frame.scale})`,
-
-          opacity: frame.opacity,
-          offset: progress
-        });
-      }
-
-      cell.classList.add('orbiting-active');
-
-      const animation =
-        cell.animate(
-          keyframes,
-          {
-            duration:
-              ORBIT_DURATION,
-
-            easing: 'linear',
-            fill: 'forwards'
-          }
-        );
-
-      otpAnimationsRef.current.push(
-        animation
-      );
-    });
-
-    const revealTimer = setTimeout(() => {
-      stage
-        .querySelector('.cpmku-otp-success')
-        ?.classList.add('show');
-
-      stage
-        .querySelector('.cpmku-otp-ring')
-        ?.classList.add('show');
-    }, SUCCESS_REVEAL_DELAY);
-
-    animationTimersRef.current.push(
-      revealTimer
-    );
-
-    const finishTimer = setTimeout(() => {
-      cells.forEach(cell => {
-        cell.style.opacity = '0';
-        cell.style.visibility = 'hidden';
-      });
-
-      setStep('password');
-      setOtpState('idle');
-      setOtp(Array(OTP_LENGTH).fill(''));
-      setError('');
-      setSuccess('');
-      setBusy(false);
-    }, SUCCESS_REVEAL_DELAY + SUCCESS_HOLD);
-
-    animationTimersRef.current.push(
-      finishTimer
-    );
-  };
 
   const reset = async event => {
     event.preventDefault();
@@ -724,284 +542,6 @@ export default function ForgotPassword() {
 
   return (
     <>
-      <style>{`
-        .cpmku-otp-stage {
-          position: relative;
-          width: 100%;
-          height: 220px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: visible;
-        }
-
-        .cpmku-otp-row {
-          position: relative;
-          z-index: 2;
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-
-        .cpmku-otp-cell {
-          width: 48px;
-          height: 60px;
-          flex: 0 0 48px;
-          padding: 0;
-          border: 1px solid rgba(96, 165, 250, 0.62);
-          border-radius: 14px;
-          outline: none;
-          background: rgba(15, 23, 42, 0.68);
-          color: #ffffff;
-          text-align: center;
-          font-size: 23px;
-          font-weight: 600;
-          caret-color: #60a5fa;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.04),
-            0 0 0 rgba(59, 130, 246, 0);
-
-          transition:
-            border-color 0.2s ease,
-            background 0.2s ease,
-            box-shadow 0.2s ease,
-            opacity 0.2s ease;
-        }
-
-        .cpmku-otp-cell:focus {
-          border-color: #60a5fa;
-          background: rgba(30, 41, 59, 0.8);
-          box-shadow:
-            0 0 0 3px rgba(59, 130, 246, 0.11),
-            0 0 25px rgba(59, 130, 246, 0.18);
-        }
-
-        .cpmku-otp-cell.invalid {
-          border-color: #ef4444;
-          background: rgba(127, 29, 29, 0.22);
-          box-shadow:
-            0 0 0 3px rgba(239, 68, 68, 0.08),
-            0 0 25px rgba(239, 68, 68, 0.16);
-        }
-
-        .cpmku-otp-row.shake
-          .cpmku-otp-cell {
-          animation:
-            cpmkuOtpShake
-            0.56s
-            cubic-bezier(.36,.07,.19,.97);
-        }
-
-        @keyframes cpmkuOtpShake {
-          0%, 100% {
-            transform: translateX(0);
-          }
-
-          12% {
-            transform: translateX(-7px);
-          }
-
-          24% {
-            transform: translateX(7px);
-          }
-
-          36% {
-            transform: translateX(-6px);
-          }
-
-          48% {
-            transform: translateX(6px);
-          }
-
-          60% {
-            transform: translateX(-4px);
-          }
-
-          72% {
-            transform: translateX(4px);
-          }
-
-          84% {
-            transform: translateX(-2px);
-          }
-        }
-
-        .cpmku-otp-cell.orbiting-active {
-          position: relative;
-          z-index: 5;
-          pointer-events: none;
-          transform-origin: center center;
-          will-change: transform, opacity;
-        }
-
-        .cpmku-otp-success {
-          position: absolute;
-          z-index: 10;
-          left: 50%;
-          top: 50%;
-          width: 0;
-          height: 60px;
-          margin-top: -30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          border: 1px solid rgba(74, 222, 128, 0.95);
-          border-radius: 15px;
-          background: rgba(20, 83, 45, 0.22);
-          opacity: 0;
-          box-shadow:
-            0 0 0 3px rgba(34, 197, 94, 0.08),
-            0 0 28px rgba(34, 197, 94, 0.24),
-            inset 0 1px 0 rgba(255, 255, 255, 0.06);
-          pointer-events: none;
-        }
-
-        .cpmku-otp-success.show {
-          animation:
-            cpmkuOtpSuccessBox
-            0.48s
-            cubic-bezier(.22,1,.36,1)
-            forwards;
-        }
-
-        @keyframes cpmkuOtpSuccessBox {
-          0% {
-            width: 0;
-            transform:
-              translateX(0)
-              scale(.72);
-            opacity: 0;
-          }
-
-          60% {
-            width: 76px;
-            transform:
-              translateX(-38px)
-              scale(1.08);
-            opacity: 1;
-          }
-
-          100% {
-            width: 72px;
-            transform:
-              translateX(-36px)
-              scale(1);
-            opacity: 1;
-          }
-        }
-
-        .cpmku-otp-success-check {
-          width: 35px;
-          height: 35px;
-          overflow: visible;
-        }
-
-        .cpmku-otp-success-path {
-          fill: none;
-          stroke: #4ade80;
-          stroke-width: 4;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          stroke-dasharray: 42;
-          stroke-dashoffset: 42;
-          filter:
-            drop-shadow(
-              0 0 7px
-              rgba(74, 222, 128, 0.5)
-            );
-        }
-
-        .cpmku-otp-success.show
-          .cpmku-otp-success-path {
-          animation:
-            cpmkuOtpDrawCheck
-            0.42s
-            cubic-bezier(.65,0,.35,1)
-            0.08s
-            forwards;
-        }
-
-        @keyframes cpmkuOtpDrawCheck {
-          from {
-            stroke-dashoffset: 42;
-          }
-
-          to {
-            stroke-dashoffset: 0;
-          }
-        }
-
-        .cpmku-otp-ring {
-          position: absolute;
-          z-index: 9;
-          left: 50%;
-          top: 50%;
-          width: 64px;
-          height: 64px;
-          margin: -32px 0 0 -32px;
-          border: 2px solid rgba(74, 222, 128, 0.85);
-          border-radius: 50%;
-          opacity: 0;
-          box-shadow: 0 0 22px rgba(34, 197, 94, 0.35);
-          pointer-events: none;
-        }
-
-        .cpmku-otp-ring.show {
-          animation:
-            cpmkuOtpRing
-            0.8s
-            cubic-bezier(.22,1,.36,1)
-            forwards;
-        }
-
-        @keyframes cpmkuOtpRing {
-          0% {
-            transform: scale(0.55);
-            opacity: 0.9;
-          }
-
-          100% {
-            transform: scale(2.7);
-            opacity: 0;
-          }
-        }
-
-        .cpmku-otp-error {
-          min-height: 22px;
-          margin-top: -2px;
-          color: #f87171;
-          font-size: 13px;
-          text-align: center;
-          opacity: 0;
-          transition: opacity 0.2s ease;
-        }
-
-        .cpmku-otp-error.show {
-          opacity: 1;
-        }
-
-        @media (max-width: 430px) {
-          .cpmku-otp-stage {
-            height: 205px;
-          }
-
-          .cpmku-otp-row {
-            gap: 5px;
-          }
-
-          .cpmku-otp-cell {
-            width: 43px;
-            height: 56px;
-            flex-basis: 43px;
-            border-radius: 12px;
-            font-size: 21px;
-          }
-        }
-      `}</style>
-
       <section className="auth-card auth-modern">
         <div className="auth-heading">
           <span className="eyebrow">
@@ -1082,7 +622,9 @@ export default function ForgotPassword() {
         {step === 'otp' && (
           <div>
             <div
-              className="cpmku-otp-stage"
+              className={
+                `cpmku-otp-stage state-${otpState}`
+              }
               aria-label="OTP verification"
             >
               <div
@@ -1151,7 +693,29 @@ export default function ForgotPassword() {
                 )}
               </div>
 
-              <div className="cpmku-otp-ring" />
+              <div
+                className="cpmku-otp-orbit"
+                aria-hidden="true"
+              >
+                {otp.map((digit, index) => (
+                  <span
+                    key={index}
+                    className="cpmku-otp-tile"
+                    style={{
+                      '--i': index,
+                      '--ux': ORBIT_UNITS[index].x,
+                      '--uy': ORBIT_UNITS[index].y
+                    }}
+                  >
+                    {digit}
+                  </span>
+                ))}
+              </div>
+
+              <div
+                className="cpmku-otp-ring"
+                aria-hidden="true"
+              />
 
               <div className="cpmku-otp-success">
                 <svg
