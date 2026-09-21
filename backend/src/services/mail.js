@@ -2,8 +2,13 @@ import nodemailer from 'nodemailer';
 
 import { env } from '../config/env.js';
 
-function required(name, value) {
-  if (!String(value || '').trim()) {
+function required(
+  name,
+  value
+) {
+  if (
+    !String(value || '').trim()
+  ) {
     throw new Error(
       `${name} belum dikonfigurasi.`
     );
@@ -14,27 +19,32 @@ function required(name, value) {
 
 function getTransporter() {
   return nodemailer.createTransport({
-    host: required(
-      'ZOHO_SMTP_HOST',
-      env.mail.host
-    ),
-
-    port: Number(
-      env.mail.port || 465
-    ),
-
-    secure: env.mail.secure,
-
-    auth: {
-      user: required(
-        'ZOHO_SMTP_USER',
-        env.mail.user
+    host:
+      required(
+        'ZOHO_SMTP_HOST',
+        env.mail.host
       ),
 
-      pass: required(
-        'ZOHO_SMTP_PASS',
-        env.mail.pass
-      )
+    port:
+      Number(
+        env.mail.port || 465
+      ),
+
+    secure:
+      env.mail.secure,
+
+    auth: {
+      user:
+        required(
+          'ZOHO_SMTP_USER',
+          env.mail.user
+        ),
+
+      pass:
+        required(
+          'ZOHO_SMTP_PASS',
+          env.mail.pass
+        )
     }
   });
 }
@@ -43,17 +53,20 @@ export async function sendPasswordResetOtp(
   email,
   otp
 ) {
-  const from = required(
-    'ZOHO_MAIL_FROM',
-    env.mail.from
-  );
+  const from =
+    required(
+      'ZOHO_MAIL_FROM',
+      env.mail.from
+    );
 
   const transporter =
     getTransporter();
 
   await transporter.sendMail({
     from,
-    to: email,
+
+    to:
+      email,
 
     subject:
       'Your CPMKU password reset code',
