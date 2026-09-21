@@ -48,7 +48,8 @@ export const env = {
 
   origin:
     String(
-      process.env.PUBLIC_APP_ORIGIN || '*'
+      process.env.PUBLIC_APP_ORIGIN ||
+      'https://cpmku.vercel.app'
     ).trim(),
 
   adminUid:
@@ -71,13 +72,48 @@ export const env = {
       String(
         process.env.CLOUDINARY_API_SECRET || ''
       ).trim()
+  },
+
+  mail: {
+    host:
+      String(
+        process.env.ZOHO_SMTP_HOST ||
+        'smtp.zoho.com'
+      ).trim(),
+
+    port:
+      Number(
+        process.env.ZOHO_SMTP_PORT || 465
+      ),
+
+    secure:
+      String(
+        process.env.ZOHO_SMTP_SECURE || 'true'
+      ).toLowerCase() === 'true',
+
+    user:
+      String(
+        process.env.ZOHO_SMTP_USER || ''
+      ).trim(),
+
+    pass:
+      String(
+        process.env.ZOHO_SMTP_PASS || ''
+      ).trim(),
+
+    from:
+      String(
+        process.env.ZOHO_MAIL_FROM ||
+        process.env.ZOHO_SMTP_USER ||
+        ''
+      ).trim()
   }
 };
 
 export function assertEnv() {
   const missing =
     requiredEnv.filter(
-      (key) =>
+      key =>
         !String(
           process.env[key] || ''
         ).trim()
