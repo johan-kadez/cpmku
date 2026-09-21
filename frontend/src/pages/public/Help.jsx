@@ -391,7 +391,7 @@ export default function Help() {
             {' '}Customer Service
           </strong>
           . Untuk kebutuhan yang berkaitan
-          dengan pengembangan atau teknis
+          dengan pengembangan atau masalah teknis
           CPMKU, hubungi
           <strong>
             {' '}Developer
