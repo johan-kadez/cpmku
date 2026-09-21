@@ -147,7 +147,8 @@ export const profilePhotoSignature =
     const parameters = {
       invalidate: true,
       overwrite: true,
-      public_id: publicId,
+      public_id:
+        publicId,
       timestamp,
       transformation:
         PROFILE_TRANSFORMATION
@@ -255,7 +256,9 @@ export const profilePhotoUpdate =
         )
       );
 
-    if (!signaturesMatch) {
+    if (
+      !signaturesMatch
+    ) {
       throw new HttpError(
         403,
         'Signature foto tidak valid.'
@@ -466,7 +469,10 @@ export const passwordResetRequest =
     return ok(
       res,
       await requestPasswordResetOtp(
-        req.body?.email
+        req.body?.email,
+        req.ip ||
+          req.headers?.['x-forwarded-for'] ||
+          req.headers?.['x-real-ip']
       )
     );
   };
@@ -477,7 +483,10 @@ export const passwordResetVerify =
       res,
       await verifyPasswordResetOtp(
         req.body?.email,
-        req.body?.otp
+        req.body?.otp,
+        req.ip ||
+          req.headers?.['x-forwarded-for'] ||
+          req.headers?.['x-real-ip']
       )
     );
   };
@@ -490,7 +499,10 @@ export const passwordResetConfirm =
         req.body?.email,
         req.body?.resetToken,
         req.body?.newPassword,
-        req.body?.confirmPassword
+        req.body?.confirmPassword,
+        req.ip ||
+          req.headers?.['x-forwarded-for'] ||
+          req.headers?.['x-real-ip']
       )
     );
   };
