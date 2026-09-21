@@ -385,7 +385,7 @@ export default function ForgotPassword() {
                     .slice(0, 6)
                 )
               }
-              placeholder="000000"
+              placeholder="******"
               autoComplete="one-time-code"
               required
             />
