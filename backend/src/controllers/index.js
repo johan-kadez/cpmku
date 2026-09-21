@@ -1,51 +1,57 @@
 import {
-ok,
-created
+  ok,
+  created
 } from '../utils/response.js';
 
 import {
-currentUser,
-registerProfile,
-updateProfilePhoto,
-updateProfileNickname
+  currentUser,
+  registerProfile,
+  updateProfilePhoto,
+  updateProfileNickname
 } from '../services/auth.js';
 
 import {
-applySeller
+  requestPasswordResetOtp,
+  verifyPasswordResetOtp,
+  resetPassword
+} from '../services/passwordReset.js';
+
+import {
+  applySeller
 } from '../services/sellers.js';
 
 import {
-createProduct,
-updateProduct,
-deleteProduct,
-PRODUCT_IMAGE_PREFIX
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  PRODUCT_IMAGE_PREFIX
 } from '../services/products.js';
 
 import {
-createOrder,
-doneOrder
+  createOrder,
+  doneOrder
 } from '../services/orders.js';
 
 import {
-sendMessage,
-callSeller
+  sendMessage,
+  callSeller
 } from '../services/rooms.js';
 
 import * as A from '../services/admin.js';
 
 import {
-HttpError
+  HttpError
 } from '../utils/errors.js';
 
 import {
-env,
-assertCloudinaryEnv
+  env,
+  assertCloudinaryEnv
 } from '../config/env.js';
 
 import crypto from 'node:crypto';
 
 const PROFILE_TRANSFORMATION =
-'c_fill,g_auto,w_512,h_512';
+  'c_fill,g_auto,w_512,h_512';
 
 function createCloudinarySignature(
   parameters
@@ -77,406 +83,436 @@ function createCloudinarySignature(
 }
 
 export const me =
-async (req, res) => {
-return ok(
-res,
-{
-user:
-await currentUser(
-req.user
-)
-}
-);
-};
+  async (req, res) => {
+    return ok(
+      res,
+      {
+        user:
+          await currentUser(
+            req.user
+          )
+      }
+    );
+  };
 
 export const profileRegister =
-async (req, res) => {
-return created(
-res,
-await registerProfile({
-uid:
-req.user.uid,
+  async (req, res) => {
+    return created(
+      res,
+      await registerProfile({
+        uid:
+          req.user.uid,
 
-    email:
-      req.user.email,
+        email:
+          req.user.email,
 
-    name:
-      req.body?.name,
+        name:
+          req.body?.name,
 
-    phone:
-      req.body?.phone
-  })
-);
-
-};
+        phone:
+          req.body?.phone
+      })
+    );
+  };
 
 export const profileNickname =
-async (req, res) => {
-const result =
-await updateProfileNickname({
-uid:
-req.user.uid,
+  async (req, res) => {
+    const result =
+      await updateProfileNickname({
+        uid:
+          req.user.uid,
 
-    nickname:
-      req.body?.name
-  });
+        nickname:
+          req.body?.name
+      });
 
-return ok(
-  res,
-  result
-);
-
-};
+    return ok(
+      res,
+      result
+    );
+  };
 
 export const profilePhotoSignature =
-async (req, res) => {
-assertCloudinaryEnv();
+  async (req, res) => {
+    assertCloudinaryEnv();
 
-const timestamp =
-  Math.floor(
-    Date.now() / 1000
-  );
+    const timestamp =
+      Math.floor(
+        Date.now() / 1000
+      );
 
-const publicId =
-  `cpmku/profiles/${req.user.uid}`;
+    const publicId =
+      `cpmku/profiles/${req.user.uid}`;
 
-const parameters = {
-  invalidate: true,
-  overwrite: true,
-  public_id: publicId,
-  timestamp,
-  transformation:
-    PROFILE_TRANSFORMATION
-};
+    const parameters = {
+      invalidate: true,
+      overwrite: true,
+      public_id: publicId,
+      timestamp,
+      transformation:
+        PROFILE_TRANSFORMATION
+    };
 
-const signature =
-  createCloudinarySignature(
-    parameters
-  );
+    const signature =
+      createCloudinarySignature(
+        parameters
+      );
 
-return ok(
-  res,
-  {
-    cloudName:
-      env.cloudinary.cloudName,
+    return ok(
+      res,
+      {
+        cloudName:
+          env.cloudinary.cloudName,
 
-    apiKey:
-      env.cloudinary.apiKey,
+        apiKey:
+          env.cloudinary.apiKey,
 
-    timestamp,
+        timestamp,
 
-    signature,
+        signature,
 
-    publicId,
+        publicId,
 
-    transformation:
-      PROFILE_TRANSFORMATION
-  }
-);
-
-};
+        transformation:
+          PROFILE_TRANSFORMATION
+      }
+    );
+  };
 
 export const profilePhotoUpdate =
-async (req, res) => {
-assertCloudinaryEnv();
+  async (req, res) => {
+    assertCloudinaryEnv();
 
-const {
-  secureUrl,
-  publicId,
-  version,
-  signature
-} = req.body || {};
+    const {
+      secureUrl,
+      publicId,
+      version,
+      signature
+    } = req.body || {};
 
-if (
-  !secureUrl ||
-  !publicId ||
-  !version ||
-  !signature
-) {
-  throw new HttpError(
-    400,
-    'Data foto dari Cloudinary tidak lengkap.'
-  );
-}
+    if (
+      !secureUrl ||
+      !publicId ||
+      !version ||
+      !signature
+    ) {
+      throw new HttpError(
+        400,
+        'Data foto dari Cloudinary tidak lengkap.'
+      );
+    }
 
-const expectedPublicId =
-  `cpmku/profiles/${req.user.uid}`;
+    const expectedPublicId =
+      `cpmku/profiles/${req.user.uid}`;
 
-if (
-  publicId !==
-  expectedPublicId
-) {
-  throw new HttpError(
-    403,
-    'Public ID foto tidak valid.'
-  );
-}
+    if (
+      publicId !==
+      expectedPublicId
+    ) {
+      throw new HttpError(
+        403,
+        'Public ID foto tidak valid.'
+      );
+    }
 
-const expectedUrlPrefix =
-  `https://res.cloudinary.com/${env.cloudinary.cloudName}/image/upload/`;
+    const expectedUrlPrefix =
+      `https://res.cloudinary.com/${env.cloudinary.cloudName}/image/upload/`;
 
-if (
-  !secureUrl.startsWith(
-    expectedUrlPrefix
-  )
-) {
-  throw new HttpError(
-    400,
-    'URL foto Cloudinary tidak valid.'
-  );
-}
+    if (
+      !secureUrl.startsWith(
+        expectedUrlPrefix
+      )
+    ) {
+      throw new HttpError(
+        400,
+        'URL foto Cloudinary tidak valid.'
+      );
+    }
 
-const expectedSignature =
-  createCloudinarySignature({
-    public_id: publicId,
-    version
-  });
+    const expectedSignature =
+      createCloudinarySignature({
+        public_id:
+          publicId,
 
-if (
-  signature.length !==
-  expectedSignature.length
-) {
-  throw new HttpError(
-    403,
-    'Signature foto tidak valid.'
-  );
-}
+        version
+      });
 
-const signaturesMatch =
-  crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(
-      expectedSignature
-    )
-  );
+    if (
+      signature.length !==
+      expectedSignature.length
+    ) {
+      throw new HttpError(
+        403,
+        'Signature foto tidak valid.'
+      );
+    }
 
-if (!signaturesMatch) {
-  throw new HttpError(
-    403,
-    'Signature foto tidak valid.'
-  );
-}
+    const signaturesMatch =
+      crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(
+          expectedSignature
+        )
+      );
 
-const result =
-  await updateProfilePhoto({
-    uid:
-      req.user.uid,
+    if (!signaturesMatch) {
+      throw new HttpError(
+        403,
+        'Signature foto tidak valid.'
+      );
+    }
 
-    secureUrl,
+    const result =
+      await updateProfilePhoto({
+        uid:
+          req.user.uid,
 
-    publicId
-  });
+        secureUrl,
 
-return ok(
-  res,
-  {
-    ok: true,
-    ...result
-  }
-);
+        publicId
+      });
 
-};
+    return ok(
+      res,
+      {
+        ok: true,
+        ...result
+      }
+    );
+  };
 
 export const productPhotoSignature =
-async (req, res) => {
-assertCloudinaryEnv();
+  async (req, res) => {
+    assertCloudinaryEnv();
 
-const timestamp =
-  Math.floor(
-    Date.now() / 1000
-  );
+    const timestamp =
+      Math.floor(
+        Date.now() / 1000
+      );
 
-const publicId =
-  `${PRODUCT_IMAGE_PREFIX}${req.user.uid}/${crypto.randomUUID()}`;
+    const publicId =
+      `${PRODUCT_IMAGE_PREFIX}${req.user.uid}/${crypto.randomUUID()}`;
 
-const parameters = {
-  public_id:
-    publicId,
+    const parameters = {
+      public_id:
+        publicId,
 
-  timestamp
-};
+      timestamp
+    };
 
-const signature =
-  createCloudinarySignature(
-    parameters
-  );
+    const signature =
+      createCloudinarySignature(
+        parameters
+      );
 
-return ok(
-  res,
-  {
-    cloudName:
-      env.cloudinary.cloudName,
+    return ok(
+      res,
+      {
+        cloudName:
+          env.cloudinary.cloudName,
 
-    apiKey:
-      env.cloudinary.apiKey,
+        apiKey:
+          env.cloudinary.apiKey,
 
-    timestamp,
+        timestamp,
 
-    signature,
+        signature,
 
-    publicId
-  }
-);
-
-};
+        publicId
+      }
+    );
+  };
 
 export const sellerApply =
-async (req, res) =>
-created(
-res,
-await applySeller(
-req.user.uid,
-req.user.email,
-req.body
-)
-);
+  async (req, res) =>
+    created(
+      res,
+      await applySeller(
+        req.user.uid,
+        req.user.email,
+        req.body
+      )
+    );
 
 export const productCreate =
-async (req, res) =>
-created(
-res,
-await createProduct(
-req.user.uid,
-req.seller,
-req.body
-)
-);
+  async (req, res) =>
+    created(
+      res,
+      await createProduct(
+        req.user.uid,
+        req.seller,
+        req.body
+      )
+    );
 
 export const productUpdate =
-async (req, res) =>
-ok(
-res,
-await updateProduct(
-req.user.uid,
-req.seller,
-req.query.id,
-req.body || {}
-)
-);
+  async (req, res) =>
+    ok(
+      res,
+      await updateProduct(
+        req.user.uid,
+        req.seller,
+        req.query.id,
+        req.body || {}
+      )
+    );
 
 export const productDelete =
-async (req, res) =>
-ok(
-res,
-await deleteProduct(
-req.user.uid,
-req.query.id
-)
-);
+  async (req, res) =>
+    ok(
+      res,
+      await deleteProduct(
+        req.user.uid,
+        req.query.id
+      )
+    );
 
 export const orderCreate =
-async (req, res) =>
-created(
-res,
-await createOrder(
-req.user.uid,
-req.body.productId
-)
-);
+  async (req, res) =>
+    created(
+      res,
+      await createOrder(
+        req.user.uid,
+        req.body.productId
+      )
+    );
 
 export const orderDone =
-async (req, res) =>
-ok(
-res,
-await doneOrder(
-req.query.id,
-req.user.uid
-)
-);
+  async (req, res) =>
+    ok(
+      res,
+      await doneOrder(
+        req.query.id,
+        req.user.uid
+      )
+    );
 
 export const messageCreate =
-async (req, res) => {
-const user =
-await currentUser(
-req.user
-);
+  async (req, res) => {
+    const user =
+      await currentUser(
+        req.user
+      );
 
-return ok(
-  res,
-  await sendMessage(
-    req.query.id,
-    user,
-    req.body?.body
-  )
-);
-
-};
+    return ok(
+      res,
+      await sendMessage(
+        req.query.id,
+        user,
+        req.body?.body
+      )
+    );
+  };
 
 export const sellerCall =
-async (req, res) =>
-ok(
-res,
-await callSeller(
-req.query.id
-)
-);
+  async (req, res) =>
+    ok(
+      res,
+      await callSeller(
+        req.query.id
+      )
+    );
 
 export const dashboard =
-async (req, res) =>
-ok(
-res,
-await A.dashboard()
-);
+  async (req, res) =>
+    ok(
+      res,
+      await A.dashboard()
+    );
 
 export const list =
-(type) =>
-async (req, res) =>
-ok(
-res,
-await A.listCollection(
-type
-)
-);
+  type =>
+  async (req, res) =>
+    ok(
+      res,
+      await A.listCollection(
+        type
+      )
+    );
 
 export const status =
-(type) =>
-async (req, res) =>
-ok(
-res,
-await A.setStatus(
-type,
-req.query.id,
-req.body?.status
-)
-);
+  type =>
+  async (req, res) =>
+    ok(
+      res,
+      await A.setStatus(
+        type,
+        req.query.id,
+        req.body?.status
+      )
+    );
 
 export const settings =
-async (req, res) =>
-ok(
-res,
-await A.saveSettings(
-req.body
-)
-);
+  async (req, res) =>
+    ok(
+      res,
+      await A.saveSettings(
+        req.body
+      )
+    );
 
 export const updateUser =
-async (req, res) =>
-ok(
-res,
-await A.updateUser(
-req.query.id,
-req.body || {}
-)
-);
+  async (req, res) =>
+    ok(
+      res,
+      await A.updateUser(
+        req.query.id,
+        req.body || {}
+      )
+    );
+
+export const passwordResetRequest =
+  async (req, res) => {
+    return ok(
+      res,
+      await requestPasswordResetOtp(
+        req.body?.email
+      )
+    );
+  };
+
+export const passwordResetVerify =
+  async (req, res) => {
+    return ok(
+      res,
+      await verifyPasswordResetOtp(
+        req.body?.email,
+        req.body?.otp
+      )
+    );
+  };
+
+export const passwordResetConfirm =
+  async (req, res) => {
+    return ok(
+      res,
+      await resetPassword(
+        req.body?.email,
+        req.body?.resetToken,
+        req.body?.newPassword,
+        req.body?.confirmPassword
+      )
+    );
+  };
 
 export const health =
-async (req, res) =>
-ok(
-res,
-{
-ok: true,
+  async (req, res) =>
+    ok(
+      res,
+      {
+        ok: true,
 
-    service:
-      'johan-marketplace-backend',
+        service:
+          'johan-marketplace-backend',
 
-    time:
-      new Date().toISOString()
-  }
-);
+        time:
+          new Date().toISOString()
+      }
+    );
 
 export const bad = () => {
-throw new HttpError(
-404,
-'Endpoint tidak ditemukan.'
-);
+  throw new HttpError(
+    404,
+    'Endpoint tidak ditemukan.'
+  );
 };
