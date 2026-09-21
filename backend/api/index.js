@@ -3,7 +3,7 @@ import {
 } from '../src/utils/errors.js';
 
 const PUBLIC_ORIGIN =
-  'https://cpmku.vercel.app';
+  'https://cpmku.shop';
 
 function setCors(res) {
   res.setHeader(
@@ -171,6 +171,9 @@ async function router(
     status,
     settings,
     updateUser,
+    passwordResetRequest,
+    passwordResetVerify,
+    passwordResetConfirm,
     bad
   } = await getControllers();
 
@@ -185,6 +188,39 @@ async function router(
   const {
     requireSeller
   } = await getSellerMiddleware();
+
+  if (
+    path ===
+      'auth/password-reset/request' &&
+    method === 'POST'
+  ) {
+    return passwordResetRequest(
+      req,
+      res
+    );
+  }
+
+  if (
+    path ===
+      'auth/password-reset/verify' &&
+    method === 'POST'
+  ) {
+    return passwordResetVerify(
+      req,
+      res
+    );
+  }
+
+  if (
+    path ===
+      'auth/password-reset/confirm' &&
+    method === 'POST'
+  ) {
+    return passwordResetConfirm(
+      req,
+      res
+    );
+  }
 
   if (
     path === 'me' &&
