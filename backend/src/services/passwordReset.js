@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { db, auth } from '../firebase/admin.js';
 import { HttpError } from '../utils/errors.js';
 import { sendPasswordResetOtp } from './mail.js';
+import { env } from '../config/env.js';
 
 const OTP_TTL_MS =
   15 * 60 * 1000;
@@ -15,15 +16,58 @@ const RESET_TOKEN_TTL_MS =
 
 const MAX_ATTEMPTS = 3;
 
+const REQUEST_IP_LIMIT = 5;
+const REQUEST_IP_WINDOW_MS = 15 * 60 * 1000;
+
+const REQUEST_EMAIL_LIMIT = 3;
+const REQUEST_EMAIL_WINDOW_MS = 60 * 60 * 1000;
+
+const VERIFY_IP_LIMIT = 10;
+const VERIFY_IP_WINDOW_MS = 15 * 60 * 1000;
+
+const VERIFY_EMAIL_LIMIT = 10;
+const VERIFY_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+
+const RESET_EMAIL_LIMIT = 5;
+const RESET_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+
 function cleanEmail(email) {
   return String(email || '')
     .trim()
     .toLowerCase();
 }
 
+function cleanIp(ip) {
+  const value = String(ip || '')
+    .trim();
+
+  if (!value) {
+    return 'unknown';
+  }
+
+  return value.slice(0, 128);
+}
+
+function getSecret() {
+  const secret = String(
+    env.passwordReset.secret || ''
+  );
+
+  if (!secret) {
+    throw new Error(
+      'Missing PASSWORD_RESET_SECRET environment variable.'
+    );
+  }
+
+  return secret;
+}
+
 function hash(value) {
   return crypto
-    .createHash('sha256')
+    .createHmac(
+      'sha256',
+      getSecret()
+    )
     .update(String(value))
     .digest('hex');
 }
@@ -72,21 +116,176 @@ function genericRequestResponse() {
   };
 }
 
+function rateLimitError(
+  message,
+  retryAfter
+) {
+  const error = new HttpError(
+    429,
+    message
+  );
+
+  error.retryAfter =
+    Math.max(
+      1,
+      Math.ceil(
+        retryAfter / 1000
+      )
+    );
+
+  return error;
+}
+
+function rateLimitRef(
+  type,
+  value
+) {
+  return db
+    .collection(
+      'passwordResetRateLimits'
+    )
+    .doc(
+      hash(
+        `${type}:${value}`
+      )
+    );
+}
+
+async function consumeRateLimit(
+  type,
+  value,
+  limit,
+  windowMs,
+  message
+) {
+  const cleanValue =
+    String(value || '').trim() ||
+    'unknown';
+
+  const ref =
+    rateLimitRef(
+      type,
+      cleanValue
+    );
+
+  const now =
+    Date.now();
+
+  const result =
+    await db.runTransaction(
+      async transaction => {
+        const snapshot =
+          await transaction.get(
+            ref
+          );
+
+        const data =
+          snapshot.exists
+            ? snapshot.data()
+            : null;
+
+        const expiresAt =
+          timestampMillis(
+            data?.expiresAt
+          );
+
+        let count =
+          Number(
+            data?.count
+          );
+
+        if (
+          !Number.isInteger(count) ||
+          expiresAt <= now
+        ) {
+          count = 0;
+        }
+
+        if (
+          count >= limit
+        ) {
+          return {
+            limited: true,
+            retryAfter:
+              expiresAt > now
+                ? expiresAt - now
+                : windowMs
+          };
+        }
+
+        const nextCount =
+          count + 1;
+
+        transaction.set(
+          ref,
+          {
+            count: nextCount,
+            expiresAt:
+              new Date(
+                count === 0 ||
+                expiresAt <= now
+                  ? now + windowMs
+                  : expiresAt
+              ),
+            updatedAt:
+              new Date(now)
+          },
+          {
+            merge: true
+          }
+        );
+
+        return {
+          limited: false
+        };
+      }
+    );
+
+  if (result.limited) {
+    throw rateLimitError(
+      message,
+      result.retryAfter
+    );
+  }
+}
+
 export async function requestPasswordResetOtp(
-  email
+  email,
+  ip
 ) {
   const clean =
     cleanEmail(email);
 
+  const clientIp =
+    cleanIp(ip);
+
   if (
     !clean ||
-    !/^\S+@\S+\.\S+$/.test(clean)
+    !/^\S+@\S+\.\S+$/.test(
+      clean
+    )
   ) {
     throw new HttpError(
       400,
       'Format email tidak valid.'
     );
   }
+
+  await consumeRateLimit(
+    'request-ip',
+    clientIp,
+    REQUEST_IP_LIMIT,
+    REQUEST_IP_WINDOW_MS,
+    'Too many password reset requests. Please try again later.'
+  );
+
+  await consumeRateLimit(
+    'request-email',
+    clean,
+    REQUEST_EMAIL_LIMIT,
+    REQUEST_EMAIL_WINDOW_MS,
+    'Too many password reset requests. Please try again later.'
+  );
 
   const ref =
     db
@@ -95,38 +294,10 @@ export async function requestPasswordResetOtp(
       )
       .doc(hash(clean));
 
-  const snapshot =
-    await ref.get();
-
   const now =
     Date.now();
 
-  if (snapshot.exists) {
-    const data =
-      snapshot.data();
-
-    const resendAt =
-      timestampMillis(
-        data.resendAvailableAt
-      );
-
-    if (resendAt > now) {
-      const error =
-        new HttpError(
-          429,
-          'Please wait before requesting a new code.'
-        );
-
-      error.retryAfter =
-        Math.ceil(
-          (resendAt - now) /
-          1000
-        );
-
-      throw error;
-    }
-  }
-
+  let otp;
   let firebaseUser;
 
   try {
@@ -145,51 +316,101 @@ export async function requestPasswordResetOtp(
     throw error;
   }
 
-  if (firebaseUser.disabled) {
+  if (
+    firebaseUser.disabled
+  ) {
     return genericRequestResponse();
   }
 
-  const otp =
+  otp =
     generateOtp();
 
-  await ref.set({
-    uid:
-      firebaseUser.uid,
+  const transactionResult =
+    await db.runTransaction(
+      async transaction => {
+        const snapshot =
+          await transaction.get(
+            ref
+          );
 
-    email:
-      clean,
+        if (snapshot.exists) {
+          const data =
+            snapshot.data();
 
-    codeHash:
-      hash(otp),
+          const resendAt =
+            timestampMillis(
+              data.resendAvailableAt
+            );
 
-    attemptsRemaining:
-      MAX_ATTEMPTS,
+          if (
+            resendAt > now
+          ) {
+            return {
+              limited: true,
+              retryAfter:
+                resendAt - now
+            };
+          }
+        }
 
-    expiresAt:
-      new Date(
-        now + OTP_TTL_MS
-      ),
+        transaction.set(
+          ref,
+          {
+            uid:
+              firebaseUser.uid,
 
-    resendAvailableAt:
-      new Date(
-        now + RESEND_COOLDOWN_MS
-      ),
+            email:
+              clean,
 
-    resetTokenHash:
-      null,
+            codeHash:
+              hash(otp),
 
-    resetTokenExpiresAt:
-      null,
+            attemptsRemaining:
+              MAX_ATTEMPTS,
 
-    verifiedAt:
-      null,
+            expiresAt:
+              new Date(
+                now +
+                OTP_TTL_MS
+              ),
 
-    createdAt:
-      new Date(now),
+            resendAvailableAt:
+              new Date(
+                now +
+                RESEND_COOLDOWN_MS
+              ),
 
-    updatedAt:
-      new Date(now)
-  });
+            resetTokenHash:
+              null,
+
+            resetTokenExpiresAt:
+              null,
+
+            verifiedAt:
+              null,
+
+            createdAt:
+              new Date(now),
+
+            updatedAt:
+              new Date(now)
+          }
+        );
+
+        return {
+          limited: false
+        };
+      }
+    );
+
+  if (
+    transactionResult.limited
+  ) {
+    throw rateLimitError(
+      'Please wait before requesting a new code.',
+      transactionResult.retryAfter
+    );
+  }
 
   try {
     await sendPasswordResetOtp(
@@ -206,7 +427,8 @@ export async function requestPasswordResetOtp(
 
 export async function verifyPasswordResetOtp(
   email,
-  otp
+  otp,
+  ip
 ) {
   const clean =
     cleanEmail(email);
@@ -214,6 +436,9 @@ export async function verifyPasswordResetOtp(
   const cleanOtp =
     String(otp || '')
       .replace(/\D/g, '');
+
+  const clientIp =
+    cleanIp(ip);
 
   if (
     !clean ||
@@ -225,6 +450,22 @@ export async function verifyPasswordResetOtp(
     );
   }
 
+  await consumeRateLimit(
+    'verify-ip',
+    clientIp,
+    VERIFY_IP_LIMIT,
+    VERIFY_IP_WINDOW_MS,
+    'Too many verification attempts. Please try again later.'
+  );
+
+  await consumeRateLimit(
+    'verify-email',
+    clean,
+    VERIFY_EMAIL_LIMIT,
+    VERIFY_EMAIL_WINDOW_MS,
+    'Too many verification attempts. Please try again later.'
+  );
+
   const ref =
     db
       .collection(
@@ -232,120 +473,194 @@ export async function verifyPasswordResetOtp(
       )
       .doc(hash(clean));
 
-  const snapshot =
-    await ref.get();
+  const now =
+    Date.now();
 
-  if (!snapshot.exists) {
+  const result =
+    await db.runTransaction(
+      async transaction => {
+        const snapshot =
+          await transaction.get(
+            ref
+          );
+
+        if (!snapshot.exists) {
+          return {
+            type: 'invalid'
+          };
+        }
+
+        const data =
+          snapshot.data();
+
+        if (
+          timestampMillis(
+            data.expiresAt
+          ) <= now
+        ) {
+          transaction.delete(
+            ref
+          );
+
+          return {
+            type: 'expired'
+          };
+        }
+
+        const remaining =
+          Number(
+            data.attemptsRemaining
+          );
+
+        if (
+          !Number.isInteger(
+            remaining
+          ) ||
+          remaining <= 0
+        ) {
+          transaction.delete(
+            ref
+          );
+
+          return {
+            type: 'attempts'
+          };
+        }
+
+        const matches =
+          safeEqualHex(
+            hash(cleanOtp),
+            String(
+              data.codeHash || ''
+            )
+          );
+
+        if (!matches) {
+          const nextRemaining =
+            remaining - 1;
+
+          if (
+            nextRemaining <= 0
+          ) {
+            transaction.delete(
+              ref
+            );
+
+            return {
+              type: 'wrong',
+              remaining: 0
+            };
+          }
+
+          transaction.update(
+            ref,
+            {
+              attemptsRemaining:
+                nextRemaining,
+
+              updatedAt:
+                new Date(now)
+            }
+          );
+
+          return {
+            type: 'wrong',
+            remaining:
+              nextRemaining
+          };
+        }
+
+        const resetToken =
+          generateResetToken();
+
+        transaction.update(
+          ref,
+          {
+            codeHash:
+              null,
+
+            attemptsRemaining:
+              0,
+
+            verifiedAt:
+              new Date(now),
+
+            resetTokenHash:
+              hash(
+                resetToken
+              ),
+
+            resetTokenExpiresAt:
+              new Date(
+                now +
+                RESET_TOKEN_TTL_MS
+              ),
+
+            updatedAt:
+              new Date(now)
+          }
+        );
+
+        return {
+          type: 'success',
+          resetToken
+        };
+      }
+    );
+
+  if (
+    result.type ===
+    'invalid'
+  ) {
     throw new HttpError(
       400,
       'Kode OTP tidak valid atau sudah kedaluwarsa.'
     );
   }
 
-  const data =
-    snapshot.data();
-
-  const now =
-    Date.now();
-
   if (
-    timestampMillis(
-      data.expiresAt
-    ) <= now
+    result.type ===
+    'expired'
   ) {
-    await ref.delete();
-
     throw new HttpError(
       400,
       'Kode OTP sudah kedaluwarsa. Silakan minta kode baru.'
     );
   }
 
-  const remaining =
-    Number(
-      data.attemptsRemaining
-    );
-
   if (
-    !Number.isInteger(
-      remaining
-    ) ||
-    remaining <= 0
+    result.type ===
+    'attempts'
   ) {
-    await ref.delete();
-
     throw new HttpError(
       400,
       'Kode OTP sudah tidak dapat digunakan. Silakan minta kode baru.'
     );
   }
 
-  const matches =
-    safeEqualHex(
-      hash(cleanOtp),
-      String(
-        data.codeHash || ''
-      )
-    );
-
-  if (!matches) {
-    const nextRemaining =
-      remaining - 1;
-
+  if (
+    result.type ===
+    'wrong'
+  ) {
     if (
-      nextRemaining <= 0
+      result.remaining === 0
     ) {
-      await ref.delete();
-
       throw new HttpError(
         400,
         'Incorrect code. You have 0 trials remaining. Please request a new code.'
       );
     }
 
-    await ref.update({
-      attemptsRemaining:
-        nextRemaining,
-
-      updatedAt:
-        new Date()
-    });
-
     throw new HttpError(
       400,
-      `Incorrect code. You have ${nextRemaining} trials remaining.`
+      `Incorrect code. You have ${result.remaining} trials remaining.`
     );
   }
 
-  const resetToken =
-    generateResetToken();
-
-  await ref.update({
-    codeHash:
-      null,
-
-    attemptsRemaining:
-      0,
-
-    verifiedAt:
-      new Date(),
-
-    resetTokenHash:
-      hash(resetToken),
-
-    resetTokenExpiresAt:
-      new Date(
-        now +
-        RESET_TOKEN_TTL_MS
-      ),
-
-    updatedAt:
-      new Date()
-  });
-
   return {
     ok: true,
-    resetToken
+    resetToken:
+      result.resetToken
   };
 }
 
@@ -353,7 +668,8 @@ export async function resetPassword(
   email,
   resetToken,
   newPassword,
-  confirmPassword
+  confirmPassword,
+  ip
 ) {
   const clean =
     cleanEmail(email);
@@ -372,6 +688,9 @@ export async function resetPassword(
     String(
       confirmPassword || ''
     );
+
+  const clientIp =
+    cleanIp(ip);
 
   if (
     !clean ||
@@ -402,6 +721,22 @@ export async function resetPassword(
     );
   }
 
+  await consumeRateLimit(
+    'reset-email',
+    clean,
+    RESET_EMAIL_LIMIT,
+    RESET_EMAIL_WINDOW_MS,
+    'Too many password reset attempts. Please try again later.'
+  );
+
+  await consumeRateLimit(
+    'reset-ip',
+    clientIp,
+    RESET_EMAIL_LIMIT,
+    RESET_EMAIL_WINDOW_MS,
+    'Too many password reset attempts. Please try again later.'
+  );
+
   const ref =
     db
       .collection(
@@ -409,58 +744,91 @@ export async function resetPassword(
       )
       .doc(hash(clean));
 
-  const snapshot =
-    await ref.get();
-
-  if (!snapshot.exists) {
-    throw new HttpError(
-      400,
-      'Reset password tidak valid atau sudah kedaluwarsa.'
-    );
-  }
-
-  const data =
-    snapshot.data();
-
   const now =
     Date.now();
 
-  if (
-    !data.resetTokenHash ||
-    !safeEqualHex(
-      hash(token),
-      String(
-        data.resetTokenHash
-      )
-    )
-  ) {
-    throw new HttpError(
-      400,
-      'Reset password tidak valid atau sudah kedaluwarsa.'
+  const result =
+    await db.runTransaction(
+      async transaction => {
+        const snapshot =
+          await transaction.get(
+            ref
+          );
+
+        if (!snapshot.exists) {
+          return {
+            type: 'invalid'
+          };
+        }
+
+        const data =
+          snapshot.data();
+
+        if (
+          !data.resetTokenHash ||
+          !safeEqualHex(
+            hash(token),
+            String(
+              data.resetTokenHash
+            )
+          )
+        ) {
+          return {
+            type: 'invalid'
+          };
+        }
+
+        if (
+          timestampMillis(
+            data.resetTokenExpiresAt
+          ) <= now
+        ) {
+          transaction.delete(
+            ref
+          );
+
+          return {
+            type: 'expired'
+          };
+        }
+
+        transaction.delete(
+          ref
+        );
+
+        return {
+          type: 'success',
+          uid: data.uid
+        };
+      }
     );
-  }
 
   if (
-    timestampMillis(
-      data.resetTokenExpiresAt
-    ) <= now
+    result.type ===
+    'expired'
   ) {
-    await ref.delete();
-
     throw new HttpError(
       400,
       'Reset password sudah kedaluwarsa. Silakan mulai lagi.'
     );
   }
 
+  if (
+    result.type !==
+    'success'
+  ) {
+    throw new HttpError(
+      400,
+      'Reset password tidak valid atau sudah kedaluwarsa.'
+    );
+  }
+
   await auth.updateUser(
-    data.uid,
+    result.uid,
     {
       password
     }
   );
-
-  await ref.delete();
 
   return {
     ok: true
