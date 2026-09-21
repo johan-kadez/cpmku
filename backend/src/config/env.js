@@ -2,30 +2,45 @@ const requiredEnv = [
   'FIREBASE_PROJECT_ID',
   'FIREBASE_CLIENT_EMAIL',
   'FIREBASE_PRIVATE_KEY',
-  'ADMIN_UID'
+  'ADMIN_UID',
+  'PASSWORD_RESET_SECRET'
 ];
 
 function normalizePrivateKey(value) {
-  let key = String(value || '').trim();
+  let key =
+    String(value || '')
+      .trim();
 
   if (
     key.startsWith('"') &&
     key.endsWith('"')
   ) {
-    key = key.slice(1, -1);
+    key =
+      key.slice(1, -1);
   }
 
   if (
     key.startsWith("'") &&
     key.endsWith("'")
   ) {
-    key = key.slice(1, -1);
+    key =
+      key.slice(1, -1);
   }
 
-  key = key
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r');
+  key =
+    key
+      .replace(
+        /\\r\\n/g,
+        '\n'
+      )
+      .replace(
+        /\\n/g,
+        '\n'
+      )
+      .replace(
+        /\\r/g,
+        '\r'
+      );
 
   return key.trim();
 }
@@ -33,12 +48,14 @@ function normalizePrivateKey(value) {
 export const env = {
   projectId:
     String(
-      process.env.FIREBASE_PROJECT_ID || ''
+      process.env.FIREBASE_PROJECT_ID ||
+      ''
     ).trim(),
 
   clientEmail:
     String(
-      process.env.FIREBASE_CLIENT_EMAIL || ''
+      process.env.FIREBASE_CLIENT_EMAIL ||
+      ''
     ).trim(),
 
   privateKey:
@@ -54,23 +71,27 @@ export const env = {
 
   adminUid:
     String(
-      process.env.ADMIN_UID || ''
+      process.env.ADMIN_UID ||
+      ''
     ).trim(),
 
   cloudinary: {
     cloudName:
       String(
-        process.env.CLOUDINARY_CLOUD_NAME || ''
+        process.env.CLOUDINARY_CLOUD_NAME ||
+        ''
       ).trim(),
 
     apiKey:
       String(
-        process.env.CLOUDINARY_API_KEY || ''
+        process.env.CLOUDINARY_API_KEY ||
+        ''
       ).trim(),
 
     apiSecret:
       String(
-        process.env.CLOUDINARY_API_SECRET || ''
+        process.env.CLOUDINARY_API_SECRET ||
+        ''
       ).trim()
   },
 
@@ -83,28 +104,40 @@ export const env = {
 
     port:
       Number(
-        process.env.ZOHO_SMTP_PORT || 465
+        process.env.ZOHO_SMTP_PORT ||
+        465
       ),
 
     secure:
       String(
-        process.env.ZOHO_SMTP_SECURE || 'true'
+        process.env.ZOHO_SMTP_SECURE ||
+        'true'
       ).toLowerCase() === 'true',
 
     user:
       String(
-        process.env.ZOHO_SMTP_USER || ''
+        process.env.ZOHO_SMTP_USER ||
+        ''
       ).trim(),
 
     pass:
       String(
-        process.env.ZOHO_SMTP_PASS || ''
+        process.env.ZOHO_SMTP_PASS ||
+        ''
       ).trim(),
 
     from:
       String(
         process.env.ZOHO_MAIL_FROM ||
         process.env.ZOHO_SMTP_USER ||
+        ''
+      ).trim()
+  },
+
+  passwordReset: {
+    secret:
+      String(
+        process.env.PASSWORD_RESET_SECRET ||
         ''
       ).trim()
   }
@@ -115,11 +148,14 @@ export function assertEnv() {
     requiredEnv.filter(
       key =>
         !String(
-          process.env[key] || ''
+          process.env[key] ||
+          ''
         ).trim()
     );
 
-  if (missing.length) {
+  if (
+    missing.length
+  ) {
     throw new Error(
       `Missing environment variables: ${missing.join(', ')}`
     );
@@ -129,25 +165,33 @@ export function assertEnv() {
 export function assertCloudinaryEnv() {
   const missing = [];
 
-  if (!env.cloudinary.cloudName) {
+  if (
+    !env.cloudinary.cloudName
+  ) {
     missing.push(
       'CLOUDINARY_CLOUD_NAME'
     );
   }
 
-  if (!env.cloudinary.apiKey) {
+  if (
+    !env.cloudinary.apiKey
+  ) {
     missing.push(
       'CLOUDINARY_API_KEY'
     );
   }
 
-  if (!env.cloudinary.apiSecret) {
+  if (
+    !env.cloudinary.apiSecret
+  ) {
     missing.push(
       'CLOUDINARY_API_SECRET'
     );
   }
 
-  if (missing.length) {
+  if (
+    missing.length
+  ) {
     throw new Error(
       `Missing Cloudinary environment variables: ${missing.join(', ')}`
     );
