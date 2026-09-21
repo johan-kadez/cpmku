@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 
 const OTP_LENGTH = 6;
+const ORBIT_RADIUS = 82;
+const ORBIT_DURATION = 1450;
 
 export default function ForgotPassword() {
   const nav = useNavigate();
@@ -22,6 +24,8 @@ export default function ForgotPassword() {
   const inputRefs = useRef([]);
   const cooldownTimerRef = useRef(null);
   const verificationTimerRef = useRef(null);
+  const animationTimersRef = useRef([]);
+  const otpAnimationsRef = useRef([]);
 
   useEffect(() => {
     return () => {
@@ -32,10 +36,32 @@ export default function ForgotPassword() {
       if (verificationTimerRef.current) {
         clearTimeout(verificationTimerRef.current);
       }
+
+      animationTimersRef.current.forEach(timer => {
+        clearTimeout(timer);
+      });
+
+      otpAnimationsRef.current.forEach(animation => {
+        try {
+          animation.cancel();
+        } catch {
+          // Ignore cancelled animations during unmount.
+        }
+      });
     };
   }, []);
 
-  const otpValue = otp.join('');
+  useEffect(() => {
+    if (otpState !== 'success') {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      playSuccessAnimation();
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [otpState]);
 
   const setInputRef = (element, index) => {
     inputRefs.current[index] = element;
@@ -68,12 +94,16 @@ export default function ForgotPassword() {
 
     if (digit && index === OTP_LENGTH - 1) {
       requestAnimationFrame(() => {
-        const nextOtp = [...otp];
-        nextOtp[index] = digit;
+        setOtp(current => {
+          const nextOtp = [...current];
+          nextOtp[index] = digit;
 
-        if (nextOtp.every(Boolean)) {
-          scheduleVerification(nextOtp.join(''));
-        }
+          if (nextOtp.every(Boolean)) {
+            scheduleVerification(nextOtp.join(''));
+          }
+
+          return current;
+        });
       });
     }
   };
@@ -298,15 +328,6 @@ export default function ForgotPassword() {
 
       setResetToken(result.resetToken);
       setOtpState('success');
-
-      setTimeout(() => {
-        setStep('password');
-        setOtpState('idle');
-        setOtp(Array(OTP_LENGTH).fill(''));
-        setError('');
-        setSuccess('');
-        setBusy(false);
-      }, 1550);
     } catch (error) {
       setOtpState('error');
 
@@ -316,10 +337,205 @@ export default function ForgotPassword() {
 
       setBusy(false);
 
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         inputRefs.current[0]?.focus();
       }, 650);
+
+      animationTimersRef.current.push(timer);
     }
+  };
+
+  const playSuccessAnimation = () => {
+    const cells = inputRefs.current.filter(Boolean);
+
+    if (cells.length !== OTP_LENGTH) {
+      return;
+    }
+
+    otpAnimationsRef.current.forEach(animation => {
+      try {
+        animation.cancel();
+      } catch {
+        // Ignore cancelled animations.
+      }
+    });
+
+    otpAnimationsRef.current = [];
+
+    const stage = cells[0].closest(
+      '.cpmku-otp-stage'
+    );
+
+    if (!stage) {
+      return;
+    }
+
+    const stageRect =
+      stage.getBoundingClientRect();
+
+    const stageCenterX =
+      stageRect.width / 2;
+
+    const stageCenterY =
+      stageRect.height / 2;
+
+    cells.forEach((cell, index) => {
+      const rect =
+        cell.getBoundingClientRect();
+
+      const currentCenterX =
+        rect.left -
+        stageRect.left +
+        rect.width / 2;
+
+      const currentCenterY =
+        rect.top -
+        stageRect.top +
+        rect.height / 2;
+
+      const startX =
+        currentCenterX - stageCenterX;
+
+      const startY =
+        currentCenterY - stageCenterY;
+
+      const startingAngle =
+        (Math.PI * 2 * index) /
+        OTP_LENGTH -
+        Math.PI / 2;
+
+      const points = [];
+
+      points.push({
+        x: startX,
+        y: startY
+      });
+
+      points.push({
+        x: 0,
+        y: 0
+      });
+
+      const orbitSteps = 18;
+
+      for (
+        let i = 0;
+        i <= orbitSteps;
+        i += 1
+      ) {
+        const progress =
+          i / orbitSteps;
+
+        const angle =
+          startingAngle +
+          progress * Math.PI * 2;
+
+        points.push({
+          x:
+            Math.cos(angle) *
+            ORBIT_RADIUS,
+
+          y:
+            Math.sin(angle) *
+            ORBIT_RADIUS
+        });
+      }
+
+      points.push({
+        x: 0,
+        y: 0
+      });
+
+      points.push({
+        x: 0,
+        y: 0
+      });
+
+      const keyframes =
+        points.map((point, pointIndex) => {
+          const progress =
+            pointIndex /
+            (points.length - 1);
+
+          let scale = 1;
+
+          if (progress < 0.12) {
+            scale =
+              1 +
+              progress * 0.7;
+          } else if (
+            progress > 0.82
+          ) {
+            scale =
+              1.7 -
+              (progress - 0.82) * 3.5;
+          } else {
+            scale = 1.08;
+          }
+
+          return {
+            transform:
+              `translate(${point.x}px, ${point.y}px) ` +
+              `translate(-50%, -50%) ` +
+              `scale(${Math.max(scale, 1)})`,
+
+            offset: progress
+          };
+        });
+
+      cell.classList.add('orbiting-active');
+
+      const animation =
+        cell.animate(
+          keyframes,
+          {
+            duration:
+              ORBIT_DURATION,
+
+            easing:
+              'cubic-bezier(.22,1,.36,1)',
+
+            fill: 'forwards'
+          }
+        );
+
+      otpAnimationsRef.current.push(
+        animation
+      );
+    });
+
+    const successBox =
+      stage.querySelector(
+        '.cpmku-otp-success'
+      );
+
+    const revealTimer = setTimeout(() => {
+      if (successBox) {
+        successBox.classList.add('show');
+      }
+    }, 1110);
+
+    animationTimersRef.current.push(
+      revealTimer
+    );
+
+    const finishTimer = setTimeout(() => {
+      cells.forEach(cell => {
+        cell.style.opacity = '0';
+        cell.style.visibility = 'hidden';
+      });
+
+      setStep('password');
+      setOtpState('idle');
+      setOtp(Array(OTP_LENGTH).fill(''));
+      setError('');
+      setSuccess('');
+      setBusy(false);
+    }, ORBIT_DURATION + 180);
+
+    animationTimersRef.current.push(
+      finishTimer
+    );
   };
 
   const reset = async event => {
@@ -340,7 +556,9 @@ export default function ForgotPassword() {
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords don't match.");
+      setError(
+        "Passwords don't match."
+      );
       return;
     }
 
@@ -364,44 +582,52 @@ export default function ForgotPassword() {
         'Password berhasil diubah. Mengembalikan ke Sign In...'
       );
 
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         nav('/login', {
           replace: true
         });
       }, 1200);
+
+      animationTimersRef.current.push(
+        timer
+      );
     } catch (error) {
       setError(
         error?.message ||
         'Gagal mengubah password.'
       );
+
       setBusy(false);
     }
   };
 
   const startCooldown = () => {
     if (cooldownTimerRef.current) {
-      clearInterval(cooldownTimerRef.current);
+      clearInterval(
+        cooldownTimerRef.current
+      );
     }
 
     setResendCooldown(120);
 
     let remaining = 120;
 
-    cooldownTimerRef.current = setInterval(() => {
-      remaining -= 1;
+    cooldownTimerRef.current =
+      setInterval(() => {
+        remaining -= 1;
 
-      setResendCooldown(
-        Math.max(remaining, 0)
-      );
-
-      if (remaining <= 0) {
-        clearInterval(
-          cooldownTimerRef.current
+        setResendCooldown(
+          Math.max(remaining, 0)
         );
 
-        cooldownTimerRef.current = null;
-      }
-    }, 1000);
+        if (remaining <= 0) {
+          clearInterval(
+            cooldownTimerRef.current
+          );
+
+          cooldownTimerRef.current = null;
+        }
+      }, 1000);
   };
 
   const resend = async () => {
@@ -460,10 +686,11 @@ export default function ForgotPassword() {
         .cpmku-otp-stage {
           position: relative;
           width: 100%;
-          height: 190px;
+          height: 220px;
           display: flex;
           align-items: center;
           justify-content: center;
+          overflow: visible;
         }
 
         .cpmku-otp-row {
@@ -493,10 +720,12 @@ export default function ForgotPassword() {
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.04),
             0 0 0 rgba(59, 130, 246, 0);
+
           transition:
             border-color 0.2s ease,
             background 0.2s ease,
-            box-shadow 0.2s ease;
+            box-shadow 0.2s ease,
+            opacity 0.2s ease;
         }
 
         .cpmku-otp-cell:focus {
@@ -557,12 +786,12 @@ export default function ForgotPassword() {
           }
         }
 
-        .cpmku-otp-cell.orbiting {
-          position: absolute;
-          left: 50%;
-          top: 50%;
+        .cpmku-otp-cell.orbiting-active {
+          position: relative;
           z-index: 5;
           pointer-events: none;
+          transform-origin: center center;
+          will-change: transform, opacity;
         }
 
         .cpmku-otp-success {
@@ -585,6 +814,7 @@ export default function ForgotPassword() {
             0 0 0 3px rgba(34, 197, 94, 0.08),
             0 0 28px rgba(34, 197, 94, 0.24),
             inset 0 1px 0 rgba(255, 255, 255, 0.06);
+          pointer-events: none;
         }
 
         .cpmku-otp-success.show {
@@ -677,6 +907,10 @@ export default function ForgotPassword() {
         }
 
         @media (max-width: 430px) {
+          .cpmku-otp-stage {
+            height: 205px;
+          }
+
           .cpmku-otp-row {
             gap: 5px;
           }
@@ -797,10 +1031,6 @@ export default function ForgotPassword() {
                         `cpmku-otp-cell ${
                           otpState === 'error'
                             ? 'invalid'
-                            : ''
-                        } ${
-                          otpState === 'success'
-                            ? 'orbiting'
                             : ''
                         }`
                       }
@@ -1052,6 +1282,9 @@ function getOtpErrorMessage(error) {
     return 'Incorrect code. You have 0 trials remaining. Please request a new code.';
   }
 
-  return message ||
-    'Invalid OTP verification';
+  return (
+    message ||
+    'Invalid OTP verification'
+  );
 }
+```0
