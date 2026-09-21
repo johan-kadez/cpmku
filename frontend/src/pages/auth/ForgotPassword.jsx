@@ -4,7 +4,96 @@ import { api } from '../../services/api';
 
 const OTP_LENGTH = 6;
 const ORBIT_RADIUS = 82;
-const ORBIT_DURATION = 1450;
+const ORBIT_SCALE = 0.85;
+const ORBIT_DURATION = 1900;
+const ORBIT_FRAMES = 90;
+const SUCCESS_REVEAL_DELAY = 1770;
+const SUCCESS_HOLD = 1000;
+
+// Akhir tiap fase animasi, dihitung dari 0 sampai 1 dari ORBIT_DURATION:
+// kumpul ke tengah -> menyebar jadi lingkaran -> berputar -> menyusut ke tengah.
+const PHASE_GATHER = 0.12;
+const PHASE_SPREAD = 0.26;
+const PHASE_SPIN = 0.82;
+
+const easeInOutCubic = t =>
+  t < 0.5
+    ? 4 * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+const easeOutCubic = t =>
+  1 - Math.pow(1 - t, 3);
+
+// Posisi satu kotak OTP pada progress tertentu (0 sampai 1).
+// x dan y dihitung dari tengah stage; start = posisi awal kotak di baris.
+function getOrbitFrame(progress, start, baseAngle, radius) {
+  if (progress < PHASE_GATHER) {
+    const k = easeInOutCubic(
+      progress / PHASE_GATHER
+    );
+
+    return {
+      x: start.x * (1 - k),
+      y: start.y * (1 - k),
+      rotate: 0,
+      scale: 1 - (1 - ORBIT_SCALE) * k,
+      opacity: 1
+    };
+  }
+
+  if (progress < PHASE_SPREAD) {
+    const k = easeOutCubic(
+      (progress - PHASE_GATHER) /
+      (PHASE_SPREAD - PHASE_GATHER)
+    );
+
+    return {
+      x: Math.cos(baseAngle) * radius * k,
+      y: Math.sin(baseAngle) * radius * k,
+      rotate: 0,
+      scale: ORBIT_SCALE,
+      opacity: 1
+    };
+  }
+
+  if (progress < PHASE_SPIN) {
+    const k = easeInOutCubic(
+      (progress - PHASE_SPREAD) /
+      (PHASE_SPIN - PHASE_SPREAD)
+    );
+
+    const spin = k * 360;
+    const angle =
+      baseAngle + (spin * Math.PI) / 180;
+
+    return {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+      rotate: spin,
+      scale: ORBIT_SCALE,
+      opacity: 1
+    };
+  }
+
+  const k = easeInOutCubic(
+    (progress - PHASE_SPIN) /
+    (1 - PHASE_SPIN)
+  );
+
+  const spin = 360 + k * 120;
+  const angle =
+    baseAngle + (spin * Math.PI) / 180;
+
+  const distance = radius * (1 - k);
+
+  return {
+    x: Math.cos(angle) * distance,
+    y: Math.sin(angle) * distance,
+    rotate: spin,
+    scale: ORBIT_SCALE * (1 - 0.4 * k),
+    opacity: 1 - k * k
+  };
+}
 
 export default function ForgotPassword() {
   const nav = useNavigate();
@@ -379,109 +468,65 @@ export default function ForgotPassword() {
     const stageCenterY =
       stageRect.height / 2;
 
+    // Lingkaran dibatasi supaya tidak keluar dari stage di layar kecil.
+    const radius = Math.min(
+      ORBIT_RADIUS,
+      stageCenterY - 34
+    );
+
     cells.forEach((cell, index) => {
       const rect =
         cell.getBoundingClientRect();
 
-      const currentCenterX =
-        rect.left -
-        stageRect.left +
-        rect.width / 2;
+      // Posisi awal kotak relatif ke tengah stage.
+      const start = {
+        x:
+          rect.left -
+          stageRect.left +
+          rect.width / 2 -
+          stageCenterX,
 
-      const currentCenterY =
-        rect.top -
-        stageRect.top +
-        rect.height / 2;
+        y:
+          rect.top -
+          stageRect.top +
+          rect.height / 2 -
+          stageCenterY
+      };
 
-      const startX =
-        currentCenterX - stageCenterX;
-
-      const startY =
-        currentCenterY - stageCenterY;
-
-      const startingAngle =
+      const baseAngle =
         (Math.PI * 2 * index) /
         OTP_LENGTH -
         Math.PI / 2;
 
-      const points = [];
-
-      points.push({
-        x: startX,
-        y: startY
-      });
-
-      points.push({
-        x: 0,
-        y: 0
-      });
-
-      const orbitSteps = 18;
+      const keyframes = [];
 
       for (
         let i = 0;
-        i <= orbitSteps;
+        i <= ORBIT_FRAMES;
         i += 1
       ) {
         const progress =
-          i / orbitSteps;
+          i / ORBIT_FRAMES;
 
-        const angle =
-          startingAngle +
-          progress * Math.PI * 2;
+        const frame = getOrbitFrame(
+          progress,
+          start,
+          baseAngle,
+          radius
+        );
 
-        points.push({
-          x:
-            Math.cos(angle) *
-            ORBIT_RADIUS,
+        // transform dihitung dari posisi asli kotak di baris,
+        // jadi yang dipakai selisih terhadap posisi awal.
+        keyframes.push({
+          transform:
+            `translate(${frame.x - start.x}px, ${frame.y - start.y}px) ` +
+            `rotate(${frame.rotate}deg) ` +
+            `scale(${frame.scale})`,
 
-          y:
-            Math.sin(angle) *
-            ORBIT_RADIUS
+          opacity: frame.opacity,
+          offset: progress
         });
       }
-
-      points.push({
-        x: 0,
-        y: 0
-      });
-
-      points.push({
-        x: 0,
-        y: 0
-      });
-
-      const keyframes =
-        points.map((point, pointIndex) => {
-          const progress =
-            pointIndex /
-            (points.length - 1);
-
-          let scale = 1;
-
-          if (progress < 0.12) {
-            scale =
-              1 +
-              progress * 0.7;
-          } else if (
-            progress > 0.82
-          ) {
-            scale =
-              1.7 -
-              (progress - 0.82) * 3.5;
-          } else {
-            scale = 1.08;
-          }
-
-          return {
-            transform:
-              `translate(${point.x}px, ${point.y}px) ` +
-              `translate(-50%, -50%) ` +
-              `scale(${Math.max(scale, 1)})`,
-
-            offset: progress
-          };
-        });
 
       cell.classList.add('orbiting-active');
 
@@ -492,9 +537,7 @@ export default function ForgotPassword() {
             duration:
               ORBIT_DURATION,
 
-            easing:
-              'cubic-bezier(.22,1,.36,1)',
-
+            easing: 'linear',
             fill: 'forwards'
           }
         );
@@ -504,16 +547,15 @@ export default function ForgotPassword() {
       );
     });
 
-    const successBox =
-      stage.querySelector(
-        '.cpmku-otp-success'
-      );
-
     const revealTimer = setTimeout(() => {
-      if (successBox) {
-        successBox.classList.add('show');
-      }
-    }, 1110);
+      stage
+        .querySelector('.cpmku-otp-success')
+        ?.classList.add('show');
+
+      stage
+        .querySelector('.cpmku-otp-ring')
+        ?.classList.add('show');
+    }, SUCCESS_REVEAL_DELAY);
 
     animationTimersRef.current.push(
       revealTimer
@@ -531,7 +573,7 @@ export default function ForgotPassword() {
       setError('');
       setSuccess('');
       setBusy(false);
-    }, ORBIT_DURATION + 180);
+    }, SUCCESS_REVEAL_DELAY + SUCCESS_HOLD);
 
     animationTimersRef.current.push(
       finishTimer
@@ -892,6 +934,41 @@ export default function ForgotPassword() {
           }
         }
 
+        .cpmku-otp-ring {
+          position: absolute;
+          z-index: 9;
+          left: 50%;
+          top: 50%;
+          width: 64px;
+          height: 64px;
+          margin: -32px 0 0 -32px;
+          border: 2px solid rgba(74, 222, 128, 0.85);
+          border-radius: 50%;
+          opacity: 0;
+          box-shadow: 0 0 22px rgba(34, 197, 94, 0.35);
+          pointer-events: none;
+        }
+
+        .cpmku-otp-ring.show {
+          animation:
+            cpmkuOtpRing
+            0.8s
+            cubic-bezier(.22,1,.36,1)
+            forwards;
+        }
+
+        @keyframes cpmkuOtpRing {
+          0% {
+            transform: scale(0.55);
+            opacity: 0.9;
+          }
+
+          100% {
+            transform: scale(2.7);
+            opacity: 0;
+          }
+        }
+
         .cpmku-otp-error {
           min-height: 22px;
           margin-top: -2px;
@@ -1074,15 +1151,9 @@ export default function ForgotPassword() {
                 )}
               </div>
 
-              <div
-                className={
-                  `cpmku-otp-success ${
-                    otpState === 'success'
-                      ? 'show'
-                      : ''
-                  }`
-                }
-              >
+              <div className="cpmku-otp-ring" />
+
+              <div className="cpmku-otp-success">
                 <svg
                   className="cpmku-otp-success-check"
                   viewBox="0 0 48 48"
@@ -1287,4 +1358,3 @@ function getOtpErrorMessage(error) {
     'Invalid OTP verification'
   );
 }
-```0
