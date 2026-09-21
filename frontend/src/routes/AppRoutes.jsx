@@ -1,7 +1,7 @@
 import {
-Routes,
-Route,
-Navigate
+  Routes,
+  Route,
+  Navigate
 } from 'react-router-dom';
 
 import AppLayout from '../components/layout/AppLayout';
@@ -19,6 +19,7 @@ import ProtectedRoute from './ProtectedRoute';
 
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
+import ForgotPassword from '../pages/auth/ForgotPassword';
 
 import ChatPage from '../pages/chat/ChatPage';
 
@@ -33,233 +34,258 @@ import Settings from '../pages/admin/Settings';
 import SellerDashboard from '../pages/seller/SellerDashboard';
 
 import {
-useAuth
+  useAuth
 } from '../context/AuthContext';
 
-function AdminRoute({ children }) {
-const {
-user,
-loading,
-role
-} = useAuth();
+function AdminRoute({
+  children
+}) {
+  const {
+    user,
+    loading,
+    role
+  } = useAuth();
 
-if (loading) {
-return (
-<div className="notice">
-Memuat...
-</div>
-);
-}
+  if (loading) {
+    return (
+      <div className="notice">
+        Memuat...
+      </div>
+    );
+  }
 
-if (!user) {
-return (
-<Navigate
-to="/admin/login"
-replace
-/>
-);
-}
+  if (!user) {
+    return (
+      <Navigate
+        to="/admin/login"
+        replace
+      />
+    );
+  }
 
-if (role !== 'admin') {
-return (
-<Navigate
-to="/"
-replace
-/>
-);
-}
+  if (
+    role !== 'admin'
+  ) {
+    return (
+      <Navigate
+        to="/"
+        replace
+      />
+    );
+  }
 
-return children;
+  return children;
 }
 
 export default function AppRoutes() {
-return (
-<Routes>
-<Route element={<AppLayout />}>
-
-    <Route
-      path="/"
-      element={<Home />}
-    />
-
-    <Route
-      path="/products"
-      element={<Products />}
-    />
-
-    <Route
-      path="/products/:id"
-      element={
-        <ProductDetail />
-      }
-    />
-
-    <Route
-      path="/seller/:uid"
-      element={
-        <SellerPage />
-      }
-    />
-
-    <Route
-      path="/login"
-      element={<Login />}
-    />
-
-    <Route
-      path="/register"
-      element={<Register />}
-    />
-
-    <Route
-      path="/help"
-      element={<Help />}
-    />
-
-    <Route
-      path="/profile"
-      element={
-        <ProtectedRoute>
-          <Profile />
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/transactions"
-      element={
-        <ProtectedRoute>
-          <Transactions />
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/favorites"
-      element={
-        <ProtectedRoute>
-          <Favorites />
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/chat/:roomId"
-      element={
-        <ProtectedRoute>
-          <ChatPage />
-        </ProtectedRoute>
-      }
-    />
-  </Route>
-
-  <Route
-    path="/admin"
-    element={
-      <AdminRoute>
-        <AdminShell />
-      </AdminRoute>
-    }
-  >
-    <Route
-      index
-      element={<AdminDashboard />}
-    />
-
-    <Route
-      path="profile"
-      element={<Profile />}
-    />
-
-    <Route
-      path="sellers"
-      element={
-        <Manage
-          type="sellers"
-          title="Seller"
+  return (
+    <Routes>
+      <Route
+        element={
+          <AppLayout />
+        }
+      >
+        <Route
+          path="/"
+          element={<Home />}
         />
-      }
-    />
 
-    <Route
-      path="products"
-      element={
-        <Manage
-          type="products"
-          title="Produk"
+        <Route
+          path="/products"
+          element={<Products />}
         />
-      }
-    />
 
-    <Route
-      path="orders"
-      element={
-        <Manage
-          type="orders"
-          title="Order"
+        <Route
+          path="/products/:id"
+          element={
+            <ProductDetail />
+          }
         />
-      }
-    />
 
-    <Route
-      path="payments"
-      element={
-        <Manage
-          type="payments"
-          title="Pembayaran"
+        <Route
+          path="/seller/:uid"
+          element={
+            <SellerPage />
+          }
         />
-      }
-    />
 
-    <Route
-      path="rooms"
-      element={<Rooms />}
-    />
-
-    <Route
-      path="users"
-      element={<Users />}
-    />
-
-    <Route
-      path="settings"
-      element={<Settings />}
-    />
-
-    <Route
-      path="manage"
-      element={
-        <Manage
-          type="products"
-          title="Kelola Produk"
+        <Route
+          path="/login"
+          element={<Login />}
         />
-      }
-    />
-  </Route>
 
-  <Route
-    path="/admin/login"
-    element={<AdminLogin />}
-  />
+        <Route
+          path="/register"
+          element={<Register />}
+        />
 
-  <Route
-    path="/seller"
-    element={
-      <ProtectedRoute>
-        <SellerDashboard />
-      </ProtectedRoute>
-    }
-  />
+        <Route
+          path="/forgot-password"
+          element={
+            <ForgotPassword />
+          }
+        />
 
-  <Route
-    path="*"
-    element={
-      <div className="notice error">
-        Halaman tidak ditemukan.
-      </div>
-    }
-  />
-</Routes>
+        <Route
+          path="/help"
+          element={<Help />}
+        />
 
-);
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute>
+              <Transactions />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/favorites"
+          element={
+            <ProtectedRoute>
+              <Favorites />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/chat/:roomId"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminShell />
+          </AdminRoute>
+        }
+      >
+        <Route
+          index
+          element={
+            <AdminDashboard />
+          }
+        />
+
+        <Route
+          path="profile"
+          element={
+            <Profile />
+          }
+        />
+
+        <Route
+          path="sellers"
+          element={
+            <Manage
+              type="sellers"
+              title="Seller"
+            />
+          }
+        />
+
+        <Route
+          path="products"
+          element={
+            <Manage
+              type="products"
+              title="Produk"
+            />
+          }
+        />
+
+        <Route
+          path="orders"
+          element={
+            <Manage
+              type="orders"
+              title="Order"
+            />
+          }
+        />
+
+        <Route
+          path="payments"
+          element={
+            <Manage
+              type="payments"
+              title="Pembayaran"
+            />
+          }
+        />
+
+        <Route
+          path="rooms"
+          element={
+            <Rooms />
+          }
+        />
+
+        <Route
+          path="users"
+          element={
+            <Users />
+          }
+        />
+
+        <Route
+          path="settings"
+          element={
+            <Settings />
+          }
+        />
+
+        <Route
+          path="manage"
+          element={
+            <Manage
+              type="products"
+              title="Kelola Produk"
+            />
+          }
+        />
+      </Route>
+
+      <Route
+        path="/admin/login"
+        element={
+          <AdminLogin />
+        }
+      />
+
+      <Route
+        path="/seller"
+        element={
+          <ProtectedRoute>
+            <SellerDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="*"
+        element={
+          <div className="notice error">
+            Halaman tidak ditemukan.
+          </div>
+        }
+      />
+    </Routes>
+  );
 }
