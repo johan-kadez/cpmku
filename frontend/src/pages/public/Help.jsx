@@ -40,11 +40,10 @@ export default function Help() {
   ] = useState(null);
 
   const toggleContact = id => {
-    setExpanded(
-      current =>
-        current === id
-          ? null
-          : id
+    setExpanded(current =>
+      current === id
+        ? null
+        : id
     );
   };
 
@@ -62,15 +61,13 @@ export default function Help() {
 
           .cpmku-help-contact {
             width: 58px;
-            height: 58px;
-            flex: 0 0 58px;
+            flex: 0 0 auto;
             overflow: hidden;
 
             border: 1px solid rgba(59,130,246,.30);
             border-radius: 17px;
 
-            background:
-              rgba(15,22,35,.82);
+            background: rgba(15,22,35,.82);
 
             box-shadow:
               0 8px 25px rgba(0,0,0,.16);
@@ -83,10 +80,7 @@ export default function Help() {
           }
 
           .cpmku-help-contact.expanded {
-            width: min(
-              100%,
-              430px
-            );
+            width: min(100%, 430px);
 
             border-color:
               rgba(59,130,246,.58);
@@ -215,6 +209,7 @@ export default function Help() {
 
           .cpmku-help-contact-expanded {
             display: grid;
+
             grid-template-rows: 0fr;
 
             transition:
@@ -240,6 +235,10 @@ export default function Help() {
           }
 
           .cpmku-help-contact-link {
+            position: relative;
+            z-index: 2;
+
+            width: 100%;
             min-height: 40px;
 
             display: flex;
@@ -251,6 +250,8 @@ export default function Help() {
             padding:
               8px
               11px;
+
+            box-sizing: border-box;
 
             border:
               1px solid
@@ -268,6 +269,10 @@ export default function Help() {
             font-size: 12px;
 
             overflow-wrap: anywhere;
+
+            cursor: pointer;
+
+            pointer-events: auto;
           }
 
           .cpmku-help-contact-link:hover {
@@ -276,6 +281,12 @@ export default function Help() {
 
             background:
               rgba(37,99,235,.10);
+
+            color: #fff;
+          }
+
+          .cpmku-help-contact-link:active {
+            transform: scale(.985);
           }
 
           .cpmku-help-purpose {
@@ -299,8 +310,6 @@ export default function Help() {
 
             .cpmku-help-contact {
               width: 56px;
-              height: 56px;
-              flex-basis: 56px;
             }
 
             .cpmku-help-contact.expanded {
@@ -396,129 +405,107 @@ export default function Help() {
         </p>
 
         <div className="cpmku-help-contacts">
-          {contacts.map(
-            contact => {
-              const isExpanded =
-                expanded ===
-                contact.id;
+          {contacts.map(contact => {
+            const isExpanded =
+              expanded === contact.id;
 
-              return (
-                <div
-                  key={
-                    contact.id
+            return (
+              <div
+                key={contact.id}
+                className={
+                  `cpmku-help-contact ${
+                    isExpanded
+                      ? 'expanded'
+                      : ''
+                  }`
+                }
+              >
+                <button
+                  type="button"
+                  className="cpmku-help-contact-button"
+                  onClick={() =>
+                    toggleContact(contact.id)
                   }
-                  className={
-                    `cpmku-help-contact ${
-                      isExpanded
-                        ? 'expanded'
-                        : ''
-                    }`
+                  aria-label={
+                    isExpanded
+                      ? `Tutup ${contact.title}`
+                      : `Buka ${contact.title}`
                   }
+                  aria-expanded={isExpanded}
                 >
-                  <button
-                    type="button"
-                    className="cpmku-help-contact-button"
-                    onClick={() =>
-                      toggleContact(
-                        contact.id
-                      )
-                    }
-                    aria-label={
-                      isExpanded
-                        ? `Tutup ${contact.title}`
-                        : `Buka ${contact.title}`
-                    }
-                    aria-expanded={
-                      isExpanded
-                    }
-                  >
-                    <span className="cpmku-help-contact-icon">
-                      <img
-                        src={
-                          contact.icon
-                        }
-                        alt=""
-                      />
+                  <span className="cpmku-help-contact-icon">
+                    <img
+                      src={contact.icon}
+                      alt=""
+                    />
+                  </span>
+
+                  <span className="cpmku-help-contact-info">
+                    <span className="cpmku-help-contact-title">
+                      {contact.title}
                     </span>
 
-                    <span className="cpmku-help-contact-info">
-                      <span className="cpmku-help-contact-title">
-                        {
-                          contact.title
+                    {contact.status && (
+                      <span
+                        className={
+                          `cpmku-help-contact-status ${contact.statusClass}`
                         }
+                      >
+                        {contact.status}
                       </span>
+                    )}
+                  </span>
 
-                      {contact.status && (
-                        <span
-                          className={
-                            `cpmku-help-contact-status ${contact.statusClass}`
-                          }
-                        >
-                          {
-                            contact.status
-                          }
+                  <span className="cpmku-help-contact-arrow">
+                    ↓
+                  </span>
+                </button>
+
+                <div className="cpmku-help-contact-expanded">
+                  <div className="cpmku-help-contact-expanded-inner">
+                    <div className="cpmku-help-contact-content">
+                      <a
+                        href={contact.href}
+                        target={
+                          contact.external
+                            ? '_blank'
+                            : undefined
+                        }
+                        rel={
+                          contact.external
+                            ? 'noopener noreferrer'
+                            : undefined
+                        }
+                        className="cpmku-help-contact-link"
+                      >
+                        <span>
+                          {contact.value}
                         </span>
-                      )}
-                    </span>
 
-                    <span className="cpmku-help-contact-arrow">
-                      ↓
-                    </span>
-                  </button>
-
-                  <div className="cpmku-help-contact-expanded">
-                    <div className="cpmku-help-contact-expanded-inner">
-                      <div className="cpmku-help-contact-content">
-                        <a
-                          href={
-                            contact.href
-                          }
-                          target={
-                            contact.external
-                              ? '_blank'
-                              : undefined
-                          }
-                          rel={
-                            contact.external
-                              ? 'noopener noreferrer'
-                              : undefined
-                          }
-                          className="cpmku-help-contact-link"
-                        >
-                          <span>
-                            {
-                              contact.value
-                            }
+                        {contact.id === 'support' && (
+                          <span className="cpmku-help-contact-status fast">
+                            Fast Resp
                           </span>
+                        )}
 
-                          {contact.id ===
-                            'support' && (
-                            <span className="cpmku-help-contact-status fast">
-                              Fast Resp
-                            </span>
-                          )}
+                        {contact.id === 'developer' && (
+                          <span className="cpmku-help-contact-status low">
+                            Low Resp
+                          </span>
+                        )}
 
-                          {contact.id ===
-                            'developer' && (
-                            <span className="cpmku-help-contact-status low">
-                              Low Resp
-                            </span>
-                          )}
-
-                          {contact.id ===
-                            'community' && (
-                            <span className="cpmku-help-contact-status community">
-                              Join
-                            </span>
-                          )}
-                        </a>
-                      </div>
+                        {contact.id === 'community' && (
+                          <span className="cpmku-help-contact-status community">
+                            Join
+                          </span>
+                        )}
+                      </a>
                     </div>
                   </div>
                 </div>
-              );
-            }
-          )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
