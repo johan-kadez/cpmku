@@ -1,523 +1,1057 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 
+const OTP_LENGTH = 6;
+
 export default function ForgotPassword() {
-  const nav =
-    useNavigate();
+  const nav = useNavigate();
 
-  const [step, setStep] =
-    useState('email');
+  const [step, setStep] = useState('email');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
+  const [resetToken, setResetToken] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [otpState, setOtpState] = useState('idle');
 
-  const [email, setEmail] =
-    useState('');
+  const inputRefs = useRef([]);
+  const cooldownTimerRef = useRef(null);
+  const verificationTimerRef = useRef(null);
 
-  const [otp, setOtp] =
-    useState('');
-
-  const [resetToken, setResetToken] =
-    useState('');
-
-  const [password, setPassword] =
-    useState('');
-
-  const [confirmPassword, setConfirmPassword] =
-    useState('');
-
-  const [error, setError] =
-    useState('');
-
-  const [success, setSuccess] =
-    useState('');
-
-  const [busy, setBusy] =
-    useState(false);
-
-  const [resendCooldown, setResendCooldown] =
-    useState(0);
-
-  const requestCode =
-    async event => {
-      event.preventDefault();
-
-      if (busy) {
-        return;
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
       }
 
-      setError('');
-      setSuccess('');
-
-      const cleanEmail =
-        email.trim();
-
-      if (!cleanEmail) {
-        setError(
-          'Email wajib diisi.'
-        );
-        return;
-      }
-
-      setBusy(true);
-
-      try {
-        await api(
-          '/auth/password-reset/request',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              email:
-                cleanEmail
-            })
-          }
-        );
-
-        setStep('otp');
-
-        setSuccess(
-          'If the email is registered with CPMKU, a verification code has been sent.'
-        );
-
-        startCooldown();
-      } catch (error) {
-        setError(
-          error?.message ||
-          'Gagal mengirim kode.'
-        );
-      } finally {
-        setBusy(false);
+      if (verificationTimerRef.current) {
+        clearTimeout(verificationTimerRef.current);
       }
     };
+  }, []);
 
-  const verifyCode =
-    async event => {
-      event.preventDefault();
+  const otpValue = otp.join('');
 
-      if (busy) {
-        return;
-      }
+  const setInputRef = (element, index) => {
+    inputRefs.current[index] = element;
+  };
 
-      setError('');
-      setSuccess('');
+  const clearOtpError = () => {
+    if (otpState === 'error') {
+      setOtpState('idle');
+    }
 
-      const cleanOtp =
-        otp.replace(/\D/g, '');
+    setError('');
+  };
 
-      if (
-        cleanOtp.length !== 6
-      ) {
-        setError(
-          'Masukkan 6 digit kode.'
-        );
-        return;
-      }
+  const updateOtp = (index, value) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
 
-      setBusy(true);
+    setOtp(current => {
+      const next = [...current];
+      next[index] = digit;
+      return next;
+    });
 
-      try {
-        const result =
-          await api(
-            '/auth/password-reset/verify',
-            {
-              method: 'POST',
-              body: JSON.stringify({
-                email:
-                  email.trim(),
+    clearOtpError();
 
-                otp:
-                  cleanOtp
-              })
-            }
-          );
+    if (digit && index < OTP_LENGTH - 1) {
+      requestAnimationFrame(() => {
+        inputRefs.current[index + 1]?.focus();
+      });
+    }
 
-        if (
-          !result.resetToken
-        ) {
-          throw new Error(
-            'Kode berhasil diverifikasi, tetapi reset token tidak diterima.'
-          );
+    if (digit && index === OTP_LENGTH - 1) {
+      requestAnimationFrame(() => {
+        const nextOtp = [...otp];
+        nextOtp[index] = digit;
+
+        if (nextOtp.every(Boolean)) {
+          scheduleVerification(nextOtp.join(''));
         }
+      });
+    }
+  };
 
-        setResetToken(
-          result.resetToken
+  const scheduleVerification = value => {
+    if (verificationTimerRef.current) {
+      clearTimeout(verificationTimerRef.current);
+    }
+
+    verificationTimerRef.current = setTimeout(() => {
+      verifyCode(value);
+    }, 80);
+  };
+
+  const handleOtpChange = (index, event) => {
+    if (busy || otpState === 'success') {
+      return;
+    }
+
+    const value = event.target.value;
+
+    if (value.length > 1) {
+      handleOtpPaste(index, value);
+      return;
+    }
+
+    updateOtp(index, value);
+  };
+
+  const handleOtpKeyDown = (index, event) => {
+    if (busy || otpState === 'success') {
+      return;
+    }
+
+    if (event.key === 'Backspace') {
+      if (otp[index]) {
+        setOtp(current => {
+          const next = [...current];
+          next[index] = '';
+          return next;
+        });
+
+        clearOtpError();
+        return;
+      }
+
+      if (index > 0) {
+        event.preventDefault();
+
+        setOtp(current => {
+          const next = [...current];
+          next[index - 1] = '';
+          return next;
+        });
+
+        clearOtpError();
+
+        requestAnimationFrame(() => {
+          inputRefs.current[index - 1]?.focus();
+        });
+      }
+
+      return;
+    }
+
+    if (event.key === 'ArrowLeft' && index > 0) {
+      event.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+      return;
+    }
+
+    if (
+      event.key === 'ArrowRight' &&
+      index < OTP_LENGTH - 1
+    ) {
+      event.preventDefault();
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (startIndex, value) => {
+    if (busy || otpState === 'success') {
+      return;
+    }
+
+    const digits = value
+      .replace(/\D/g, '')
+      .slice(0, OTP_LENGTH - startIndex);
+
+    if (!digits) {
+      return;
+    }
+
+    const nextOtp = [...otp];
+
+    digits.split('').forEach((digit, offset) => {
+      const targetIndex = startIndex + offset;
+
+      if (targetIndex < OTP_LENGTH) {
+        nextOtp[targetIndex] = digit;
+      }
+    });
+
+    setOtp(nextOtp);
+    clearOtpError();
+
+    const nextEmptyIndex = nextOtp.findIndex(
+      digit => !digit
+    );
+
+    if (nextOtp.every(Boolean)) {
+      scheduleVerification(nextOtp.join(''));
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      inputRefs.current[
+        nextEmptyIndex >= 0
+          ? nextEmptyIndex
+          : OTP_LENGTH - 1
+      ]?.focus();
+    });
+  };
+
+  const handleOtpPasteEvent = (index, event) => {
+    event.preventDefault();
+
+    const pasted = event.clipboardData
+      .getData('text')
+      .replace(/\D/g, '');
+
+    handleOtpPaste(index, pasted);
+  };
+
+  const requestCode = async event => {
+    event.preventDefault();
+
+    if (busy) {
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      setError('Email wajib diisi.');
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      await api(
+        '/auth/password-reset/request',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: cleanEmail
+          })
+        }
+      );
+
+      setStep('otp');
+      setOtp(Array(OTP_LENGTH).fill(''));
+      setOtpState('idle');
+
+      setSuccess(
+        'If the email is registered with CPMKU, a verification code has been sent.'
+      );
+
+      startCooldown();
+
+      requestAnimationFrame(() => {
+        inputRefs.current[0]?.focus();
+      });
+    } catch (error) {
+      setError(
+        error?.message ||
+        'Gagal mengirim kode.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyCode = async value => {
+    if (busy || otpState === 'success') {
+      return;
+    }
+
+    const cleanOtp = value
+      .replace(/\D/g, '')
+      .slice(0, OTP_LENGTH);
+
+    if (cleanOtp.length !== OTP_LENGTH) {
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const result = await api(
+        '/auth/password-reset/verify',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: email.trim(),
+            otp: cleanOtp
+          })
+        }
+      );
+
+      if (!result?.resetToken) {
+        throw new Error(
+          'Kode berhasil diverifikasi, tetapi reset token tidak diterima.'
         );
+      }
 
+      setResetToken(result.resetToken);
+      setOtpState('success');
+
+      setTimeout(() => {
         setStep('password');
-
+        setOtpState('idle');
+        setOtp(Array(OTP_LENGTH).fill(''));
         setError('');
         setSuccess('');
-      } catch (error) {
-        setError(
-          error?.message ||
-          'Kode tidak valid.'
-        );
-      } finally {
         setBusy(false);
+      }, 1550);
+    } catch (error) {
+      setOtpState('error');
+
+      setError(
+        getOtpErrorMessage(error)
+      );
+
+      setBusy(false);
+
+      setTimeout(() => {
+        inputRefs.current[0]?.focus();
+      }, 650);
+    }
+  };
+
+  const reset = async event => {
+    event.preventDefault();
+
+    if (busy) {
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    if (password.length < 6) {
+      setError(
+        'Password minimal 6 karakter.'
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      await api(
+        '/auth/password-reset/confirm',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: email.trim(),
+            resetToken,
+            newPassword: password,
+            confirmPassword
+          })
+        }
+      );
+
+      setSuccess(
+        'Password berhasil diubah. Mengembalikan ke Sign In...'
+      );
+
+      setTimeout(() => {
+        nav('/login', {
+          replace: true
+        });
+      }, 1200);
+    } catch (error) {
+      setError(
+        error?.message ||
+        'Gagal mengubah password.'
+      );
+      setBusy(false);
+    }
+  };
+
+  const startCooldown = () => {
+    if (cooldownTimerRef.current) {
+      clearInterval(cooldownTimerRef.current);
+    }
+
+    setResendCooldown(120);
+
+    let remaining = 120;
+
+    cooldownTimerRef.current = setInterval(() => {
+      remaining -= 1;
+
+      setResendCooldown(
+        Math.max(remaining, 0)
+      );
+
+      if (remaining <= 0) {
+        clearInterval(
+          cooldownTimerRef.current
+        );
+
+        cooldownTimerRef.current = null;
       }
-    };
+    }, 1000);
+  };
 
-  const reset =
-    async event => {
-      event.preventDefault();
+  const resend = async () => {
+    if (
+      busy ||
+      resendCooldown > 0
+    ) {
+      return;
+    }
 
-      if (busy) {
-        return;
-      }
+    setError('');
+    setSuccess('');
+    setOtpState('idle');
+    setBusy(true);
 
-      setError('');
-      setSuccess('');
+    try {
+      await api(
+        '/auth/password-reset/request',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: email.trim()
+          })
+        }
+      );
 
-      if (
-        password.length < 6
-      ) {
-        setError(
-          'Password minimal 6 karakter.'
-        );
-        return;
-      }
+      setOtp(Array(OTP_LENGTH).fill(''));
 
-      if (
-        password !==
-        confirmPassword
-      ) {
-        setError(
-          "Passwords don't match."
-        );
-        return;
-      }
+      setSuccess(
+        'A new verification code has been sent.'
+      );
 
-      setBusy(true);
+      startCooldown();
 
-      try {
-        await api(
-          '/auth/password-reset/confirm',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              email:
-                email.trim(),
+      requestAnimationFrame(() => {
+        inputRefs.current[0]?.focus();
+      });
+    } catch (error) {
+      setError(
+        error?.message ||
+        'Gagal mengirim ulang kode.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
-              resetToken,
-
-              newPassword:
-                password,
-
-              confirmPassword
-            })
-          }
-        );
-
-        setSuccess(
-          'Password berhasil diubah. Mengembalikan ke Sign In...'
-        );
-
-        setTimeout(() => {
-          nav('/login', {
-            replace: true
-          });
-        }, 1200);
-      } catch (error) {
-        setError(
-          error?.message ||
-          'Gagal mengubah password.'
-        );
-      } finally {
-        setBusy(false);
-      }
-    };
-
-  const startCooldown =
-    () => {
-      setResendCooldown(120);
-
-      let remaining = 120;
-
-      const timer =
-        setInterval(() => {
-          remaining -= 1;
-
-          setResendCooldown(
-            remaining
-          );
-
-          if (
-            remaining <= 0
-          ) {
-            clearInterval(timer);
-          }
-        }, 1000);
-    };
-
-  const resend =
-    async () => {
-      if (
-        busy ||
-        resendCooldown > 0
-      ) {
-        return;
-      }
-
-      setError('');
-      setSuccess('');
-      setBusy(true);
-
-      try {
-        await api(
-          '/auth/password-reset/request',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              email:
-                email.trim()
-            })
-          }
-        );
-
-        setOtp('');
-
-        setSuccess(
-          'A new verification code has been sent.'
-        );
-
-        startCooldown();
-      } catch (error) {
-        setError(
-          error?.message ||
-          'Gagal mengirim ulang kode.'
-        );
-      } finally {
-        setBusy(false);
-      }
-    };
+  const formattedCooldown =
+    `${Math.floor(resendCooldown / 60)}:${String(
+      resendCooldown % 60
+    ).padStart(2, '0')}`;
 
   return (
-    <section className="auth-card auth-modern">
-      <div className="auth-heading">
-        <span className="eyebrow">
-          CPMKU ACCOUNT
-        </span>
+    <>
+      <style>{`
+        .cpmku-otp-stage {
+          position: relative;
+          width: 100%;
+          height: 190px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
 
-        <h1>
-          {step === 'email' &&
-            'Forgot Password'}
+        .cpmku-otp-row {
+          position: relative;
+          z-index: 2;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
 
-          {step === 'otp' &&
-            'Verify Code'}
+        .cpmku-otp-cell {
+          width: 48px;
+          height: 60px;
+          flex: 0 0 48px;
+          padding: 0;
+          border: 1px solid rgba(96, 165, 250, 0.62);
+          border-radius: 14px;
+          outline: none;
+          background: rgba(15, 23, 42, 0.68);
+          color: #ffffff;
+          text-align: center;
+          font-size: 23px;
+          font-weight: 600;
+          caret-color: #60a5fa;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 0 0 rgba(59, 130, 246, 0);
+          transition:
+            border-color 0.2s ease,
+            background 0.2s ease,
+            box-shadow 0.2s ease;
+        }
 
-          {step === 'password' &&
-            'Set new password'}
-        </h1>
+        .cpmku-otp-cell:focus {
+          border-color: #60a5fa;
+          background: rgba(30, 41, 59, 0.8);
+          box-shadow:
+            0 0 0 3px rgba(59, 130, 246, 0.11),
+            0 0 25px rgba(59, 130, 246, 0.18);
+        }
 
-        <p>
-          {step === 'email' &&
-            'Masukkan email akun CPMKU kamu untuk menerima kode reset password.'}
+        .cpmku-otp-cell.invalid {
+          border-color: #ef4444;
+          background: rgba(127, 29, 29, 0.22);
+          box-shadow:
+            0 0 0 3px rgba(239, 68, 68, 0.08),
+            0 0 25px rgba(239, 68, 68, 0.16);
+        }
 
-          {step === 'otp' &&
-            'Masukkan 6 digit kode yang dikirim ke email kamu.'}
+        .cpmku-otp-row.shake
+          .cpmku-otp-cell {
+          animation:
+            cpmkuOtpShake
+            0.56s
+            cubic-bezier(.36,.07,.19,.97);
+        }
 
-          {step === 'password' &&
-            'Buat password baru untuk akun CPMKU kamu.'}
-        </p>
-      </div>
+        @keyframes cpmkuOtpShake {
+          0%, 100% {
+            transform: translateX(0);
+          }
 
-      {error && (
-        <div className="notice error">
-          {error}
+          12% {
+            transform: translateX(-7px);
+          }
+
+          24% {
+            transform: translateX(7px);
+          }
+
+          36% {
+            transform: translateX(-6px);
+          }
+
+          48% {
+            transform: translateX(6px);
+          }
+
+          60% {
+            transform: translateX(-4px);
+          }
+
+          72% {
+            transform: translateX(4px);
+          }
+
+          84% {
+            transform: translateX(-2px);
+          }
+        }
+
+        .cpmku-otp-cell.orbiting {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          z-index: 5;
+          pointer-events: none;
+        }
+
+        .cpmku-otp-success {
+          position: absolute;
+          z-index: 10;
+          left: 50%;
+          top: 50%;
+          width: 0;
+          height: 60px;
+          margin-top: -30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          border: 1px solid rgba(74, 222, 128, 0.95);
+          border-radius: 15px;
+          background: rgba(20, 83, 45, 0.22);
+          opacity: 0;
+          box-shadow:
+            0 0 0 3px rgba(34, 197, 94, 0.08),
+            0 0 28px rgba(34, 197, 94, 0.24),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .cpmku-otp-success.show {
+          animation:
+            cpmkuOtpSuccessBox
+            0.48s
+            cubic-bezier(.22,1,.36,1)
+            forwards;
+        }
+
+        @keyframes cpmkuOtpSuccessBox {
+          0% {
+            width: 0;
+            transform:
+              translateX(0)
+              scale(.72);
+            opacity: 0;
+          }
+
+          60% {
+            width: 76px;
+            transform:
+              translateX(-38px)
+              scale(1.08);
+            opacity: 1;
+          }
+
+          100% {
+            width: 72px;
+            transform:
+              translateX(-36px)
+              scale(1);
+            opacity: 1;
+          }
+        }
+
+        .cpmku-otp-success-check {
+          width: 35px;
+          height: 35px;
+          overflow: visible;
+        }
+
+        .cpmku-otp-success-path {
+          fill: none;
+          stroke: #4ade80;
+          stroke-width: 4;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-dasharray: 42;
+          stroke-dashoffset: 42;
+          filter:
+            drop-shadow(
+              0 0 7px
+              rgba(74, 222, 128, 0.5)
+            );
+        }
+
+        .cpmku-otp-success.show
+          .cpmku-otp-success-path {
+          animation:
+            cpmkuOtpDrawCheck
+            0.42s
+            cubic-bezier(.65,0,.35,1)
+            0.08s
+            forwards;
+        }
+
+        @keyframes cpmkuOtpDrawCheck {
+          from {
+            stroke-dashoffset: 42;
+          }
+
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+
+        .cpmku-otp-error {
+          min-height: 22px;
+          margin-top: -2px;
+          color: #f87171;
+          font-size: 13px;
+          text-align: center;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+
+        .cpmku-otp-error.show {
+          opacity: 1;
+        }
+
+        @media (max-width: 430px) {
+          .cpmku-otp-row {
+            gap: 5px;
+          }
+
+          .cpmku-otp-cell {
+            width: 43px;
+            height: 56px;
+            flex-basis: 43px;
+            border-radius: 12px;
+            font-size: 21px;
+          }
+        }
+      `}</style>
+
+      <section className="auth-card auth-modern">
+        <div className="auth-heading">
+          <span className="eyebrow">
+            CPMKU ACCOUNT
+          </span>
+
+          <h1>
+            {step === 'email' &&
+              'Forgot Password'}
+
+            {step === 'otp' &&
+              'Verify Code'}
+
+            {step === 'password' &&
+              'Set new password'}
+          </h1>
+
+          <p>
+            {step === 'email' &&
+              'Masukkan email akun CPMKU kamu untuk menerima kode reset password.'}
+
+            {step === 'otp' &&
+              'Masukkan 6 digit kode yang dikirim ke email kamu.'}
+
+            {step === 'password' &&
+              'Buat password baru untuk akun CPMKU kamu.'}
+          </p>
         </div>
-      )}
 
-      {success && (
-        <div className="notice success">
-          {success}
-        </div>
-      )}
+        {error &&
+          step !== 'otp' && (
+            <div className="notice error">
+              {error}
+            </div>
+          )}
 
-      {step === 'email' && (
-        <form
-          className="auth-form"
-          onSubmit={requestCode}
-        >
-          <label>
-            Email
+        {success &&
+          step !== 'otp' && (
+            <div className="notice success">
+              {success}
+            </div>
+          )}
 
-            <input
-              type="email"
-              value={email}
-              onChange={event =>
-                setEmail(
-                  event.target.value
-                )
-              }
-              placeholder="nama@email.com"
-              autoComplete="email"
-              required
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="button primary auth-submit"
-            disabled={busy}
+        {step === 'email' && (
+          <form
+            className="auth-form"
+            onSubmit={requestCode}
           >
-            {busy
-              ? 'Memproses...'
-              : 'Send code'}
-          </button>
-        </form>
-      )}
+            <label>
+              Email
 
-      {step === 'otp' && (
-        <form
-          className="auth-form"
-          onSubmit={verifyCode}
-        >
-          <label>
-            Verification code
+              <input
+                type="email"
+                value={email}
+                onChange={event =>
+                  setEmail(
+                    event.target.value
+                  )
+                }
+                placeholder="nama@email.com"
+                autoComplete="email"
+                required
+              />
+            </label>
 
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={otp}
-              onChange={event =>
-                setOtp(
-                  event.target.value
-                    .replace(/\D/g, '')
-                    .slice(0, 6)
-                )
-              }
-              placeholder="******"
-              autoComplete="one-time-code"
-              required
-            />
-          </label>
+            <button
+              type="submit"
+              className="button primary auth-submit"
+              disabled={busy}
+            >
+              {busy
+                ? 'Memproses...'
+                : 'Send code'}
+            </button>
+          </form>
+        )}
 
-          <button
-            type="submit"
-            className="button primary auth-submit"
-            disabled={
-              busy ||
-              otp.length !== 6
-            }
-          >
-            {busy
-              ? 'Memverifikasi...'
-              : 'Verify code'}
-          </button>
+        {step === 'otp' && (
+          <div>
+            <div
+              className="cpmku-otp-stage"
+              aria-label="OTP verification"
+            >
+              <div
+                className={
+                  `cpmku-otp-row ${
+                    otpState === 'error'
+                      ? 'shake'
+                      : ''
+                  }`
+                }
+              >
+                {otp.map(
+                  (digit, index) => (
+                    <input
+                      key={index}
+                      ref={element =>
+                        setInputRef(
+                          element,
+                          index
+                        )
+                      }
+                      className={
+                        `cpmku-otp-cell ${
+                          otpState === 'error'
+                            ? 'invalid'
+                            : ''
+                        } ${
+                          otpState === 'success'
+                            ? 'orbiting'
+                            : ''
+                        }`
+                      }
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      disabled={
+                        busy ||
+                        otpState ===
+                          'success'
+                      }
+                      autoComplete={
+                        index === 0
+                          ? 'one-time-code'
+                          : 'off'
+                      }
+                      aria-label={
+                        `OTP digit ${index + 1}`
+                      }
+                      onChange={event =>
+                        handleOtpChange(
+                          index,
+                          event
+                        )
+                      }
+                      onKeyDown={event =>
+                        handleOtpKeyDown(
+                          index,
+                          event
+                        )
+                      }
+                      onPaste={event =>
+                        handleOtpPasteEvent(
+                          index,
+                          event
+                        )
+                      }
+                    />
+                  )
+                )}
+              </div>
 
-          <button
-            type="button"
-            className="button"
-            onClick={resend}
-            disabled={
-              busy ||
-              resendCooldown > 0
-            }
-          >
-            {resendCooldown > 0
-              ? `Resend code in ${Math.floor(
-                  resendCooldown / 60
-                )}:${String(
-                  resendCooldown % 60
-                ).padStart(2, '0')}`
-              : 'Resend code'}
-          </button>
-        </form>
-      )}
-
-      {step === 'password' && (
-        <form
-          className="auth-form"
-          onSubmit={reset}
-        >
-          <label>
-            Set new password
-
-            <input
-              type="password"
-              value={password}
-              onChange={event =>
-                setPassword(
-                  event.target.value
-                )
-              }
-              placeholder="Minimal 6 karakter"
-              autoComplete="new-password"
-              minLength={6}
-              required
-            />
-          </label>
-
-          <label>
-            Confirm new password
-
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={event =>
-                setConfirmPassword(
-                  event.target.value
-                )
-              }
-              placeholder="Ulangi password"
-              autoComplete="new-password"
-              minLength={6}
-              required
-            />
-
-            {confirmPassword &&
-              password !==
-                confirmPassword && (
-                <span
-                  style={{
-                    color:
-                      '#ef4444',
-                    fontSize:
-                      '0.85rem',
-                    marginTop:
-                      '6px',
-                    display:
-                      'block'
-                  }}
+              <div
+                className={
+                  `cpmku-otp-success ${
+                    otpState === 'success'
+                      ? 'show'
+                      : ''
+                  }`
+                }
+              >
+                <svg
+                  className="cpmku-otp-success-check"
+                  viewBox="0 0 48 48"
+                  fill="none"
+                  aria-hidden="true"
                 >
-                  Passwords don't match.
-                </span>
-              )}
-          </label>
+                  <path
+                    className="cpmku-otp-success-path"
+                    d="M11 25.5L20.5 35L37.5 15"
+                  />
+                </svg>
+              </div>
+            </div>
 
-          <button
-            type="submit"
-            className="button primary auth-submit"
-            disabled={
-              busy ||
-              password.length < 6 ||
-              password !==
-                confirmPassword
-            }
+            <div
+              className={
+                `cpmku-otp-error ${
+                  otpState === 'error'
+                    ? 'show'
+                    : ''
+                }`
+              }
+              aria-live="assertive"
+            >
+              {error ||
+                'Invalid OTP verification'}
+            </div>
+
+            {success && (
+              <div
+                className="notice success"
+                style={{
+                  marginTop: '8px'
+                }}
+              >
+                {success}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginTop: '14px'
+              }}
+            >
+              <button
+                type="button"
+                className="button"
+                onClick={resend}
+                disabled={
+                  busy ||
+                  resendCooldown > 0 ||
+                  otpState === 'success'
+                }
+              >
+                {resendCooldown > 0
+                  ? `Resend code in ${formattedCooldown}`
+                  : 'Resend code'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'password' && (
+          <form
+            className="auth-form"
+            onSubmit={reset}
           >
-            {busy
-              ? 'Saving...'
-              : 'Set password'}
-          </button>
-        </form>
-      )}
+            <label>
+              Set new password
 
-      {step !== 'password' && (
-        <p className="auth-switch">
-          Remember your password?{' '}
+              <input
+                type="password"
+                value={password}
+                onChange={event =>
+                  setPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Minimal 6 karakter"
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+            </label>
 
-          <Link to="/login">
-            Sign In
-          </Link>
-        </p>
-      )}
+            <label>
+              Confirm new password
 
-      {step === 'password' && (
-        <p className="auth-switch">
-          <Link to="/login">
-            Back to Sign In
-          </Link>
-        </p>
-      )}
-    </section>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={event =>
+                  setConfirmPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Ulangi password"
+                autoComplete="new-password"
+                minLength={6}
+                required
+              />
+
+              {confirmPassword &&
+                password !==
+                  confirmPassword && (
+                  <span
+                    style={{
+                      color: '#ef4444',
+                      fontSize: '0.85rem',
+                      marginTop: '6px',
+                      display: 'block'
+                    }}
+                  >
+                    Passwords don't match.
+                  </span>
+                )}
+            </label>
+
+            {error && (
+              <div className="notice error">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="notice success">
+                {success}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="button primary auth-submit"
+              disabled={
+                busy ||
+                password.length < 6 ||
+                password !==
+                  confirmPassword
+              }
+            >
+              {busy
+                ? 'Saving...'
+                : 'Set password'}
+            </button>
+          </form>
+        )}
+
+        {step !== 'password' && (
+          <p className="auth-switch">
+            Remember your password?{' '}
+
+            <Link to="/login">
+              Sign In
+            </Link>
+          </p>
+        )}
+
+        {step === 'password' && (
+          <p className="auth-switch">
+            <Link to="/login">
+              Back to Sign In
+            </Link>
+          </p>
+        )}
+      </section>
+    </>
   );
+}
+
+function getOtpErrorMessage(error) {
+  const message =
+    error?.message || '';
+
+  if (
+    message.includes(
+      'You have 2 trials remaining'
+    )
+  ) {
+    return 'Incorrect code. You have 2 trials remaining.';
+  }
+
+  if (
+    message.includes(
+      'You have 1 trials remaining'
+    )
+  ) {
+    return 'Incorrect code. You have 1 trials remaining.';
+  }
+
+  if (
+    message.includes(
+      'You have 0 trials remaining'
+    )
+  ) {
+    return 'Incorrect code. You have 0 trials remaining. Please request a new code.';
+  }
+
+  return message ||
+    'Invalid OTP verification';
 }
