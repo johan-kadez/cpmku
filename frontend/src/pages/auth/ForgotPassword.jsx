@@ -5,15 +5,11 @@ import './ForgotPassword.css';
 
 const OTP_LENGTH = 6;
 
-// Animasi "verifying" minimal tampil selama ini, biar tidak berkedip
-// kalau server membalas terlalu cepat.
 const MIN_VERIFY_MS = 1200;
 
-// Lama animasi sukses / gagal. Harus sama dengan durasi di ForgotPassword.css.
 const SUCCESS_DURATION = 1500;
 const FAIL_DURATION = 420;
 
-// Arah tiap kotak di lingkaran animasi (heksagon, kotak pertama di atas).
 const ORBIT_UNITS = Array.from(
   { length: OTP_LENGTH },
   (_, index) => {
@@ -64,7 +60,6 @@ export default function ForgotPassword() {
     };
   }, []);
 
-  // Sukses: setelah animasi selesai, lanjut ke step password.
   useEffect(() => {
     if (otpState !== 'success') {
       return;
@@ -82,7 +77,6 @@ export default function ForgotPassword() {
     return () => clearTimeout(timer);
   }, [otpState]);
 
-  // Gagal: setelah animasi selesai, tampilkan kotak OTP lagi dengan status error.
   useEffect(() => {
     if (otpState !== 'failed') {
       return;
