@@ -37,8 +37,14 @@ export default function BottomNav() {
     useRef(false);
 
   useEffect(() => {
-    lastScrollY.current =
-      window.scrollY || 0;
+    const updateInitialPosition = () => {
+      lastScrollY.current =
+        window.scrollY || 0;
+
+      setVisible(true);
+    };
+
+    updateInitialPosition();
 
     const handleScroll = () => {
       if (ticking.current) {
@@ -90,7 +96,12 @@ export default function BottomNav() {
 
   useEffect(() => {
     setVisible(true);
-  }, [location.pathname]);
+
+    lastScrollY.current =
+      window.scrollY || 0;
+  }, [
+    location.pathname
+  ]);
 
   const isAdminPanel =
     location.pathname === '/admin' ||
