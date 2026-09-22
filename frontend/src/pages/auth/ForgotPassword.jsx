@@ -10,6 +10,8 @@ const MIN_VERIFY_MS = 1200;
 const SUCCESS_DURATION = 1500;
 const FAIL_DURATION = 420;
 
+const TOAST_DURATION = 2600;
+
 const ORBIT_UNITS = Array.from(
   { length: OTP_LENGTH },
   (_, index) => {
@@ -29,34 +31,53 @@ export default function ForgotPassword() {
 
   const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
+  const [otp, setOtp] = useState(
+    Array(OTP_LENGTH).fill('')
+  );
   const [resetToken, setResetToken] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] =
+    useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [otpState, setOtpState] = useState('idle');
+  const [resendCooldown, setResendCooldown] =
+    useState(0);
+  const [otpState, setOtpState] =
+    useState('idle');
+  const [toast, setToast] = useState(null);
 
   const inputRefs = useRef([]);
   const cooldownTimerRef = useRef(null);
   const verificationTimerRef = useRef(null);
   const animationTimersRef = useRef([]);
+  const toastTimerRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (cooldownTimerRef.current) {
-        clearInterval(cooldownTimerRef.current);
+        clearInterval(
+          cooldownTimerRef.current
+        );
       }
 
       if (verificationTimerRef.current) {
-        clearTimeout(verificationTimerRef.current);
+        clearTimeout(
+          verificationTimerRef.current
+        );
       }
 
-      animationTimersRef.current.forEach(timer => {
-        clearTimeout(timer);
-      });
+      if (toastTimerRef.current) {
+        clearTimeout(
+          toastTimerRef.current
+        );
+      }
+
+      animationTimersRef.current.forEach(
+        timer => {
+          clearTimeout(timer);
+        }
+      );
     };
   }, []);
 
@@ -68,7 +89,9 @@ export default function ForgotPassword() {
     const timer = setTimeout(() => {
       setStep('password');
       setOtpState('idle');
-      setOtp(Array(OTP_LENGTH).fill(''));
+      setOtp(
+        Array(OTP_LENGTH).fill('')
+      );
       setError('');
       setSuccess('');
       setBusy(false);
@@ -90,14 +113,42 @@ export default function ForgotPassword() {
         inputRefs.current[0]?.focus();
       }, 650);
 
-      animationTimersRef.current.push(focusTimer);
+      animationTimersRef.current.push(
+        focusTimer
+      );
     }, FAIL_DURATION);
 
     return () => clearTimeout(timer);
   }, [otpState]);
 
-  const setInputRef = (element, index) => {
-    inputRefs.current[index] = element;
+  const showToast = (
+    message,
+    type = 'success'
+  ) => {
+    if (toastTimerRef.current) {
+      clearTimeout(
+        toastTimerRef.current
+      );
+    }
+
+    setToast({
+      message,
+      type
+    });
+
+    toastTimerRef.current =
+      setTimeout(() => {
+        setToast(null);
+        toastTimerRef.current = null;
+      }, TOAST_DURATION);
+  };
+
+  const setInputRef = (
+    element,
+    index
+  ) => {
+    inputRefs.current[index] =
+      element;
   };
 
   const clearOtpError = () => {
@@ -108,8 +159,13 @@ export default function ForgotPassword() {
     setError('');
   };
 
-  const updateOtp = (index, value) => {
-    const digit = value.replace(/\D/g, '').slice(-1);
+  const updateOtp = (
+    index,
+    value
+  ) => {
+    const digit = value
+      .replace(/\D/g, '')
+      .slice(-1);
 
     setOtp(current => {
       const next = [...current];
@@ -119,20 +175,40 @@ export default function ForgotPassword() {
 
     clearOtpError();
 
-    if (digit && index < OTP_LENGTH - 1) {
+    if (
+      digit &&
+      index <
+        OTP_LENGTH - 1
+    ) {
       requestAnimationFrame(() => {
-        inputRefs.current[index + 1]?.focus();
+        inputRefs.current[
+          index + 1
+        ]?.focus();
       });
     }
 
-    if (digit && index === OTP_LENGTH - 1) {
+    if (
+      digit &&
+      index ===
+        OTP_LENGTH - 1
+    ) {
       requestAnimationFrame(() => {
         setOtp(current => {
-          const nextOtp = [...current];
-          nextOtp[index] = digit;
+          const nextOtp = [
+            ...current
+          ];
 
-          if (nextOtp.every(Boolean)) {
-            scheduleVerification(nextOtp.join(''));
+          nextOtp[index] =
+            digit;
+
+          if (
+            nextOtp.every(
+              Boolean
+            )
+          ) {
+            scheduleVerification(
+              nextOtp.join('')
+            );
           }
 
           return current;
@@ -141,41 +217,78 @@ export default function ForgotPassword() {
     }
   };
 
-  const scheduleVerification = value => {
-    if (verificationTimerRef.current) {
-      clearTimeout(verificationTimerRef.current);
+  const scheduleVerification =
+    value => {
+      if (
+        verificationTimerRef.current
+      ) {
+        clearTimeout(
+          verificationTimerRef.current
+        );
+      }
+
+      verificationTimerRef.current =
+        setTimeout(() => {
+          verifyCode(value);
+        }, 80);
+    };
+
+  const handleOtpChange = (
+    index,
+    event
+  ) => {
+    if (
+      busy ||
+      otpState ===
+        'success'
+    ) {
+      return;
     }
 
-    verificationTimerRef.current = setTimeout(() => {
-      verifyCode(value);
-    }, 80);
+    const value =
+      event.target.value;
+
+    if (
+      value.length > 1
+    ) {
+      handleOtpPaste(
+        index,
+        value
+      );
+      return;
+    }
+
+    updateOtp(
+      index,
+      value
+    );
   };
 
-  const handleOtpChange = (index, event) => {
-    if (busy || otpState === 'success') {
+  const handleOtpKeyDown = (
+    index,
+    event
+  ) => {
+    if (
+      busy ||
+      otpState ===
+        'success'
+    ) {
       return;
     }
 
-    const value = event.target.value;
-
-    if (value.length > 1) {
-      handleOtpPaste(index, value);
-      return;
-    }
-
-    updateOtp(index, value);
-  };
-
-  const handleOtpKeyDown = (index, event) => {
-    if (busy || otpState === 'success') {
-      return;
-    }
-
-    if (event.key === 'Backspace') {
+    if (
+      event.key ===
+      'Backspace'
+    ) {
       if (otp[index]) {
         setOtp(current => {
-          const next = [...current];
-          next[index] = '';
+          const next = [
+            ...current
+          ];
+
+          next[index] =
+            '';
+
           return next;
         });
 
@@ -187,88 +300,155 @@ export default function ForgotPassword() {
         event.preventDefault();
 
         setOtp(current => {
-          const next = [...current];
-          next[index - 1] = '';
+          const next = [
+            ...current
+          ];
+
+          next[
+            index - 1
+          ] = '';
+
           return next;
         });
 
         clearOtpError();
 
-        requestAnimationFrame(() => {
-          inputRefs.current[index - 1]?.focus();
-        });
+        requestAnimationFrame(
+          () => {
+            inputRefs.current[
+              index - 1
+            ]?.focus();
+          }
+        );
       }
 
       return;
     }
 
-    if (event.key === 'ArrowLeft' && index > 0) {
+    if (
+      event.key ===
+        'ArrowLeft' &&
+      index > 0
+    ) {
       event.preventDefault();
-      inputRefs.current[index - 1]?.focus();
+
+      inputRefs.current[
+        index - 1
+      ]?.focus();
+
       return;
     }
 
     if (
-      event.key === 'ArrowRight' &&
-      index < OTP_LENGTH - 1
+      event.key ===
+        'ArrowRight' &&
+      index <
+        OTP_LENGTH - 1
     ) {
       event.preventDefault();
-      inputRefs.current[index + 1]?.focus();
+
+      inputRefs.current[
+        index + 1
+      ]?.focus();
     }
   };
 
-  const handleOtpPaste = (startIndex, value) => {
-    if (busy || otpState === 'success') {
+  const handleOtpPaste = (
+    startIndex,
+    value
+  ) => {
+    if (
+      busy ||
+      otpState ===
+        'success'
+    ) {
       return;
     }
 
     const digits = value
       .replace(/\D/g, '')
-      .slice(0, OTP_LENGTH - startIndex);
+      .slice(
+        0,
+        OTP_LENGTH -
+          startIndex
+      );
 
     if (!digits) {
       return;
     }
 
-    const nextOtp = [...otp];
+    const nextOtp = [
+      ...otp
+    ];
 
-    digits.split('').forEach((digit, offset) => {
-      const targetIndex = startIndex + offset;
+    digits
+      .split('')
+      .forEach(
+        (
+          digit,
+          offset
+        ) => {
+          const targetIndex =
+            startIndex +
+            offset;
 
-      if (targetIndex < OTP_LENGTH) {
-        nextOtp[targetIndex] = digit;
-      }
-    });
+          if (
+            targetIndex <
+            OTP_LENGTH
+          ) {
+            nextOtp[
+              targetIndex
+            ] = digit;
+          }
+        }
+      );
 
     setOtp(nextOtp);
     clearOtpError();
 
-    const nextEmptyIndex = nextOtp.findIndex(
-      digit => !digit
-    );
+    const nextEmptyIndex =
+      nextOtp.findIndex(
+        digit => !digit
+      );
 
-    if (nextOtp.every(Boolean)) {
-      scheduleVerification(nextOtp.join(''));
+    if (
+      nextOtp.every(
+        Boolean
+      )
+    ) {
+      scheduleVerification(
+        nextOtp.join('')
+      );
+
       return;
     }
 
-    requestAnimationFrame(() => {
-      inputRefs.current[
-        nextEmptyIndex >= 0
-          ? nextEmptyIndex
-          : OTP_LENGTH - 1
-      ]?.focus();
-    });
+    requestAnimationFrame(
+      () => {
+        inputRefs.current[
+          nextEmptyIndex >= 0
+            ? nextEmptyIndex
+            : OTP_LENGTH - 1
+        ]?.focus();
+      }
+    );
   };
 
-  const handleOtpPasteEvent = (index, event) => {
+  const handleOtpPasteEvent = (
+    index,
+    event
+  ) => {
     event.preventDefault();
 
-    const pasted = event.clipboardData
-      .getData('text')
-      .replace(/\D/g, '');
+    const pasted =
+      event.clipboardData
+        .getData('text')
+        .replace(/\D/g, '');
 
-    handleOtpPaste(index, pasted);
+    handleOtpPaste(
+      index,
+      pasted
+    );
   };
 
   const requestCode = async event => {
@@ -281,10 +461,13 @@ export default function ForgotPassword() {
     setError('');
     setSuccess('');
 
-    const cleanEmail = email.trim();
+    const cleanEmail =
+      email.trim();
 
     if (!cleanEmail) {
-      setError('Email wajib diisi.');
+      setError(
+        'Email wajib diisi.'
+      );
       return;
     }
 
@@ -296,13 +479,18 @@ export default function ForgotPassword() {
         {
           method: 'POST',
           body: JSON.stringify({
-            email: cleanEmail
+            email:
+              cleanEmail
           })
         }
       );
 
       setStep('otp');
-      setOtp(Array(OTP_LENGTH).fill(''));
+
+      setOtp(
+        Array(OTP_LENGTH).fill('')
+      );
+
       setOtpState('idle');
 
       setSuccess(
@@ -311,13 +499,17 @@ export default function ForgotPassword() {
 
       startCooldown();
 
-      requestAnimationFrame(() => {
-        inputRefs.current[0]?.focus();
-      });
+      requestAnimationFrame(
+        () => {
+          inputRefs.current[
+            0
+          ]?.focus();
+        }
+      );
     } catch (error) {
       setError(
         error?.message ||
-        'Gagal mengirim kode.'
+          'Gagal mengirim kode.'
       );
     } finally {
       setBusy(false);
@@ -325,72 +517,113 @@ export default function ForgotPassword() {
   };
 
   const verifyCode = async value => {
-    if (busy || otpState === 'success') {
+    if (
+      busy ||
+      otpState ===
+        'success'
+    ) {
       return;
     }
 
     const cleanOtp = value
       .replace(/\D/g, '')
-      .slice(0, OTP_LENGTH);
+      .slice(
+        0,
+        OTP_LENGTH
+      );
 
-    if (cleanOtp.length !== OTP_LENGTH) {
+    if (
+      cleanOtp.length !==
+      OTP_LENGTH
+    ) {
       return;
     }
 
     setBusy(true);
     setError('');
     setSuccess('');
-    setOtpState('verifying');
+    setOtpState(
+      'verifying'
+    );
 
-    const startedAt = Date.now();
+    const startedAt =
+      Date.now();
 
     try {
-      const result = await api(
-        '/auth/password-reset/verify',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            email: email.trim(),
-            otp: cleanOtp
-          })
-        }
-      );
+      const result =
+        await api(
+          '/auth/password-reset/verify',
+          {
+            method:
+              'POST',
+            body: JSON.stringify({
+              email:
+                email.trim(),
+              otp:
+                cleanOtp
+            })
+          }
+        );
 
-      if (!result?.resetToken) {
+      if (
+        !result?.resetToken
+      ) {
         throw new Error(
           'Kode berhasil diverifikasi, tetapi reset token tidak diterima.'
         );
       }
 
-      await waitForMinVerify(startedAt);
-
-      setResetToken(result.resetToken);
-      setOtpState('success');
-    } catch (error) {
-      await waitForMinVerify(startedAt);
-
-      setError(
-        getOtpErrorMessage(error)
+      await waitForMinVerify(
+        startedAt
       );
 
-      setOtpState('failed');
+      setResetToken(
+        result.resetToken
+      );
+
+      setOtpState(
+        'success'
+      );
+    } catch (error) {
+      await waitForMinVerify(
+        startedAt
+      );
+
+      setError(
+        getOtpErrorMessage(
+          error
+        )
+      );
+
+      setOtpState(
+        'failed'
+      );
     }
   };
 
-  const waitForMinVerify = startedAt =>
-    new Promise(resolve => {
-      const remaining = Math.max(
-        0,
-        MIN_VERIFY_MS - (Date.now() - startedAt)
-      );
+  const waitForMinVerify =
+    startedAt =>
+      new Promise(
+        resolve => {
+          const remaining =
+            Math.max(
+              0,
+              MIN_VERIFY_MS -
+                (Date.now() -
+                  startedAt)
+            );
 
-      const timer = setTimeout(
-        resolve,
-        remaining
-      );
+          const timer =
+            setTimeout(
+              resolve,
+              remaining
+            );
 
-      animationTimersRef.current.push(timer);
-    });
+          animationTimersRef.current.push(
+            timer
+          );
+        }
+      );
 
   const reset = async event => {
     event.preventDefault();
@@ -402,14 +635,20 @@ export default function ForgotPassword() {
     setError('');
     setSuccess('');
 
-    if (password.length < 6) {
+    if (
+      password.length <
+      6
+    ) {
       setError(
         'Password minimal 6 karakter.'
       );
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (
+      password !==
+      confirmPassword
+    ) {
       setError(
         "Passwords don't match."
       );
@@ -422,11 +661,14 @@ export default function ForgotPassword() {
       await api(
         '/auth/password-reset/confirm',
         {
-          method: 'POST',
+          method:
+            'POST',
           body: JSON.stringify({
-            email: email.trim(),
+            email:
+              email.trim(),
             resetToken,
-            newPassword: password,
+            newPassword:
+              password,
             confirmPassword
           })
         }
@@ -436,11 +678,12 @@ export default function ForgotPassword() {
         'Password berhasil diubah. Mengembalikan ke Sign In...'
       );
 
-      const timer = setTimeout(() => {
-        nav('/login', {
-          replace: true
-        });
-      }, 1200);
+      const timer =
+        setTimeout(() => {
+          nav('/login', {
+            replace: true
+          });
+        }, 1200);
 
       animationTimersRef.current.push(
         timer
@@ -448,7 +691,7 @@ export default function ForgotPassword() {
     } catch (error) {
       setError(
         error?.message ||
-        'Gagal mengubah password.'
+          'Gagal mengubah password.'
       );
 
       setBusy(false);
@@ -456,13 +699,17 @@ export default function ForgotPassword() {
   };
 
   const startCooldown = () => {
-    if (cooldownTimerRef.current) {
+    if (
+      cooldownTimerRef.current
+    ) {
       clearInterval(
         cooldownTimerRef.current
       );
     }
 
-    setResendCooldown(120);
+    setResendCooldown(
+      120
+    );
 
     let remaining = 120;
 
@@ -471,15 +718,22 @@ export default function ForgotPassword() {
         remaining -= 1;
 
         setResendCooldown(
-          Math.max(remaining, 0)
+          Math.max(
+            remaining,
+            0
+          )
         );
 
-        if (remaining <= 0) {
+        if (
+          remaining <=
+          0
+        ) {
           clearInterval(
             cooldownTimerRef.current
           );
 
-          cooldownTimerRef.current = null;
+          cooldownTimerRef.current =
+            null;
         }
       }, 1000);
   };
@@ -487,7 +741,8 @@ export default function ForgotPassword() {
   const resend = async () => {
     if (
       busy ||
-      resendCooldown > 0
+      resendCooldown >
+        0
     ) {
       return;
     }
@@ -501,28 +756,38 @@ export default function ForgotPassword() {
       await api(
         '/auth/password-reset/request',
         {
-          method: 'POST',
+          method:
+            'POST',
           body: JSON.stringify({
-            email: email.trim()
+            email:
+              email.trim()
           })
         }
       );
 
-      setOtp(Array(OTP_LENGTH).fill(''));
-
-      setSuccess(
-        'A new verification code has been sent.'
+      setOtp(
+        Array(OTP_LENGTH).fill('')
       );
 
       startCooldown();
 
-      requestAnimationFrame(() => {
-        inputRefs.current[0]?.focus();
-      });
+      showToast(
+        'OTP sudah dikirim.',
+        'success'
+      );
+
+      requestAnimationFrame(
+        () => {
+          inputRefs.current[
+            0
+          ]?.focus();
+        }
+      );
     } catch (error) {
-      setError(
+      showToast(
         error?.message ||
-        'Gagal mengirim ulang kode.'
+          'Gagal mengirim ulang kode.',
+        'error'
       );
     } finally {
       setBusy(false);
@@ -530,12 +795,36 @@ export default function ForgotPassword() {
   };
 
   const formattedCooldown =
-    `${Math.floor(resendCooldown / 60)}:${String(
+    `${Math.floor(
+      resendCooldown / 60
+    )}:${String(
       resendCooldown % 60
-    ).padStart(2, '0')}`;
+    ).padStart(
+      2,
+      '0'
+    )}`;
 
   return (
     <>
+      {toast && (
+        <div
+          className={`forgot-password-toast ${toast.type}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="forgot-password-toast-icon">
+            {toast.type ===
+            'error'
+              ? '!'
+              : '✓'}
+          </span>
+
+          <span>
+            {toast.message}
+          </span>
+        </div>
+      )}
+
       <section className="auth-card auth-modern">
         <div className="auth-heading">
           <span className="eyebrow">
@@ -543,46 +832,57 @@ export default function ForgotPassword() {
           </span>
 
           <h1>
-            {step === 'email' &&
+            {step ===
+              'email' &&
               'Forgot Password'}
 
-            {step === 'otp' &&
+            {step ===
+              'otp' &&
               'Verify Code'}
 
-            {step === 'password' &&
+            {step ===
+              'password' &&
               'Set new password'}
           </h1>
 
           <p>
-            {step === 'email' &&
+            {step ===
+              'email' &&
               'Masukkan email akun CPMKU kamu untuk menerima kode reset password.'}
 
-            {step === 'otp' &&
+            {step ===
+              'otp' &&
               'Masukkan 6 digit kode yang dikirim ke email kamu.'}
 
-            {step === 'password' &&
+            {step ===
+              'password' &&
               'Buat password baru untuk akun CPMKU kamu.'}
           </p>
         </div>
 
         {error &&
-          step !== 'otp' && (
+          step !==
+            'otp' && (
             <div className="notice error">
               {error}
             </div>
           )}
 
         {success &&
-          step !== 'otp' && (
+          step !==
+            'otp' && (
             <div className="notice success">
               {success}
             </div>
           )}
 
-        {step === 'email' && (
+        {step ===
+          'email' && (
           <form
             className="auth-form"
-            onSubmit={requestCode}
+            onSubmit={
+              requestCode
+            }
           >
             <label>
               Email
@@ -592,7 +892,8 @@ export default function ForgotPassword() {
                 value={email}
                 onChange={event =>
                   setEmail(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 placeholder="nama@email.com"
@@ -613,57 +914,64 @@ export default function ForgotPassword() {
           </form>
         )}
 
-        {step === 'otp' && (
+        {step ===
+          'otp' && (
           <div>
             <div
-              className={
-                `cpmku-otp-stage state-${otpState}`
-              }
+              className={`cpmku-otp-stage state-${otpState}`}
               aria-label="OTP verification"
             >
               <div
-                className={
-                  `cpmku-otp-row ${
-                    otpState === 'error'
-                      ? 'shake'
-                      : ''
-                  }`
-                }
+                className={`cpmku-otp-row ${
+                  otpState ===
+                  'error'
+                    ? 'shake'
+                    : ''
+                }`}
               >
                 {otp.map(
-                  (digit, index) => (
+                  (
+                    digit,
+                    index
+                  ) => (
                     <input
-                      key={index}
+                      key={
+                        index
+                      }
                       ref={element =>
                         setInputRef(
                           element,
                           index
                         )
                       }
-                      className={
-                        `cpmku-otp-cell ${
-                          otpState === 'error'
-                            ? 'invalid'
-                            : ''
-                        }`
-                      }
+                      className={`cpmku-otp-cell ${
+                        otpState ===
+                        'error'
+                          ? 'invalid'
+                          : ''
+                      }`}
                       type="text"
                       inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
+                      maxLength={
+                        1
+                      }
+                      value={
+                        digit
+                      }
                       disabled={
                         busy ||
                         otpState ===
                           'success'
                       }
                       autoComplete={
-                        index === 0
+                        index ===
+                        0
                           ? 'one-time-code'
                           : 'off'
                       }
-                      aria-label={
-                        `OTP digit ${index + 1}`
-                      }
+                      aria-label={`OTP digit ${
+                        index + 1
+                      }`}
                       onChange={event =>
                         handleOtpChange(
                           index,
@@ -691,19 +999,35 @@ export default function ForgotPassword() {
                 className="cpmku-otp-orbit"
                 aria-hidden="true"
               >
-                {otp.map((digit, index) => (
-                  <span
-                    key={index}
-                    className="cpmku-otp-tile"
-                    style={{
-                      '--i': index,
-                      '--ux': ORBIT_UNITS[index].x,
-                      '--uy': ORBIT_UNITS[index].y
-                    }}
-                  >
-                    {digit}
-                  </span>
-                ))}
+                {otp.map(
+                  (
+                    digit,
+                    index
+                  ) => (
+                    <span
+                      key={
+                        index
+                      }
+                      className="cpmku-otp-tile"
+                      style={{
+                        '--i':
+                          index,
+                        '--ux':
+                          ORBIT_UNITS[
+                            index
+                          ].x,
+                        '--uy':
+                          ORBIT_UNITS[
+                            index
+                          ].y
+                      }}
+                    >
+                      {
+                        digit
+                      }
+                    </span>
+                  )
+                )}
               </div>
 
               <div
@@ -727,48 +1051,35 @@ export default function ForgotPassword() {
             </div>
 
             <div
-              className={
-                `cpmku-otp-error ${
-                  otpState === 'error'
-                    ? 'show'
-                    : ''
-                }`
-              }
+              className={`cpmku-otp-error ${
+                otpState ===
+                'error'
+                  ? 'show'
+                  : ''
+              }`}
               aria-live="assertive"
             >
               {error ||
                 'Invalid OTP verification'}
             </div>
 
-            {success && (
-              <div
-                className="notice success"
-                style={{
-                  marginTop: '8px'
-                }}
-              >
-                {success}
-              </div>
-            )}
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                marginTop: '14px'
-              }}
-            >
+            <div className="forgot-resend-wrap">
               <button
                 type="button"
-                className="button"
-                onClick={resend}
+                className="button forgot-resend-button"
+                onClick={
+                  resend
+                }
                 disabled={
                   busy ||
-                  resendCooldown > 0 ||
-                  otpState === 'success'
+                  resendCooldown >
+                    0 ||
+                  otpState ===
+                    'success'
                 }
               >
-                {resendCooldown > 0
+                {resendCooldown >
+                0
                   ? `Resend code in ${formattedCooldown}`
                   : 'Resend code'}
               </button>
@@ -776,7 +1087,8 @@ export default function ForgotPassword() {
           </div>
         )}
 
-        {step === 'password' && (
+        {step ===
+          'password' && (
           <form
             className="auth-form"
             onSubmit={reset}
@@ -789,7 +1101,8 @@ export default function ForgotPassword() {
                 value={password}
                 onChange={event =>
                   setPassword(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 placeholder="Minimal 6 karakter"
@@ -804,10 +1117,13 @@ export default function ForgotPassword() {
 
               <input
                 type="password"
-                value={confirmPassword}
+                value={
+                  confirmPassword
+                }
                 onChange={event =>
                   setConfirmPassword(
-                    event.target.value
+                    event.target
+                      .value
                   )
                 }
                 placeholder="Ulangi password"
@@ -821,10 +1137,14 @@ export default function ForgotPassword() {
                   confirmPassword && (
                   <span
                     style={{
-                      color: '#ef4444',
-                      fontSize: '0.85rem',
-                      marginTop: '6px',
-                      display: 'block'
+                      color:
+                        '#ef4444',
+                      fontSize:
+                        '0.85rem',
+                      marginTop:
+                        '6px',
+                      display:
+                        'block'
                     }}
                   >
                     Passwords don't match.
@@ -849,7 +1169,8 @@ export default function ForgotPassword() {
               className="button primary auth-submit"
               disabled={
                 busy ||
-                password.length < 6 ||
+                password.length <
+                  6 ||
                 password !==
                   confirmPassword
               }
@@ -861,7 +1182,8 @@ export default function ForgotPassword() {
           </form>
         )}
 
-        {step !== 'password' && (
+        {step !==
+          'password' && (
           <p className="auth-switch">
             Remember your password?{' '}
 
@@ -871,7 +1193,8 @@ export default function ForgotPassword() {
           </p>
         )}
 
-        {step === 'password' && (
+        {step ===
+          'password' && (
           <p className="auth-switch">
             <Link to="/login">
               Back to Sign In
@@ -883,9 +1206,12 @@ export default function ForgotPassword() {
   );
 }
 
-function getOtpErrorMessage(error) {
+function getOtpErrorMessage(
+  error
+) {
   const message =
-    error?.message || '';
+    error?.message ||
+    '';
 
   if (
     message.includes(
