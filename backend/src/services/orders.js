@@ -38,6 +38,16 @@ export async function createOrder(
     );
   }
 
+  if (
+    !buyerUid ||
+    !productId
+  ) {
+    throw new HttpError(
+      400,
+      'Data order tidak lengkap.'
+    );
+  }
+
   return db.runTransaction(
     async tx => {
       const productRef = db
@@ -56,15 +66,17 @@ export async function createOrder(
       }
 
       const product =
-        snap.data();
+        snap.data() || {};
 
       const stock = Number(
         product.stock
       );
 
       if (
-        product.status !== 'available' ||
-        product.visibility !== 'public' ||
+        product.status !==
+          'available' ||
+        product.visibility !==
+          'public' ||
         !Number.isInteger(stock) ||
         stock < 1
       ) {
@@ -75,11 +87,31 @@ export async function createOrder(
       }
 
       if (
-        product.sellerUid === buyerUid
+        product.sellerUid ===
+        buyerUid
       ) {
         throw new HttpError(
           403,
           'Seller tidak dapat membeli produknya sendiri.'
+        );
+      }
+
+      if (
+        stock === 1 &&
+        product.reservedOrderId
+      ) {
+        throw new HttpError(
+          409,
+          'Product sedang dipesan oleh seseorang.'
+        );
+      }
+
+      if (
+        product.activeOrderId
+      ) {
+        throw new HttpError(
+          409,
+          'Product sedang dipesan oleh seseorang.'
         );
       }
 
@@ -90,6 +122,9 @@ export async function createOrder(
       const pid =
         product.productId ||
         productId;
+
+      const isSingleStock =
+        stock === 1;
 
       tx.set(
         orderRef,
@@ -114,6 +149,9 @@ export async function createOrder(
           paymentStatus:
             'waiting_admin',
 
+          reservedProduct:
+            isSingleStock,
+
           createdAt:
             FieldValue.serverTimestamp(),
 
@@ -121,6 +159,22 @@ export async function createOrder(
             FieldValue.serverTimestamp()
         }
       );
+
+      if (isSingleStock) {
+        tx.update(
+          productRef,
+          {
+            reservedOrderId:
+              orderRef.id,
+
+            reservedAt:
+              FieldValue.serverTimestamp(),
+
+            updatedAt:
+              FieldValue.serverTimestamp()
+          }
+        );
+      }
 
       return {
         orderId:
@@ -162,7 +216,7 @@ export async function doneOrder(
       }
 
       const order =
-        orderSnap.data();
+        orderSnap.data() || {};
 
       if (
         order.buyerUid !==
@@ -242,12 +296,38 @@ export async function doneOrder(
       }
 
       const product =
-        productSnap.data();
+        productSnap.data() || {};
 
-      const stock = Math.max(
-        0,
-        Number(product.stock) - 1
-      );
+      if (
+        product.activeOrderId &&
+        product.activeOrderId !==
+          orderId
+      ) {
+        throw new HttpError(
+          409,
+          'Product sedang dipesan oleh seseorang.'
+        );
+      }
+
+      const currentStock =
+        Number(
+          product.stock
+        );
+
+      if (
+        !Number.isInteger(
+          currentStock
+        ) ||
+        currentStock < 1
+      ) {
+        throw new HttpError(
+          409,
+          'Stok produk sudah habis.'
+        );
+      }
+
+      const stock =
+        currentStock - 1;
 
       tx.update(
         orderRef,
@@ -281,34 +361,59 @@ export async function doneOrder(
         );
       }
 
-      tx.update(
-        productRef,
+      if (
         stock === 0
-          ? {
-              stock: 0,
+      ) {
+        tx.update(
+          productRef,
+          {
+            stock: 0,
 
-              status:
-                'sold',
+            status:
+              'sold',
 
-              visibility:
-                'private',
+            visibility:
+              'private',
 
-              updatedAt:
-                FieldValue.serverTimestamp()
-            }
-          : {
-              stock,
+            activeOrderId:
+              FieldValue.delete(),
 
-              status:
-                'available',
+            reservedOrderId:
+              FieldValue.delete(),
 
-              visibility:
-                'public',
+            reservedAt:
+              FieldValue.delete(),
 
-              updatedAt:
-                FieldValue.serverTimestamp()
-            }
-      );
+            updatedAt:
+              FieldValue.serverTimestamp()
+          }
+        );
+      } else {
+        tx.update(
+          productRef,
+          {
+            stock,
+
+            status:
+              'available',
+
+            visibility:
+              'public',
+
+            activeOrderId:
+              FieldValue.delete(),
+
+            reservedOrderId:
+              FieldValue.delete(),
+
+            reservedAt:
+              FieldValue.delete(),
+
+            updatedAt:
+              FieldValue.serverTimestamp()
+          }
+        );
+      }
 
       return {
         ok: true,
