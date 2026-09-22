@@ -1,17 +1,9 @@
 {
   "version": 2,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/admin/users/:id",
-      "destination": "/api/index?path=admin/users/:id"
-    },
-    {
-      "source": "/api/admin/:path*",
-      "destination": "/api/index?path=admin/:path*"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index?path=:path*"
+      "src": "/api/(.*)",
+      "dest": "/api/index?path=$1"
     }
   ],
   "headers": [
