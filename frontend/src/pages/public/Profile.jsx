@@ -29,6 +29,171 @@ const ALLOWED_TYPES = [
   'image/webp'
 ];
 
+const MAX_IMAGE_DIMENSION = 768;
+const TARGET_FILE_SIZE = 200 * 1024;
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url =
+      URL.createObjectURL(file);
+
+    const image =
+      new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(
+        new Error(
+          'Foto tidak dapat diproses.'
+        )
+      );
+    };
+
+    image.src = url;
+  });
+}
+
+function canvasToBlob(
+  canvas,
+  quality
+) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => {
+        if (!blob) {
+          reject(
+            new Error(
+              'Browser gagal memproses foto.'
+            )
+          );
+          return;
+        }
+
+        resolve(blob);
+      },
+      'image/webp',
+      quality
+    );
+  });
+}
+
+async function compressProfilePhoto(file) {
+  const image =
+    await loadImage(file);
+
+  let width =
+    image.naturalWidth;
+
+  let height =
+    image.naturalHeight;
+
+  const longestSide =
+    Math.max(width, height);
+
+  if (
+    longestSide >
+    MAX_IMAGE_DIMENSION
+  ) {
+    const scale =
+      MAX_IMAGE_DIMENSION /
+      longestSide;
+
+    width =
+      Math.max(
+        1,
+        Math.round(width * scale)
+      );
+
+    height =
+      Math.max(
+        1,
+        Math.round(height * scale)
+      );
+  }
+
+  const canvas =
+    document.createElement(
+      'canvas'
+    );
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const context =
+    canvas.getContext('2d', {
+      alpha: true
+    });
+
+  if (!context) {
+    throw new Error(
+      'Browser tidak mendukung pemrosesan foto.'
+    );
+  }
+
+  context.imageSmoothingEnabled =
+    true;
+
+  context.imageSmoothingQuality =
+    'high';
+
+  context.drawImage(
+    image,
+    0,
+    0,
+    width,
+    height
+  );
+
+  const qualities = [
+    0.82,
+    0.76,
+    0.70,
+    0.64,
+    0.58
+  ];
+
+  let bestBlob = null;
+
+  for (
+    const quality of qualities
+  ) {
+    const blob =
+      await canvasToBlob(
+        canvas,
+        quality
+      );
+
+    bestBlob = blob;
+
+    if (
+      blob.size <=
+      TARGET_FILE_SIZE
+    ) {
+      break;
+    }
+  }
+
+  if (!bestBlob) {
+    throw new Error(
+      'Foto gagal dikompres.'
+    );
+  }
+
+  return new File(
+    [bestBlob],
+    'profile.webp',
+    {
+      type: 'image/webp',
+      lastModified: Date.now()
+    }
+  );
+}
+
 export default function Profile() {
   const {
     user,
@@ -85,11 +250,16 @@ export default function Profile() {
 
   useEffect(() => {
     setNickname(
-      user?.displayName ||
       user?.name ||
+      user?.nickname ||
+      user?.displayName ||
       ''
     );
-  }, [user]);
+  }, [
+    user?.name,
+    user?.nickname,
+    user?.displayName
+  ]);
 
   useEffect(() => {
     return () => {
@@ -165,13 +335,34 @@ export default function Profile() {
       return;
     }
 
-    const localPreview =
+    const originalPreview =
       URL.createObjectURL(file);
 
-    setPreview(localPreview);
+    setPreview(
+      originalPreview
+    );
+
     setUploading(true);
 
     try {
+      const compressedFile =
+        await compressProfilePhoto(
+          file
+        );
+
+      const compressedPreview =
+        URL.createObjectURL(
+          compressedFile
+        );
+
+      URL.revokeObjectURL(
+        originalPreview
+      );
+
+      setPreview(
+        compressedPreview
+      );
+
       const signature =
         await api(
           '/profile/photo/signature',
@@ -185,7 +376,7 @@ export default function Profile() {
 
       formData.append(
         'file',
-        file
+        compressedFile
       );
 
       formData.append(
@@ -285,10 +476,6 @@ export default function Profile() {
         saved.photoURL
       );
 
-      URL.revokeObjectURL(
-        localPreview
-      );
-
       setPreview('');
 
       showSuccess(
@@ -300,9 +487,11 @@ export default function Profile() {
         error
       );
 
-      URL.revokeObjectURL(
-        localPreview
-      );
+      if (preview) {
+        URL.revokeObjectURL(
+          preview
+        );
+      }
 
       setPreview('');
 
@@ -349,19 +538,24 @@ export default function Profile() {
           }
         );
 
-      if (
-        user &&
-        result?.name
-      ) {
+      if (user) {
         user.displayName =
-          result.name;
+          result?.name ||
+          value;
 
         user.name =
-          result.name;
+          result?.name ||
+          value;
+
+        user.nickname =
+          result?.nickname ||
+          result?.name ||
+          value;
       }
 
       setNickname(
         result?.name ||
+        result?.nickname ||
         value
       );
 
@@ -549,6 +743,8 @@ export default function Profile() {
             ) : (
               <div className="profile-avatar profile-avatar-fallback">
                 {(
+                  user.name ||
+                  user.nickname ||
                   user.displayName ||
                   user.email ||
                   'U'
@@ -561,8 +757,9 @@ export default function Profile() {
 
           <div className="profile-info">
             <h1>
-              {user.displayName ||
-                user.name ||
+              {user.name ||
+                user.nickname ||
+                user.displayName ||
                 'User'}
             </h1>
 
