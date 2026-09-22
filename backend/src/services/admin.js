@@ -853,18 +853,28 @@ export async function updateUser(
       .collection('users')
       .doc(uid);
 
-  const userSnap =
-    await userRef.get();
+  const sellerRef =
+    db
+      .collection('sellers')
+      .doc(uid);
 
-  if (!userSnap.exists) {
-    throw new HttpError(
-      404,
-      'User tidak ditemukan.'
-    );
-  }
+  const [
+    userSnap,
+    sellerSnap
+  ] = await Promise.all([
+    userRef.get(),
+    sellerRef.get()
+  ]);
 
   const user =
-    userSnap.data() || {};
+    userSnap.exists
+      ? userSnap.data() || {}
+      : {};
+
+  const seller =
+    sellerSnap.exists
+      ? sellerSnap.data() || {}
+      : {};
 
   const result = {
     ok: true
@@ -880,14 +890,6 @@ export async function updateUser(
     hasName ||
     hasPhone
   ) {
-    const sellerRef =
-      db
-        .collection('sellers')
-        .doc(uid);
-
-    const sellerSnap =
-      await sellerRef.get();
-
     if (
       !sellerSnap.exists
     ) {
@@ -896,9 +898,6 @@ export async function updateUser(
         'User ini bukan seller aktif.'
       );
     }
-
-    const seller =
-      sellerSnap.data() || {};
 
     if (
       seller.status !==
@@ -1019,41 +1018,39 @@ export async function updateUser(
       );
     }
 
-    const sellerRef =
-      db
-        .collection('sellers')
-        .doc(uid);
-
     if (
       role === 'seller'
     ) {
+      const currentUser =
+        user;
+
       await sellerRef.set(
         {
           uid,
 
           email:
-            user.email ||
+            currentUser.email ||
             '',
 
           name:
-            user.name ||
+            currentUser.name ||
             '',
 
           phone:
-            user.phone ||
+            currentUser.phone ||
             '',
 
           reason:
-            user.reason ||
+            currentUser.reason ||
             '',
 
           description:
-            user.reason ||
+            currentUser.reason ||
             '',
 
           photoUrl:
-            user.photoUrl ||
-            user.photoURL ||
+            currentUser.photoUrl ||
+            currentUser.photoURL ||
             '',
 
           status:
@@ -1061,7 +1058,7 @@ export async function updateUser(
 
           banned:
             Boolean(
-              user.banned
+              currentUser.banned
             ),
 
           approvedAt:
@@ -1077,6 +1074,8 @@ export async function updateUser(
 
       await userRef.set(
         {
+          uid,
+
           role:
             'seller',
 
@@ -1092,11 +1091,11 @@ export async function updateUser(
     if (
       role === 'buyer'
     ) {
-      const sellerSnap =
+      const currentSeller =
         await sellerRef.get();
 
       if (
-        sellerSnap.exists
+        currentSeller.exists
       ) {
         await sellerRef.update({
           status:
@@ -1109,6 +1108,8 @@ export async function updateUser(
 
       await userRef.set(
         {
+          uid,
+
           role:
             'buyer',
 
