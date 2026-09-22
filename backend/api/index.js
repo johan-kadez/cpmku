@@ -2,14 +2,29 @@ import {
   asyncHandler
 } from '../src/utils/errors.js';
 
-const PUBLIC_ORIGIN =
-  'https://cpmku.shop';
+const PUBLIC_ORIGINS = [
+  'https://cpmku.shop',
+  'https://www.cpmku.shop'
+];
 
-function setCors(res) {
-  res.setHeader(
-    'Access-Control-Allow-Origin',
-    PUBLIC_ORIGIN
-  );
+function setCors(req, res) {
+  const origin =
+    req.headers?.origin;
+
+  if (
+    origin &&
+    PUBLIC_ORIGINS.includes(origin)
+  ) {
+    res.setHeader(
+      'Access-Control-Allow-Origin',
+      origin
+    );
+  } else {
+    res.setHeader(
+      'Access-Control-Allow-Origin',
+      PUBLIC_ORIGINS[0]
+    );
+  }
 
   res.setHeader(
     'Access-Control-Allow-Methods',
@@ -28,7 +43,7 @@ function setCors(res) {
 }
 
 function setHealthResponse(res) {
-  res.status(200).json({
+  return res.status(200).json({
     ok: true,
     service:
       'johan-marketplace-backend',
@@ -37,44 +52,75 @@ function setHealthResponse(res) {
   });
 }
 
-function getPath(req) {
-  const rawPath =
-    req.query?.path;
-
+function normalizePath(value) {
   if (
-    Array.isArray(rawPath)
+    Array.isArray(value)
   ) {
-    return rawPath
+    return value
       .join('/')
       .replace(/^\/+|\/+$/g, '');
   }
 
   if (
-    typeof rawPath === 'string'
+    typeof value === 'string'
   ) {
-    return rawPath
+    return value
       .replace(/^\/+|\/+$/g, '');
   }
 
-  const originalUrl =
+  return '';
+}
+
+function getPath(req) {
+  const queryPath =
+    req.query?.path;
+
+  const normalizedQueryPath =
+    normalizePath(queryPath);
+
+  if (
+    normalizedQueryPath
+  ) {
+    return normalizedQueryPath;
+  }
+
+  const url =
     req.url || '';
 
   const pathname =
-    originalUrl.split('?')[0];
+    url.split('?')[0];
 
-  const normalized =
+  let normalizedPath =
     pathname
       .replace(/^\/+/, '')
       .replace(/\/+$/, '');
 
   if (
-    normalized.startsWith('api/')
+    normalizedPath.startsWith(
+      'api/index/'
+    )
   ) {
-    return normalized
-      .slice(4);
+    normalizedPath =
+      normalizedPath.slice(
+        'api/index/'.length
+      );
+  } else if (
+    normalizedPath ===
+      'api/index'
+  ) {
+    normalizedPath = '';
+  } else if (
+    normalizedPath.startsWith(
+      'api/'
+    )
+  ) {
+    normalizedPath =
+      normalizedPath.slice(
+        'api/'.length
+      );
   }
 
-  return normalized;
+  return normalizedPath;
 }
 
 function getSegments(req) {
@@ -135,7 +181,10 @@ async function router(
   req,
   res
 ) {
-  setCors(res);
+  setCors(
+    req,
+    res
+  );
 
   const method =
     req.method?.toUpperCase();
