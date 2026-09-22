@@ -2,6 +2,14 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/admin/users/:id",
+      "destination": "/api/index?path=admin/users/:id"
+    },
+    {
+      "source": "/api/admin/:path*",
+      "destination": "/api/index?path=admin/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/index?path=:path*"
     }
@@ -12,7 +20,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://cpmku.vercel.app"
+          "value": "https://www.cpmku.shop"
         },
         {
           "key": "Access-Control-Allow-Methods",
