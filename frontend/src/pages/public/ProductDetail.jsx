@@ -240,9 +240,25 @@ export default function ProductDetail() {
           id
         );
       } catch (error) {
+        const message =
+          error?.message ||
+          '';
+
+        if (
+          message.includes(
+            'Product sedang dipesan oleh seseorang.'
+          )
+        ) {
+          showToast(
+            'Pesanan gagal dibuat',
+            'Product sedang dipesan oleh seseorang.'
+          );
+          return;
+        }
+
         showToast(
           'Pesanan gagal dibuat',
-          error?.message ||
+          message ||
             'Terjadi kesalahan saat membuat pesanan.'
         );
       }
