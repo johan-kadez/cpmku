@@ -28,6 +28,133 @@ const ADMIN_UID = String(
   env.adminUid || ''
 ).trim();
 
+async function resolveSeller(uid) {
+  const normalizedUid =
+    String(uid || '').trim();
+
+  if (!normalizedUid) {
+    return {
+      seller: null,
+      sellerRef: null,
+      registration: null,
+      registrationRef: null
+    };
+  }
+
+  const sellerRef =
+    db
+      .collection('sellers')
+      .doc(normalizedUid);
+
+  const registrationRef =
+    db
+      .collection('registrations')
+      .doc(normalizedUid);
+
+  const [
+    sellerSnap,
+    registrationSnap
+  ] = await Promise.all([
+    sellerRef.get(),
+    registrationRef.get()
+  ]);
+
+  let seller =
+    sellerSnap.exists
+      ? sellerSnap.data() || {}
+      : null;
+
+  let actualSellerRef =
+    sellerSnap.exists
+      ? sellerSnap.ref
+      : null;
+
+  let registration =
+    registrationSnap.exists
+      ? registrationSnap.data() || {}
+      : null;
+
+  let actualRegistrationRef =
+    registrationSnap.exists
+      ? registrationSnap.ref
+      : null;
+
+  if (
+    !seller ||
+    seller.status !== 'approved'
+  ) {
+    const sellerQuery =
+      await db
+        .collection('sellers')
+        .where('uid', '==', normalizedUid)
+        .limit(20)
+        .get();
+
+    const approvedSeller =
+      sellerQuery.docs.find(
+        doc =>
+          doc.data()?.status ===
+            'approved'
+      );
+
+    if (approvedSeller) {
+      seller =
+        approvedSeller.data() || {};
+
+      actualSellerRef =
+        approvedSeller.ref;
+    }
+  }
+
+  if (
+    !registration ||
+    registration.status !==
+      'approved'
+  ) {
+    const registrationQuery =
+      await db
+        .collection('registrations')
+        .where('uid', '==', normalizedUid)
+        .limit(20)
+        .get();
+
+    const approvedRegistration =
+      registrationQuery.docs.find(
+        doc =>
+          doc.data()?.status ===
+            'approved'
+      );
+
+    if (approvedRegistration) {
+      registration =
+        approvedRegistration.data() ||
+        {};
+
+      actualRegistrationRef =
+        approvedRegistration.ref;
+    }
+  }
+
+  return {
+    seller,
+    sellerRef:
+      actualSellerRef,
+    registration,
+    registrationRef:
+      actualRegistrationRef
+  };
+}
+
+function isApprovedSeller(
+  seller
+) {
+  return Boolean(
+    seller &&
+    seller.status === 'approved' &&
+    seller.banned !== true
+  );
+}
+
 export async function dashboard() {
   const [
     users,
@@ -44,7 +171,11 @@ export async function dashboard() {
 
     db
       .collection('sellers')
-      .where('status', '==', 'approved')
+      .where(
+        'status',
+        '==',
+        'approved'
+      )
       .get(),
 
     db
@@ -126,87 +257,59 @@ export async function listCollection(
     };
   }
 
-  const sellerRefs =
-    items.map(
-      user =>
-        db
-          .collection('sellers')
-          .doc(
-            user.uid ||
-            user.id
-          )
-          .get()
-    );
-
-  const sellerSnapshots =
-    await Promise.all(
-      sellerRefs
-    );
-
-  const sellerMap =
-    new Map();
-
-  sellerSnapshots.forEach(
-    sellerSnap => {
-      if (
-        sellerSnap.exists
-      ) {
-        sellerMap.set(
-          sellerSnap.id,
-          sellerSnap.data()
-        );
-      }
-    }
-  );
-
   const normalizedUsers =
-    items.map(
-      user => {
-        const uid =
-          String(
-            user.uid ||
-            user.id ||
-            ''
-          ).trim();
+    await Promise.all(
+      items.map(
+        async user => {
+          const uid =
+            String(
+              user.uid ||
+              user.id ||
+              ''
+            ).trim();
 
-        const seller =
-          sellerMap.get(uid);
+          const resolved =
+            await resolveSeller(uid);
 
-        const sellerApproved =
-          seller?.status ===
-            'approved' &&
-          seller?.banned !== true;
+          const seller =
+            resolved.seller;
 
-        const role =
-          uid === ADMIN_UID
-            ? 'admin'
-            : sellerApproved
-              ? 'seller'
-              : (
-                  user.role ||
-                  'buyer'
-                );
+          const sellerApproved =
+            isApprovedSeller(
+              seller
+            );
 
-        return {
-          ...user,
+          const role =
+            uid === ADMIN_UID
+              ? 'admin'
+              : sellerApproved
+                ? 'seller'
+                : (
+                    user.role ||
+                    'buyer'
+                  );
 
-          uid,
+          return {
+            ...user,
 
-          role,
+            uid,
 
-          sellerActive:
-            sellerApproved,
+            role,
 
-          sellerStatus:
-            seller?.status ||
-            null,
+            sellerActive:
+              sellerApproved,
 
-          sellerBanned:
-            Boolean(
-              seller?.banned
-            )
-        };
-      }
+            sellerStatus:
+              seller?.status ||
+              null,
+
+            sellerBanned:
+              Boolean(
+                seller?.banned
+              )
+          };
+        }
+      )
     );
 
   return {
@@ -338,8 +441,10 @@ export async function setStatus(
       status === 'approved'
     ) {
       const sellerUid =
-        registration.uid ||
-        id;
+        String(
+          registration.uid ||
+          id
+        ).trim();
 
       const sellerRef =
         db
@@ -374,6 +479,7 @@ export async function setStatus(
             '',
 
           description:
+            registration.description ||
             registration.reason ||
             '',
 
@@ -660,11 +766,8 @@ export async function setStatus(
       snap.data();
 
     if (
-      ![
-        'pending'
-      ].includes(
-        payment.status
-      )
+      payment.status !==
+      'pending'
     ) {
       throw new HttpError(
         409,
@@ -798,16 +901,13 @@ export async function setBan(
     }
   );
 
-  const seller =
-    await db
-      .collection('sellers')
-      .doc(uid)
-      .get();
+  const resolved =
+    await resolveSeller(uid);
 
   if (
-    seller.exists
+    resolved.sellerRef
   ) {
-    await seller.ref.update({
+    await resolved.sellerRef.update({
       banned:
         value,
 
@@ -839,8 +939,13 @@ export async function updateUser(
     );
   }
 
+  const normalizedUid =
+    String(uid).trim();
+
   if (
-    isAdminUid(uid)
+    isAdminUid(
+      normalizedUid
+    )
   ) {
     throw new HttpError(
       403,
@@ -851,42 +956,22 @@ export async function updateUser(
   const userRef =
     db
       .collection('users')
-      .doc(uid);
+      .doc(
+        normalizedUid
+      );
 
-  const sellerRef =
-    db
-      .collection('sellers')
-      .doc(uid);
+  const userSnap =
+    await userRef.get();
 
-  const registrationRef =
-    db
-      .collection('registrations')
-      .doc(uid);
-
-  const [
-    userSnap,
-    sellerSnap,
-    registrationSnap
-  ] = await Promise.all([
-    userRef.get(),
-    sellerRef.get(),
-    registrationRef.get()
-  ]);
+  if (!userSnap.exists) {
+    throw new HttpError(
+      404,
+      'User tidak ditemukan.'
+    );
+  }
 
   const user =
-    userSnap.exists
-      ? userSnap.data() || {}
-      : {};
-
-  const seller =
-    sellerSnap.exists
-      ? sellerSnap.data() || {}
-      : {};
-
-  const registration =
-    registrationSnap.exists
-      ? registrationSnap.data() || {}
-      : {};
+    userSnap.data() || {};
 
   const result = {
     ok: true
@@ -902,19 +987,37 @@ export async function updateUser(
     hasName ||
     hasPhone
   ) {
+    let resolved =
+      await resolveSeller(
+        normalizedUid
+      );
+
+    let seller =
+      resolved.seller;
+
+    let sellerRef =
+      resolved.sellerRef;
+
+    let registration =
+      resolved.registration;
+
+    let registrationRef =
+      resolved.registrationRef;
+
     const sellerApproved =
-      sellerSnap.exists &&
-      seller.status ===
-        'approved';
+      isApprovedSeller(
+        seller
+      );
 
     const registrationApproved =
-      registrationSnap.exists &&
-      registration.status ===
-        'approved';
+      Boolean(
+        registration &&
+        registration.status ===
+          'approved'
+      );
 
     const sellerBanned =
-      sellerSnap.exists &&
-      seller.banned === true;
+      seller?.banned === true;
 
     if (
       sellerBanned
@@ -925,9 +1028,110 @@ export async function updateUser(
       );
     }
 
+    /*
+     * Jika users/{uid} sudah mempunyai
+     * role seller tetapi dokumen seller
+     * lama tidak ditemukan, repair data
+     * seller dari dokumen user.
+     *
+     * Endpoint ini hanya dapat dipanggil
+     * oleh admin, sehingga repair dilakukan
+     * di backend dan bukan dari client.
+     */
     if (
       !sellerApproved &&
-      !registrationApproved
+      !registrationApproved &&
+      user.role === 'seller'
+    ) {
+      const repairedSeller = {
+        uid:
+          normalizedUid,
+
+        email:
+          user.email ||
+          '',
+
+        name:
+          user.name ||
+          '',
+
+        phone:
+          user.phone ||
+          '',
+
+        reason:
+          user.reason ||
+          '',
+
+        description:
+          user.description ||
+          user.reason ||
+          '',
+
+        photoUrl:
+          user.photoUrl ||
+          user.photoURL ||
+          '',
+
+        status:
+          'approved',
+
+        banned:
+          user.banned === true,
+
+        approvedAt:
+          FieldValue.serverTimestamp(),
+
+        updatedAt:
+          FieldValue.serverTimestamp()
+      };
+
+      await db
+        .collection('sellers')
+        .doc(
+          normalizedUid
+        )
+        .set(
+          repairedSeller,
+          {
+            merge: true
+          }
+        );
+
+      resolved =
+        await resolveSeller(
+          normalizedUid
+        );
+
+      seller =
+        resolved.seller;
+
+      sellerRef =
+        resolved.sellerRef;
+
+      registration =
+        resolved.registration;
+
+      registrationRef =
+        resolved.registrationRef;
+    }
+
+    const activeSeller =
+      isApprovedSeller(
+        seller
+      );
+
+    const activeRegistration =
+      Boolean(
+        registration &&
+        registration.status ===
+          'approved' &&
+        registration.banned !== true
+      );
+
+    if (
+      !activeSeller &&
+      !activeRegistration
     ) {
       throw new HttpError(
         409,
@@ -936,18 +1140,19 @@ export async function updateUser(
     }
 
     const sellerSource =
-      sellerApproved
+      activeSeller
         ? seller
         : registration;
 
     const sellerName =
       hasName
         ? String(
-            name || ''
+            name ?? ''
           ).trim()
         : String(
-            sellerSource.name ||
-            seller.name ||
+            sellerSource?.name ||
+            seller?.name ||
+            registration?.name ||
             user.name ||
             ''
           ).trim();
@@ -955,11 +1160,12 @@ export async function updateUser(
     const sellerPhone =
       hasPhone
         ? String(
-            phone || ''
+            phone ?? ''
           ).trim()
         : String(
-            sellerSource.phone ||
-            seller.phone ||
+            sellerSource?.phone ||
+            seller?.phone ||
+            registration?.phone ||
             user.phone ||
             ''
           ).trim();
@@ -973,27 +1179,57 @@ export async function updateUser(
       );
     }
 
-    const sellerUid =
-      String(
-        seller.uid ||
-        registration.uid ||
-        uid
-      ).trim();
+    const sellerEmail =
+      seller?.email ||
+      registration?.email ||
+      user.email ||
+      '';
+
+    const sellerReason =
+      seller?.reason ||
+      registration?.reason ||
+      user.reason ||
+      '';
+
+    const sellerDescription =
+      seller?.description ||
+      registration?.description ||
+      registration?.reason ||
+      user.description ||
+      user.reason ||
+      '';
+
+    const sellerPhoto =
+      seller?.photoUrl ||
+      registration?.photoUrl ||
+      user.photoUrl ||
+      user.photoURL ||
+      '';
+
+    const sellerBannedValue =
+      seller?.banned === true ||
+      registration?.banned === true ||
+      user.banned === true;
+
+    const targetSellerRef =
+      sellerRef ||
+      db
+        .collection('sellers')
+        .doc(
+          normalizedUid
+        );
 
     const batch =
       db.batch();
 
     batch.set(
-      sellerRef,
+      targetSellerRef,
       {
         uid:
-          sellerUid,
+          normalizedUid,
 
         email:
-          seller.email ||
-          registration.email ||
-          user.email ||
-          '',
+          sellerEmail,
 
         name:
           sellerName,
@@ -1002,29 +1238,19 @@ export async function updateUser(
           sellerPhone,
 
         reason:
-          seller.reason ||
-          registration.reason ||
-          user.reason ||
-          '',
+          sellerReason,
 
         description:
-          seller.description ||
-          registration.description ||
-          registration.reason ||
-          '',
+          sellerDescription,
 
         photoUrl:
-          seller.photoUrl ||
-          registration.photoUrl ||
-          user.photoUrl ||
-          user.photoURL ||
-          '',
+          sellerPhoto,
 
         status:
           'approved',
 
         banned:
-          seller.banned === true,
+          sellerBannedValue,
 
         updatedAt:
           FieldValue.serverTimestamp()
@@ -1037,7 +1263,8 @@ export async function updateUser(
     batch.set(
       userRef,
       {
-        uid,
+        uid:
+          normalizedUid,
 
         name:
           sellerName,
@@ -1057,11 +1284,15 @@ export async function updateUser(
     );
 
     if (
-      registrationSnap.exists
+      registrationRef
     ) {
       batch.set(
         registrationRef,
         {
+          uid:
+            registration?.uid ||
+            normalizedUid,
+
           name:
             sellerName,
 
@@ -1087,6 +1318,9 @@ export async function updateUser(
 
     result.phone =
       sellerPhone;
+
+    result.role =
+      'seller';
   }
 
   if (
@@ -1094,7 +1328,7 @@ export async function updateUser(
     'boolean'
   ) {
     await setBan(
-      uid,
+      normalizedUid,
       banned
     );
 
@@ -1123,9 +1357,17 @@ export async function updateUser(
       const currentUser =
         user;
 
+      const sellerRef =
+        db
+          .collection('sellers')
+          .doc(
+            normalizedUid
+          );
+
       await sellerRef.set(
         {
-          uid,
+          uid:
+            normalizedUid,
 
           email:
             currentUser.email ||
@@ -1144,6 +1386,7 @@ export async function updateUser(
             '',
 
           description:
+            currentUser.description ||
             currentUser.reason ||
             '',
 
@@ -1173,7 +1416,8 @@ export async function updateUser(
 
       await userRef.set(
         {
-          uid,
+          uid:
+            normalizedUid,
 
           role:
             'seller',
@@ -1185,18 +1429,26 @@ export async function updateUser(
           merge: true
         }
       );
+
+      result.role =
+        'seller';
     }
 
     if (
       role === 'buyer'
     ) {
       const currentSeller =
-        await sellerRef.get();
+        await db
+          .collection('sellers')
+          .doc(
+            normalizedUid
+          )
+          .get();
 
       if (
         currentSeller.exists
       ) {
-        await sellerRef.update({
+        await currentSeller.ref.update({
           status:
             'revoked',
 
@@ -1207,7 +1459,8 @@ export async function updateUser(
 
       await userRef.set(
         {
-          uid,
+          uid:
+            normalizedUid,
 
           role:
             'buyer',
@@ -1219,10 +1472,10 @@ export async function updateUser(
           merge: true
         }
       );
-    }
 
-    result.role =
-      role;
+      result.role =
+        'buyer';
+    }
   }
 
   return result;
