@@ -95,10 +95,7 @@ export default function Users() {
   const load =
     async () => {
       try {
-        setLoading(
-          true
-        );
-
+        setLoading(true);
         setError('');
 
         const response =
@@ -121,9 +118,7 @@ export default function Users() {
           'Gagal memuat user.'
         );
       } finally {
-        setLoading(
-          false
-        );
+        setLoading(false);
       }
     };
 
@@ -134,45 +129,40 @@ export default function Users() {
   const ban =
     async user => {
       const uid =
-        user?.uid ||
-        user?.id;
+        user?.id ||
+        user?.uid;
 
       if (
         !uid ||
-        user.role ===
-          'admin'
+        user.role === 'admin'
       ) {
         return;
       }
 
       try {
-        setLoading(
-          true
-        );
-
-        setConfirm(
-          null
-        );
+        setLoading(true);
+        setConfirm(null);
 
         await api(
           `/admin/users/${encodeURIComponent(uid)}`,
           {
-            method:
-              'PATCH',
+            method: 'PATCH',
+            body: JSON.stringify({
+              banned:
+                !Boolean(
+                  user.banned
+                ),
 
-            body:
-              JSON.stringify({
-                banned:
-                  !Boolean(
-                    user.banned
-                  )
-              })
+              uid,
+              userId:
+                user?.id || '',
+              email:
+                user?.email || ''
+            })
           }
         );
 
-        setSelected(
-          null
-        );
+        setSelected(null);
 
         await load();
       } catch (
@@ -183,9 +173,7 @@ export default function Users() {
           'Gagal mengubah status user.'
         );
       } finally {
-        setLoading(
-          false
-        );
+        setLoading(false);
       }
     };
 
@@ -193,15 +181,12 @@ export default function Users() {
     user => {
       if (
         !user ||
-        user.role !==
-          'seller'
+        user.role !== 'seller'
       ) {
         return;
       }
 
-      setEditing(
-        user
-      );
+      setEditing(user);
 
       setEditName(
         user.name ||
@@ -222,24 +207,16 @@ export default function Users() {
         return;
       }
 
-      setEditing(
-        null
-      );
-
-      setEditName(
-        ''
-      );
-
-      setEditPhone(
-        ''
-      );
+      setEditing(null);
+      setEditName('');
+      setEditPhone('');
     };
 
   const saveEdit =
     async () => {
       const uid =
-        editing?.uid ||
-        editing?.id;
+        editing?.id ||
+        editing?.uid;
 
       const name =
         String(
@@ -266,55 +243,42 @@ export default function Users() {
       }
 
       try {
-        setLoading(
-          true
-        );
-
+        setLoading(true);
         setError('');
 
         await api(
-  `/admin/users/${encodeURIComponent(
-    editing?.uid ||
-    editing?.id ||
-    ''
-  )}`,
-  {
-    method: 'PATCH',
+          `/admin/users/${encodeURIComponent(uid)}`,
+          {
+            method: 'PATCH',
 
-    body: JSON.stringify({
-      name,
-      phone,
+            body: JSON.stringify({
+              name,
+              phone,
 
-      uid:
-        editing?.uid ||
-        '',
+              uid:
+                editing?.id ||
+                editing?.uid ||
+                '',
 
-      userId:
-        editing?.id ||
-        '',
+              userId:
+                editing?.id ||
+                '',
 
-      email:
-        editing?.email ||
-        ''
-    })
-  }
-);
+              id:
+                editing?.id ||
+                '',
 
-        setEditing(
-          null
+              email:
+                editing?.email ||
+                ''
+            })
+          }
         );
 
-        setEditName(
-          ''
-        );
-
-        setEditPhone(
-          ''
-        );
-
-        setSelected(
-          null
-        );
+        setEditing(null);
+        setEditName('');
+        setEditPhone('');
+        setSelected(null);
 
         await load();
       } catch (
@@ -325,9 +289,7 @@ export default function Users() {
           'Gagal mengubah informasi seller.'
         );
       } finally {
-        setLoading(
-          false
-        );
+        setLoading(false);
       }
     };
 
@@ -639,10 +601,7 @@ export default function Users() {
 
       <div className="section-head">
         <div>
-          <h2>
-            User
-          </h2>
-
+          <h2>User</h2>
           <p>
             Kelola akun buyer,
             seller, dan status
@@ -653,12 +612,8 @@ export default function Users() {
         <button
           type="button"
           className="cpmku-user-button"
-          onClick={
-            load
-          }
-          disabled={
-            loading
-          }
+          onClick={load}
+          disabled={loading}
         >
           {loading
             ? 'Memuat...'
@@ -676,12 +631,11 @@ export default function Users() {
         {users.map(
           user => {
             const id =
-              user.uid ||
-              user.id;
+              user.id ||
+              user.uid;
 
             const seller =
-              user.role ===
-              'seller';
+              user.role === 'seller';
 
             return (
               <article
@@ -689,13 +643,9 @@ export default function Users() {
                 className="cpmku-user-card"
               >
                 <div className="cpmku-user-card-top">
-                  {getPhoto(
-                    user
-                  ) ? (
+                  {getPhoto(user) ? (
                     <img
-                      src={getPhoto(
-                        user
-                      )}
+                      src={getPhoto(user)}
                       alt="Foto profil"
                       className="cpmku-user-avatar"
                     />
@@ -713,17 +663,14 @@ export default function Users() {
                     </div>
 
                     <div className="cpmku-user-email">
-                      {user.email ||
-                        '-'}
+                      {user.email || '-'}
                     </div>
 
                     <div>
                       <span className="cpmku-user-role">
-                        {user.role ===
-                        'seller'
+                        {user.role === 'seller'
                           ? 'Seller'
-                          : user.role ===
-                              'admin'
+                          : user.role === 'admin'
                             ? 'Admin'
                             : 'Buyer'}
                       </span>
@@ -748,9 +695,7 @@ export default function Users() {
                     type="button"
                     className="cpmku-user-button cpmku-user-detail-button"
                     onClick={() =>
-                      setSelected(
-                        user
-                      )
+                      setSelected(user)
                     }
                   >
                     Detail
@@ -761,31 +706,22 @@ export default function Users() {
                       type="button"
                       className="cpmku-user-button cpmku-user-edit"
                       onClick={() =>
-                        openEdit(
-                          user
-                        )
+                        openEdit(user)
                       }
-                      disabled={
-                        loading
-                      }
+                      disabled={loading}
                     >
                       Edit
                     </button>
                   )}
 
-                  {user.role !==
-                    'admin' && (
+                  {user.role !== 'admin' && (
                     <button
                       type="button"
                       className="cpmku-user-button cpmku-user-danger"
                       onClick={() =>
-                        setConfirm(
-                          user
-                        )
+                        setConfirm(user)
                       }
-                      disabled={
-                        loading
-                      }
+                      disabled={loading}
                     >
                       {user.banned
                         ? 'Unban'
@@ -798,29 +734,22 @@ export default function Users() {
           }
         )}
 
-        {!users.length &&
-          !error && (
-            <div className="state">
-              Tidak ada user.
-            </div>
-          )}
+        {!users.length && !error && (
+          <div className="state">
+            Tidak ada user.
+          </div>
+        )}
       </div>
 
       {selected && (
         <Modal
           onClose={() =>
-            setSelected(
-              null
-            )
+            setSelected(null)
           }
         >
-          {getPhoto(
-            selected
-          ) ? (
+          {getPhoto(selected) ? (
             <img
-              src={getPhoto(
-                selected
-              )}
+              src={getPhoto(selected)}
               alt="Foto profil"
               className="cpmku-user-photo"
             />
@@ -830,16 +759,11 @@ export default function Users() {
             </div>
           )}
 
-          <h3>
-            Detail User
-          </h3>
+          <h3>Detail User</h3>
 
           <div className="cpmku-user-detail">
             <div className="cpmku-user-detail-row">
-              <span>
-                Nama
-              </span>
-
+              <span>Nama</span>
               <strong>
                 {selected.name ||
                   selected.displayName ||
@@ -848,39 +772,26 @@ export default function Users() {
             </div>
 
             <div className="cpmku-user-detail-row">
-              <span>
-                Email
-              </span>
-
+              <span>Email</span>
               <strong>
-                {selected.email ||
-                  '-'}
+                {selected.email || '-'}
               </strong>
             </div>
 
             <div className="cpmku-user-detail-row">
-              <span>
-                Role
-              </span>
-
+              <span>Role</span>
               <strong>
-                {selected.role ===
-                'seller'
+                {selected.role === 'seller'
                   ? 'Seller'
-                  : selected.role ===
-                      'admin'
+                  : selected.role === 'admin'
                     ? 'Admin'
                     : 'Buyer'}
               </strong>
             </div>
 
-            {selected.role ===
-              'seller' && (
+            {selected.role === 'seller' && (
               <div className="cpmku-user-detail-row">
-                <span>
-                  Nomor
-                </span>
-
+                <span>Nomor</span>
                 <strong>
                   {selected.phone ||
                     selected.phoneNumber ||
@@ -890,10 +801,7 @@ export default function Users() {
             )}
 
             <div className="cpmku-user-detail-row">
-              <span>
-                Status
-              </span>
-
+              <span>Status</span>
               <strong>
                 {selected.banned
                   ? 'Banned'
@@ -902,24 +810,16 @@ export default function Users() {
             </div>
           </div>
 
-          {selected.role ===
-            'seller' && (
+          {selected.role === 'seller' && (
             <div className="cpmku-user-modal-actions">
               <button
                 type="button"
                 className="cpmku-user-button cpmku-user-edit"
                 onClick={() => {
-                  setSelected(
-                    null
-                  );
-
-                  openEdit(
-                    selected
-                  );
+                  setSelected(null);
+                  openEdit(selected);
                 }}
-                disabled={
-                  loading
-                }
+                disabled={loading}
               >
                 Edit
               </button>
@@ -928,13 +828,9 @@ export default function Users() {
                 type="button"
                 className="cpmku-user-button cpmku-user-danger"
                 onClick={() =>
-                  setConfirm(
-                    selected
-                  )
+                  setConfirm(selected)
                 }
-                disabled={
-                  loading
-                }
+                disabled={loading}
               >
                 {selected.banned
                   ? 'Unban'
@@ -943,20 +839,15 @@ export default function Users() {
             </div>
           )}
 
-          {selected.role ===
-            'buyer' && (
+          {selected.role === 'buyer' && (
             <div className="cpmku-user-modal-actions">
               <button
                 type="button"
                 className="cpmku-user-button cpmku-user-danger"
                 onClick={() =>
-                  setConfirm(
-                    selected
-                  )
+                  setConfirm(selected)
                 }
-                disabled={
-                  loading
-                }
+                disabled={loading}
               >
                 {selected.banned
                   ? 'Unban'
@@ -968,14 +859,8 @@ export default function Users() {
       )}
 
       {editing && (
-        <Modal
-          onClose={
-            closeEdit
-          }
-        >
-          <h3>
-            Edit Seller
-          </h3>
+        <Modal onClose={closeEdit}>
+          <h3>Edit Seller</h3>
 
           <p className="cpmku-user-edit-note">
             Admin dapat mengubah
@@ -985,15 +870,11 @@ export default function Users() {
 
           <div className="cpmku-user-form">
             <div className="cpmku-user-field">
-              <label>
-                Nama Seller
-              </label>
+              <label>Nama Seller</label>
 
               <input
                 type="text"
-                value={
-                  editName
-                }
+                value={editName}
                 onChange={event =>
                   setEditName(
                     event.target.value
@@ -1001,22 +882,16 @@ export default function Users() {
                 }
                 placeholder="Nama seller"
                 maxLength={80}
-                disabled={
-                  loading
-                }
+                disabled={loading}
               />
             </div>
 
             <div className="cpmku-user-field">
-              <label>
-                Nomor Telepon
-              </label>
+              <label>Nomor Telepon</label>
 
               <input
                 type="tel"
-                value={
-                  editPhone
-                }
+                value={editPhone}
                 onChange={event =>
                   setEditPhone(
                     event.target.value
@@ -1024,9 +899,7 @@ export default function Users() {
                 }
                 placeholder="Nomor telepon"
                 maxLength={25}
-                disabled={
-                  loading
-                }
+                disabled={loading}
               />
             </div>
           </div>
@@ -1035,12 +908,8 @@ export default function Users() {
             <button
               type="button"
               className="cpmku-user-button"
-              onClick={
-                closeEdit
-              }
-              disabled={
-                loading
-              }
+              onClick={closeEdit}
+              disabled={loading}
             >
               Batal
             </button>
@@ -1048,12 +917,8 @@ export default function Users() {
             <button
               type="button"
               className="cpmku-user-button cpmku-user-edit"
-              onClick={
-                saveEdit
-              }
-              disabled={
-                loading
-              }
+              onClick={saveEdit}
+              disabled={loading}
             >
               {loading
                 ? 'Menyimpan...'
@@ -1066,14 +931,10 @@ export default function Users() {
       {confirm && (
         <Modal
           onClose={() =>
-            setConfirm(
-              null
-            )
+            setConfirm(null)
           }
         >
-          <h3>
-            Konfirmasi
-          </h3>
+          <h3>Konfirmasi</h3>
 
           <p>
             {confirm.banned
@@ -1086,13 +947,9 @@ export default function Users() {
               type="button"
               className="cpmku-user-button"
               onClick={() =>
-                setConfirm(
-                  null
-                )
+                setConfirm(null)
               }
-              disabled={
-                loading
-              }
+              disabled={loading}
             >
               Batal
             </button>
@@ -1101,13 +958,9 @@ export default function Users() {
               type="button"
               className="cpmku-user-button cpmku-user-danger"
               onClick={() =>
-                ban(
-                  confirm
-                )
+                ban(confirm)
               }
-              disabled={
-                loading
-              }
+              disabled={loading}
             >
               {loading
                 ? 'Memproses...'
