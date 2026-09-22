@@ -7,17 +7,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return signedIn() &&
-        request.auth.token.admin == true;
-    }
-
-    function isRoomParticipant() {
+    function roomParticipant() {
       return signedIn() &&
         request.auth.uid in resource.data.participantUids;
     }
 
-    function isRoomParticipantById(roomId) {
+    function roomParticipantById(roomId) {
       return signedIn() &&
         request.auth.uid in
         get(
@@ -62,39 +57,20 @@ service cloud.firestore {
     }
 
     match /rooms/{id} {
-      allow get: if (
-        signedIn() &&
-        (
-          isRoomParticipant() ||
-          isAdmin()
-        )
-      );
+      allow get: if roomParticipant();
 
       allow list: if (
         signedIn() &&
-        (
-          request.query.where('participantUids', 'array-contains', request.auth.uid) ||
-          isAdmin()
-        )
+        request.auth.uid in resource.data.participantUids
       );
 
       allow create, update, delete: if false;
 
       match /messages/{mid} {
-        allow read: if (
-          signedIn() &&
-          (
-            isRoomParticipantById(id) ||
-            isAdmin()
-          )
-        );
+        allow get, list: if roomParticipantById(id);
 
         allow create: if (
-          signedIn() &&
-          (
-            isRoomParticipantById(id) ||
-            isAdmin()
-          ) &&
+          roomParticipantById(id) &&
           request.resource.data.senderUid == request.auth.uid
         );
 
