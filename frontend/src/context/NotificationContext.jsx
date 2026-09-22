@@ -135,6 +135,9 @@ export function NotificationProvider({
         clearTimeout(
           toastTimer.current
         );
+
+        toastTimer.current =
+          null;
       }
     };
   }, []);
@@ -154,16 +157,20 @@ export function NotificationProvider({
     setToast({
       id:
         `toast-${Date.now()}`,
+
       title:
         title ||
         'Notifikasi CPMKU',
+
       message:
-        message || ''
+        message ||
+        ''
     });
 
     toastTimer.current =
       setTimeout(() => {
         setToast(null);
+
         toastTimer.current =
           null;
       }, 5000);
