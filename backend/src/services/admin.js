@@ -1806,92 +1806,58 @@ export async function setBan(
 
 export async function updateUser(
   uid,
-  {
-    banned,
-    role,
-    name,
-    phone,
-    userId,
-    id,
-    email
-  } = {}
+  { banned, role, name, phone, userId, id, email } = {}
 ) {
-  const identifier =
-    normalize(uid);
+  const identifier = normalize(uid);
 
-  const resolvedUser =
-    await resolveUser(
-      identifier,
-      {
-        uid,
-        userId,
-        id,
-        email
+  // 1. Coba resolve user seperti biasa
+  let resolved = await resolveUser(
+    identifier,
+    { uid, userId, id, email }
+  );
+
+  // 2. FALLBACK: Jika user belum ketemu, cari manual di collection 'sellers'
+  if (!resolved.uid) {
+    try {
+      const sellersRef = db.collection('sellers');
+      let sellerSnap = null;
+
+      // Cari berdasarkan Document ID
+      const docSnap = await sellersRef.doc(identifier).get();
+      if (docSnap.exists) {
+        sellerSnap = docSnap;
+      } else {
+        // Cari berdasarkan field uid di dokumen seller
+        const querySnap = await sellersRef.where('uid', '==', identifier).limit(1).get();
+        if (!querySnap.empty) {
+          sellerSnap = querySnap.docs[0];
+        }
       }
-    );
 
-  let resolved =
-    resolvedUser;
-
-  /*
-   * Kalau URL ID gagal, coba identifier body.
-   */
-  if (
-    !resolved.uid
-  ) {
-    const fallbackIdentifiers =
-      uniqueValues([
-        userId,
-        id,
-        email
-      ]);
-
-    for (
-      const fallback
-      of fallbackIdentifiers
-    ) {
-      const attempt =
-        await resolveUser(
-          fallback,
-          {
-            uid,
-            userId,
-            id,
-            email
-          }
-        );
-
-      if (
-        attempt.uid
-      ) {
-        resolved =
-          attempt;
-        break;
+      if (sellerSnap) {
+        const sellerData = sellerSnap.data();
+        const canonicalUid = sellerData?.uid || sellerSnap.id;
+        
+        // Coba resolve ulang menggunakan UID asli dari dokumen seller
+        resolved = await resolveUser(canonicalUid, {
+          uid: canonicalUid,
+          email: sellerData?.email
+        });
       }
+    } catch (err) {
+      console.error('Error fallback seller search:', err);
     }
   }
 
-  if (
-    !resolved.uid
-  ) {
-    throw new HttpError(
-      404,
-      'User tidak ditemukan.'
-    );
+  // 3. Validasi hasil akhir
+  if (!resolved.uid) {
+    throw new HttpError(404, 'User tidak ditemukan.');
   }
 
-  const normalizedUid =
-    resolved.uid;
+  const normalizedUid = resolved.uid;
 
-  if (
-    isAdminUid(
-      normalizedUid
-    )
-  ) {
-    throw new HttpError(
-      403,
-      'Akun admin utama tidak dapat diubah.'
-    );
+  if (isAdminUid(normalizedUid)) {
+    throw new HttpError(403, 'Akun admin utama tidak dapat diubah.');
   }
 
   const userRef =
