@@ -12,15 +12,32 @@ export async function sendMessage(
   user,
   body
 ) {
+  if (
+    typeof roomId !== 'string' ||
+    !roomId.trim() ||
+    roomId.length > 150 ||
+    roomId.includes('/')
+  ) {
+    throw new HttpError(
+      400,
+      'Room ID tidak valid.'
+    );
+  }
+
   const text =
-    String(
-      body || ''
-    ).trim();
+    String(body || '').trim();
 
   if (!text) {
     throw new HttpError(
       400,
       'Pesan kosong.'
+    );
+  }
+
+  if (text.length > 5000) {
+    throw new HttpError(
+      400,
+      'Pesan maksimal 5000 karakter.'
     );
   }
 
@@ -40,47 +57,36 @@ export async function sendMessage(
   }
 
   const room =
-    snap.data();
+    snap.data() || {};
 
   const isAdmin =
     user.role === 'admin';
 
   const participant =
-    Array.isArray(
-      room.participantUids
-    ) &&
+    Array.isArray(room.participantUids) &&
     room.participantUids.includes(
       user.uid
     );
 
-  if (
-    !participant &&
-    !isAdmin
-  ) {
+  if (!participant && !isAdmin) {
     throw new HttpError(
       403,
       'Bukan peserta room.'
     );
   }
 
-  let messageRole =
-    'buyer';
+  let messageRole = 'buyer';
 
   if (isAdmin) {
-    messageRole =
-      'admin';
+    messageRole = 'admin';
   } else if (
-    room.buyerUid ===
-    user.uid
+    room.buyerUid === user.uid
   ) {
-    messageRole =
-      'buyer';
+    messageRole = 'buyer';
   } else if (
-    room.sellerUid ===
-    user.uid
+    room.sellerUid === user.uid
   ) {
-    messageRole =
-      'seller';
+    messageRole = 'seller';
   } else {
     throw new HttpError(
       403,
@@ -95,9 +101,11 @@ export async function sendMessage(
         user.uid,
 
       senderName:
-        user.name ||
-        user.email ||
-        'User',
+        String(
+          user.name ||
+          user.email ||
+          'User'
+        ).slice(0, 150),
 
       role:
         messageRole,
@@ -122,58 +130,97 @@ export async function sendMessage(
 export async function callSeller(
   roomId
 ) {
+  if (
+    typeof roomId !== 'string' ||
+    !roomId.trim() ||
+    roomId.length > 150 ||
+    roomId.includes('/')
+  ) {
+    throw new HttpError(
+      400,
+      'Room ID tidak valid.'
+    );
+  }
+
   const ref =
     db
       .collection('rooms')
       .doc(roomId);
 
-  const snap =
-    await ref.get();
+  let room;
 
-  if (!snap.exists) {
-    throw new HttpError(
-      404,
-      'Room tidak ditemukan.'
-    );
-  }
+  await db.runTransaction(
+    async tx => {
+      const snap =
+        await tx.get(ref);
 
-  const room =
-    snap.data();
+      if (!snap.exists) {
+        throw new HttpError(
+          404,
+          'Room tidak ditemukan.'
+        );
+      }
 
-  if (
-    room.status !==
-    'in_transaction'
-  ) {
-    throw new HttpError(
-      409,
-      'Transaksi sudah tidak aktif.'
-    );
-  }
+      const current =
+        snap.data() || {};
 
-  await ref.update({
-    participantUids:
-      FieldValue.arrayUnion(
-        room.sellerUid
-      ),
+      if (
+        current.status !==
+        'in_transaction'
+      ) {
+        throw new HttpError(
+          409,
+          'Transaksi sudah tidak aktif.'
+        );
+      }
 
-    sellerCalled:
-      true,
+      if (
+        current.sellerCalled === true
+      ) {
+        throw new HttpError(
+          409,
+          'Seller sudah dipanggil.'
+        );
+      }
 
-    sellerCalledAt:
-      FieldValue.serverTimestamp(),
+      if (
+        !current.sellerUid
+      ) {
+        throw new HttpError(
+          409,
+          'Seller transaksi tidak valid.'
+        );
+      }
 
-    updatedAt:
-      FieldValue.serverTimestamp()
-  });
+      room = current;
+
+      tx.update(
+        ref,
+        {
+          participantUids:
+            FieldValue.arrayUnion(
+              current.sellerUid
+            ),
+
+          sellerCalled:
+            true,
+
+          sellerCalledAt:
+            FieldValue.serverTimestamp(),
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        }
+      );
+    }
+  );
 
   const batch =
     db.batch();
 
   batch.set(
     db
-      .collection(
-        'notifications'
-      )
+      .collection('notifications')
       .doc(),
     {
       toUid:
@@ -200,9 +247,7 @@ export async function callSeller(
 
   batch.set(
     db
-      .collection(
-        'notifications'
-      )
+      .collection('notifications')
       .doc(),
     {
       toUid:
