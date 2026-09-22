@@ -1,5 +1,6 @@
 import {
   db,
+  auth,
   FieldValue
 } from '../firebase/admin.js';
 
@@ -28,72 +29,326 @@ const ADMIN_UID = String(
   env.adminUid || ''
 ).trim();
 
-async function resolveUser(uid) {
-  const normalizedUid =
-    String(uid || '').trim();
+async function resolveUser(
+  identifier
+) {
+  const value =
+    String(
+      identifier || ''
+    ).trim();
 
-  if (!normalizedUid) {
+  if (!value) {
     return {
       user: null,
-      userRef: null
+      userRef: null,
+      uid: null
     };
   }
 
-  const directRef =
-    db
-      .collection('users')
-      .doc(normalizedUid);
+  const usersRef =
+    db.collection('users');
 
-  const directSnap =
-    await directRef.get();
+  const sellersRef =
+    db.collection('sellers');
 
-  if (directSnap.exists) {
-    const data =
-      directSnap.data() || {};
+  const registrationsRef =
+    db.collection('registrations');
+
+  const directUserRef =
+    usersRef.doc(value);
+
+  const directUserSnap =
+    await directUserRef.get();
+
+  if (
+    directUserSnap.exists
+  ) {
+    const user =
+      directUserSnap.data() || {};
 
     return {
-      user: data,
-      userRef: directSnap.ref
+      user,
+
+      userRef:
+        directUserSnap.ref,
+
+      uid:
+        String(
+          user.uid || value
+        ).trim()
     };
   }
 
-  const query =
-    await db
-      .collection('users')
+  const uidUsers =
+    await usersRef
       .where(
         'uid',
         '==',
-        normalizedUid
+        value
       )
       .limit(20)
       .get();
 
-  const found =
-    query.docs.find(
+  const uidUser =
+    uidUsers.docs.find(
       doc =>
         String(
           doc.data()?.uid || ''
-        ).trim() === normalizedUid
+        ).trim() === value
     );
 
-  if (!found) {
+  if (uidUser) {
     return {
-      user: null,
-      userRef: null
+      user:
+        uidUser.data() || {},
+
+      userRef:
+        uidUser.ref,
+
+      uid:
+        String(
+          uidUser.data()?.uid ||
+          value
+        ).trim()
     };
   }
 
+  let sellerDoc = null;
+
+  const sellerUidQuery =
+    await sellersRef
+      .where(
+        'uid',
+        '==',
+        value
+      )
+      .limit(20)
+      .get();
+
+  sellerDoc =
+    sellerUidQuery.docs.find(
+      doc =>
+        String(
+          doc.data()?.uid || ''
+        ).trim() === value
+    ) || null;
+
+  let registrationDoc = null;
+
+  const registrationUidQuery =
+    await registrationsRef
+      .where(
+        'uid',
+        '==',
+        value
+      )
+      .limit(20)
+      .get();
+
+  registrationDoc =
+    registrationUidQuery.docs.find(
+      doc =>
+        String(
+          doc.data()?.uid || ''
+        ).trim() === value
+    ) || null;
+
+  let seller =
+    sellerDoc?.data() || {};
+
+  let registration =
+    registrationDoc?.data() || {};
+
+  let resolvedUid =
+    String(
+      seller.uid ||
+      registration.uid ||
+      value
+    ).trim();
+
+  let authUser = null;
+
+  if (
+    value.includes('@')
+  ) {
+    try {
+      authUser =
+        await auth.getUserByEmail(
+          value
+        );
+
+      if (
+        authUser?.uid
+      ) {
+        resolvedUid =
+          authUser.uid;
+      }
+    } catch {
+      authUser = null;
+    }
+  }
+
+  if (
+    !authUser
+  ) {
+    try {
+      authUser =
+        await auth.getUser(
+          resolvedUid
+        );
+
+      if (
+        authUser?.uid
+      ) {
+        resolvedUid =
+          authUser.uid;
+      }
+    } catch {
+      authUser = null;
+    }
+  }
+
+  const resolvedUserRef =
+    usersRef.doc(
+      resolvedUid
+    );
+
+  const resolvedUserSnap =
+    await resolvedUserRef.get();
+
+  if (
+    resolvedUserSnap.exists
+  ) {
+    return {
+      user:
+        resolvedUserSnap.data() || {},
+
+      userRef:
+        resolvedUserSnap.ref,
+
+      uid:
+        resolvedUid
+    };
+  }
+
+  if (
+    !sellerDoc
+  ) {
+    const sellerSnap =
+      await sellersRef
+        .doc(resolvedUid)
+        .get();
+
+    if (
+      sellerSnap.exists
+    ) {
+      sellerDoc =
+        sellerSnap;
+
+      seller =
+        sellerSnap.data() || {};
+    }
+  }
+
+  if (
+    !registrationDoc
+  ) {
+    const registrationSnap =
+      await registrationsRef
+        .doc(resolvedUid)
+        .get();
+
+    if (
+      registrationSnap.exists
+    ) {
+      registrationDoc =
+        registrationSnap;
+
+      registration =
+        registrationSnap.data() ||
+        {};
+    }
+  }
+
+  if (
+    !authUser &&
+    !sellerDoc &&
+    !registrationDoc
+  ) {
+    return {
+      user: null,
+      userRef: null,
+      uid: null
+    };
+  }
+
+  const seed = {
+    uid:
+      resolvedUid,
+
+    email:
+      authUser?.email ||
+      seller.email ||
+      registration.email ||
+      '',
+
+    name:
+      seller.name ||
+      registration.name ||
+      authUser?.displayName ||
+      '',
+
+    phone:
+      seller.phone ||
+      registration.phone ||
+      '',
+
+    photoUrl:
+      seller.photoUrl ||
+      registration.photoUrl ||
+      authUser?.photoURL ||
+      '',
+
+    role:
+      seller.status === 'approved' ||
+      registration.status === 'approved'
+        ? 'seller'
+        : 'buyer',
+
+    banned:
+      seller.banned === true ||
+      registration.banned === true,
+
+    updatedAt:
+      FieldValue.serverTimestamp()
+  };
+
+  await resolvedUserRef.set(
+    seed,
+    {
+      merge: true
+    }
+  );
+
   return {
     user:
-      found.data() || {},
+      seed,
+
     userRef:
-      found.ref
+      resolvedUserRef,
+
+    uid:
+      resolvedUid
   };
 }
 
-async function resolveSeller(uid) {
+async function resolveSeller(
+  uid
+) {
   const normalizedUid =
-    String(uid || '').trim();
+    String(
+      uid || ''
+    ).trim();
 
   if (!normalizedUid) {
     return {
@@ -107,12 +362,16 @@ async function resolveSeller(uid) {
   const sellerRef =
     db
       .collection('sellers')
-      .doc(normalizedUid);
+      .doc(
+        normalizedUid
+      );
 
   const registrationRef =
     db
       .collection('registrations')
-      .doc(normalizedUid);
+      .doc(
+        normalizedUid
+      );
 
   const [
     sellerSnap,
@@ -144,7 +403,8 @@ async function resolveSeller(uid) {
 
   if (
     !seller ||
-    seller.status !== 'approved'
+    seller.status !==
+      'approved'
   ) {
     const sellerQuery =
       await db
@@ -164,9 +424,12 @@ async function resolveSeller(uid) {
           'approved'
       );
 
-    if (approvedSeller) {
+    if (
+      approvedSeller
+    ) {
       seller =
-        approvedSeller.data() || {};
+        approvedSeller.data() ||
+        {};
 
       actualSellerRef =
         approvedSeller.ref;
@@ -196,7 +459,9 @@ async function resolveSeller(uid) {
           'approved'
       );
 
-    if (approvedRegistration) {
+    if (
+      approvedRegistration
+    ) {
       registration =
         approvedRegistration.data() ||
         {};
@@ -208,9 +473,12 @@ async function resolveSeller(uid) {
 
   return {
     seller,
+
     sellerRef:
       actualSellerRef,
+
     registration,
+
     registrationRef:
       actualRegistrationRef
   };
@@ -221,7 +489,8 @@ function isApprovedSeller(
 ) {
   return Boolean(
     seller &&
-    seller.status === 'approved' &&
+    seller.status ===
+      'approved' &&
     seller.banned !== true
   );
 }
@@ -315,7 +584,9 @@ export async function listCollection(
   const items =
     snap.docs.map(
       doc => ({
-        id: doc.id,
+        id:
+          doc.id,
+
         ...doc.data()
       })
     );
@@ -340,7 +611,9 @@ export async function listCollection(
             ).trim();
 
           const resolved =
-            await resolveSeller(uid);
+            await resolveSeller(
+              uid
+            );
 
           const seller =
             resolved.seller;
@@ -407,13 +680,17 @@ export async function setStatus(
     if (
       status === 'approved'
     ) {
-      return approveOrder(id);
+      return approveOrder(
+        id
+      );
     }
 
     if (
       status === 'rejected'
     ) {
-      return rejectOrder(id);
+      return rejectOrder(
+        id
+      );
     }
 
     if (
@@ -593,6 +870,7 @@ export async function setStatus(
 
       return {
         ok: true,
+
         status:
           'approved'
       };
@@ -611,6 +889,7 @@ export async function setStatus(
 
     return {
       ok: true,
+
       status:
         'rejected'
     };
@@ -638,6 +917,7 @@ export async function setStatus(
 
       return {
         ok: true,
+
         status:
           'approved',
 
@@ -662,6 +942,7 @@ export async function setStatus(
 
     return {
       ok: true,
+
       status:
         'rejected'
     };
@@ -811,6 +1092,7 @@ export async function setStatus(
 
         return {
           ok: true,
+
           status:
             'cancelled'
         };
@@ -897,6 +1179,7 @@ export async function setStatus(
 
     return {
       ok: true,
+
       status
     };
   }
@@ -911,15 +1194,35 @@ export async function setBan(
   uid,
   banned
 ) {
-  const normalizedUid =
-    String(uid || '').trim();
+  const identifier =
+    String(
+      uid || ''
+    ).trim();
 
-  if (!normalizedUid) {
+  if (!identifier) {
     throw new HttpError(
       400,
       'UID user wajib diisi.'
     );
   }
+
+  const resolvedUser =
+    await resolveUser(
+      identifier
+    );
+
+  if (
+    !resolvedUser.userRef ||
+    !resolvedUser.uid
+  ) {
+    throw new HttpError(
+      404,
+      'User tidak ditemukan.'
+    );
+  }
+
+  const normalizedUid =
+    resolvedUser.uid;
 
   if (
     isAdminUid(
@@ -929,20 +1232,6 @@ export async function setBan(
     throw new HttpError(
       403,
       'Akun admin utama tidak dapat diban.'
-    );
-  }
-
-  const resolvedUser =
-    await resolveUser(
-      normalizedUid
-    );
-
-  if (
-    !resolvedUser.userRef
-  ) {
-    throw new HttpError(
-      404,
-      'User tidak ditemukan.'
     );
   }
 
@@ -989,6 +1278,7 @@ export async function setBan(
 
   return {
     ok: true,
+
     banned:
       value
   };
@@ -1003,15 +1293,35 @@ export async function updateUser(
     phone
   } = {}
 ) {
-  const normalizedUid =
-    String(uid || '').trim();
+  const identifier =
+    String(
+      uid || ''
+    ).trim();
 
-  if (!normalizedUid) {
+  if (!identifier) {
     throw new HttpError(
       400,
-      'UID user wajib diisi.'
+      'ID user wajib diisi.'
     );
   }
+
+  const resolvedUser =
+    await resolveUser(
+      identifier
+    );
+
+  if (
+    !resolvedUser.userRef ||
+    !resolvedUser.uid
+  ) {
+    throw new HttpError(
+      404,
+      'User tidak ditemukan.'
+    );
+  }
+
+  const normalizedUid =
+    resolvedUser.uid;
 
   if (
     isAdminUid(
@@ -1021,20 +1331,6 @@ export async function updateUser(
     throw new HttpError(
       403,
       'Akun admin utama tidak dapat diubah.'
-    );
-  }
-
-  const resolvedUser =
-    await resolveUser(
-      normalizedUid
-    );
-
-  if (
-    !resolvedUser.userRef
-  ) {
-    throw new HttpError(
-      404,
-      'User tidak ditemukan.'
     );
   }
 
