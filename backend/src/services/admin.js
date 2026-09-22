@@ -29,316 +29,645 @@ const ADMIN_UID = String(
   env.adminUid || ''
 ).trim();
 
-async function resolveUser(
-  identifier
+function normalize(
+  value
 ) {
-  const value =
-    String(
-      identifier || ''
-    ).trim();
+  return String(
+    value || ''
+  ).trim();
+}
 
-  if (!value) {
+function uniqueValues(
+  values
+) {
+  return [
+    ...new Set(
+      values
+        .map(normalize)
+        .filter(Boolean)
+    )
+  ];
+}
+
+async function findByIdOrUid(
+  collectionName,
+  identifiers
+) {
+  const values =
+    uniqueValues(
+      identifiers
+    );
+
+  if (!values.length) {
+    return null;
+  }
+
+  const collection =
+    db.collection(
+      collectionName
+    );
+
+  for (
+    const value of values
+  ) {
+    const directRef =
+      collection.doc(
+        value
+      );
+
+    const directSnap =
+      await directRef.get();
+
+    if (
+      directSnap.exists
+    ) {
+      return directSnap;
+    }
+  }
+
+  for (
+    const value of values
+  ) {
+    const query =
+      await collection
+        .where(
+          'uid',
+          '==',
+          value
+        )
+        .limit(20)
+        .get();
+
+    const match =
+      query.docs.find(
+        doc =>
+          normalize(
+            doc.data()?.uid
+          ) === value
+      );
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
+async function findUserByEmail(
+  email
+) {
+  const normalizedEmail =
+    normalize(email).toLowerCase();
+
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  const query =
+    await db
+      .collection('users')
+      .where(
+        'email',
+        '==',
+        normalizedEmail
+      )
+      .limit(20)
+      .get();
+
+  return (
+    query.docs.find(
+      doc =>
+        normalize(
+          doc.data()?.email
+        ).toLowerCase() ===
+        normalizedEmail
+    ) || null
+  );
+}
+
+async function resolveFirebaseAuth(
+  identifiers,
+  email
+) {
+  const values =
+    uniqueValues(
+      identifiers
+    );
+
+  const normalizedEmail =
+    normalize(email).toLowerCase();
+
+  if (
+    normalizedEmail
+  ) {
+    try {
+      const user =
+        await auth.getUserByEmail(
+          normalizedEmail
+        );
+
+      if (user?.uid) {
+        return user;
+      }
+    } catch {
+      // Firebase Auth user tidak ditemukan berdasarkan email.
+    }
+  }
+
+  for (
+    const value of values
+  ) {
+    try {
+      const user =
+        await auth.getUser(
+          value
+        );
+
+      if (user?.uid) {
+        return user;
+      }
+    } catch {
+      // Lanjutkan ke identifier berikutnya.
+    }
+  }
+
+  return null;
+}
+
+async function resolveUser(
+  identifier,
+  hints = {}
+) {
+  const identifiers =
+    uniqueValues([
+      identifier,
+      hints.uid,
+      hints.userId,
+      hints.id
+    ]);
+
+  const email =
+    normalize(
+      hints.email
+    );
+
+  if (
+    !identifiers.length &&
+    !email
+  ) {
     return {
       user: null,
       userRef: null,
-      uid: null
+      uid: null,
+      seller: null,
+      sellerRef: null,
+      registration: null,
+      registrationRef: null,
+      authUser: null
     };
   }
 
-  const usersRef =
-    db.collection('users');
-
-  const sellersRef =
-    db.collection('sellers');
-
-  const registrationsRef =
-    db.collection('registrations');
-
-  const directUserRef =
-    usersRef.doc(value);
-
-  const directUserSnap =
-    await directUserRef.get();
-
-  if (
-    directUserSnap.exists
-  ) {
-    const user =
-      directUserSnap.data() || {};
-
-    return {
-      user,
-
-      userRef:
-        directUserSnap.ref,
-
-      uid:
-        String(
-          user.uid || value
-        ).trim()
-    };
-  }
-
-  const uidUsers =
-    await usersRef
-      .where(
-        'uid',
-        '==',
-        value
-      )
-      .limit(20)
-      .get();
-
-  const uidUser =
-    uidUsers.docs.find(
-      doc =>
-        String(
-          doc.data()?.uid || ''
-        ).trim() === value
+  /*
+   * 1. Cari seller lebih dahulu.
+   *
+   * Ini penting karena admin sedang mengedit seller.
+   * Firestore document ID seller tidak selalu sama
+   * dengan Firebase Auth UID.
+   */
+  const sellerSnap =
+    await findByIdOrUid(
+      'sellers',
+      identifiers
     );
-
-  if (uidUser) {
-    return {
-      user:
-        uidUser.data() || {},
-
-      userRef:
-        uidUser.ref,
-
-      uid:
-        String(
-          uidUser.data()?.uid ||
-          value
-        ).trim()
-    };
-  }
-
-  let sellerDoc = null;
-
-  const sellerUidQuery =
-    await sellersRef
-      .where(
-        'uid',
-        '==',
-        value
-      )
-      .limit(20)
-      .get();
-
-  sellerDoc =
-    sellerUidQuery.docs.find(
-      doc =>
-        String(
-          doc.data()?.uid || ''
-        ).trim() === value
-    ) || null;
-
-  let registrationDoc = null;
-
-  const registrationUidQuery =
-    await registrationsRef
-      .where(
-        'uid',
-        '==',
-        value
-      )
-      .limit(20)
-      .get();
-
-  registrationDoc =
-    registrationUidQuery.docs.find(
-      doc =>
-        String(
-          doc.data()?.uid || ''
-        ).trim() === value
-    ) || null;
 
   let seller =
-    sellerDoc?.data() || {};
+    sellerSnap?.data() || null;
 
-  let registration =
-    registrationDoc?.data() || {};
+  let sellerRef =
+    sellerSnap?.ref || null;
 
-  let resolvedUid =
-    String(
-      seller.uid ||
-      registration.uid ||
-      value
-    ).trim();
-
-  let authUser = null;
-
-  if (
-    value.includes('@')
-  ) {
-    try {
-      authUser =
-        await auth.getUserByEmail(
-          value
-        );
-
-      if (
-        authUser?.uid
-      ) {
-        resolvedUid =
-          authUser.uid;
-      }
-    } catch {
-      authUser = null;
-    }
-  }
-
-  if (
-    !authUser
-  ) {
-    try {
-      authUser =
-        await auth.getUser(
-          resolvedUid
-        );
-
-      if (
-        authUser?.uid
-      ) {
-        resolvedUid =
-          authUser.uid;
-      }
-    } catch {
-      authUser = null;
-    }
-  }
-
-  const resolvedUserRef =
-    usersRef.doc(
-      resolvedUid
+  /*
+   * 2. Cari registration.
+   */
+  const registrationSnap =
+    await findByIdOrUid(
+      'registrations',
+      identifiers
     );
 
-  const resolvedUserSnap =
-    await resolvedUserRef.get();
+  let registration =
+    registrationSnap?.data() ||
+    null;
 
+  let registrationRef =
+    registrationSnap?.ref ||
+    null;
+
+  /*
+   * 3. Cari user berdasarkan document ID
+   * atau field uid.
+   */
+  const userSnap =
+    await findByIdOrUid(
+      'users',
+      identifiers
+    );
+
+  let user =
+    userSnap?.data() || null;
+
+  let userRef =
+    userSnap?.ref || null;
+
+  /*
+   * 4. Cari berdasarkan email kalau tersedia.
+   */
   if (
-    resolvedUserSnap.exists
+    !user &&
+    email
   ) {
+    const emailUser =
+      await findUserByEmail(
+        email
+      );
+
+    if (emailUser) {
+      user =
+        emailUser.data() || {};
+
+      userRef =
+        emailUser.ref;
+    }
+  }
+
+  /*
+   * 5. Ambil Firebase Auth user.
+   */
+  const authUser =
+    await resolveFirebaseAuth(
+      identifiers,
+      email
+    );
+
+  /*
+   * 6. Tentukan UID yang benar.
+   *
+   * Prioritas:
+   * seller.uid
+   * registration.uid
+   * user.uid
+   * Firebase Auth UID
+   * identifier
+   */
+  const resolvedUid =
+    normalize(
+      seller?.uid ||
+      registration?.uid ||
+      user?.uid ||
+      authUser?.uid ||
+      identifier ||
+      hints.uid ||
+      hints.userId ||
+      hints.id
+    );
+
+  /*
+   * Kalau belum ada UID sama sekali,
+   * data memang tidak bisa dipetakan.
+   */
+  if (!resolvedUid) {
     return {
-      user:
-        resolvedUserSnap.data() || {},
+      user: null,
+      userRef: null,
+      uid: null,
+      seller,
+      sellerRef,
+      registration,
+      registrationRef,
+      authUser
+    };
+  }
 
-      userRef:
-        resolvedUserSnap.ref,
-
+  /*
+   * 7. Kalau seller ditemukan berdasarkan
+   * document ID tetapi field uid kosong,
+   * tetap gunakan document ID sebagai fallback.
+   */
+  if (
+    sellerRef &&
+    seller &&
+    !normalize(
+      seller.uid
+    )
+  ) {
+    seller = {
+      ...seller,
       uid:
         resolvedUid
     };
   }
 
   if (
-    !sellerDoc
+    registrationRef &&
+    registration &&
+    !normalize(
+      registration.uid
+    )
   ) {
-    const sellerSnap =
-      await sellersRef
-        .doc(resolvedUid)
-        .get();
-
-    if (
-      sellerSnap.exists
-    ) {
-      sellerDoc =
-        sellerSnap;
-
-      seller =
-        sellerSnap.data() || {};
-    }
+    registration = {
+      ...registration,
+      uid:
+        resolvedUid
+    };
   }
 
+  /*
+   * 8. Kalau user belum ditemukan berdasarkan
+   * identifier awal, coba users/{resolvedUid}.
+   */
   if (
-    !registrationDoc
+    !userRef
   ) {
-    const registrationSnap =
-      await registrationsRef
-        .doc(resolvedUid)
-        .get();
+    const resolvedUserRef =
+      db
+        .collection('users')
+        .doc(
+          resolvedUid
+        );
+
+    const resolvedUserSnap =
+      await resolvedUserRef.get();
 
     if (
-      registrationSnap.exists
+      resolvedUserSnap.exists
     ) {
-      registrationDoc =
-        registrationSnap;
-
-      registration =
-        registrationSnap.data() ||
+      user =
+        resolvedUserSnap.data() ||
         {};
+
+      userRef =
+        resolvedUserSnap.ref;
     }
   }
 
+  /*
+   * 9. Kalau seller belum ditemukan,
+   * coba sellers/{resolvedUid}.
+   */
   if (
-    !authUser &&
-    !sellerDoc &&
-    !registrationDoc
+    !sellerRef
+  ) {
+    const resolvedSellerRef =
+      db
+        .collection('sellers')
+        .doc(
+          resolvedUid
+        );
+
+    const resolvedSellerSnap =
+      await resolvedSellerRef.get();
+
+    if (
+      resolvedSellerSnap.exists
+    ) {
+      seller =
+        resolvedSellerSnap.data() ||
+        {};
+
+      sellerRef =
+        resolvedSellerSnap.ref;
+    }
+  }
+
+  /*
+   * 10. Kalau registration belum ditemukan,
+   * coba registrations/{resolvedUid}.
+   */
+  if (
+    !registrationRef
+  ) {
+    const resolvedRegistrationRef =
+      db
+        .collection('registrations')
+        .doc(
+          resolvedUid
+        );
+
+    const resolvedRegistrationSnap =
+      await resolvedRegistrationRef.get();
+
+    if (
+      resolvedRegistrationSnap.exists
+    ) {
+      registration =
+        resolvedRegistrationSnap.data() ||
+        {};
+
+      registrationRef =
+        resolvedRegistrationSnap.ref;
+    }
+  }
+
+  /*
+   * 11. Kalau user document belum ada tetapi
+   * seller / registration / Firebase Auth ada,
+   * buat users/{resolvedUid}.
+   */
+  if (
+    !userRef &&
+    (
+      sellerRef ||
+      registrationRef ||
+      authUser
+    )
+  ) {
+    const seedRef =
+      db
+        .collection('users')
+        .doc(
+          resolvedUid
+        );
+
+    const seed = {
+      uid:
+        resolvedUid,
+
+      email:
+        authUser?.email ||
+        seller?.email ||
+        registration?.email ||
+        email ||
+        '',
+
+      name:
+        seller?.name ||
+        registration?.name ||
+        authUser?.displayName ||
+        '',
+
+      phone:
+        seller?.phone ||
+        registration?.phone ||
+        '',
+
+      photoUrl:
+        seller?.photoUrl ||
+        registration?.photoUrl ||
+        authUser?.photoURL ||
+        '',
+
+      role:
+        isApprovedSeller(
+          seller
+        ) ||
+        registration?.status ===
+          'approved'
+          ? 'seller'
+          : 'buyer',
+
+      banned:
+        seller?.banned === true ||
+        registration?.banned === true,
+
+      updatedAt:
+        FieldValue.serverTimestamp()
+    };
+
+    await seedRef.set(
+      seed,
+      {
+        merge: true
+      }
+    );
+
+    user =
+      seed;
+
+    userRef =
+      seedRef;
+  }
+
+  /*
+   * 12. Kalau users document ditemukan,
+   * pastikan UID-nya konsisten.
+   */
+  if (
+    userRef
+  ) {
+    user = {
+      ...(user || {}),
+      uid:
+        resolvedUid
+    };
+  }
+
+  /*
+   * 13. Tidak ada satu pun sumber data.
+   */
+  if (
+    !userRef &&
+    !sellerRef &&
+    !registrationRef &&
+    !authUser
   ) {
     return {
       user: null,
       userRef: null,
-      uid: null
+      uid: null,
+      seller: null,
+      sellerRef: null,
+      registration: null,
+      registrationRef: null,
+      authUser: null
     };
   }
 
-  const seed = {
-    uid:
-      resolvedUid,
+  /*
+   * 14. Kalau seller ditemukan tetapi users belum
+   * ada, seed users sekarang.
+   */
+  if (
+    !userRef &&
+    sellerRef
+  ) {
+    const seedRef =
+      db
+        .collection('users')
+        .doc(
+          resolvedUid
+        );
 
-    email:
-      authUser?.email ||
-      seller.email ||
-      registration.email ||
-      '',
+    const seed = {
+      uid:
+        resolvedUid,
 
-    name:
-      seller.name ||
-      registration.name ||
-      authUser?.displayName ||
-      '',
+      email:
+        seller?.email ||
+        registration?.email ||
+        authUser?.email ||
+        email ||
+        '',
 
-    phone:
-      seller.phone ||
-      registration.phone ||
-      '',
+      name:
+        seller?.name ||
+        registration?.name ||
+        authUser?.displayName ||
+        '',
 
-    photoUrl:
-      seller.photoUrl ||
-      registration.photoUrl ||
-      authUser?.photoURL ||
-      '',
+      phone:
+        seller?.phone ||
+        registration?.phone ||
+        '',
 
-    role:
-      seller.status === 'approved' ||
-      registration.status === 'approved'
-        ? 'seller'
-        : 'buyer',
+      photoUrl:
+        seller?.photoUrl ||
+        registration?.photoUrl ||
+        authUser?.photoURL ||
+        '',
 
-    banned:
-      seller.banned === true ||
-      registration.banned === true,
+      role:
+        'seller',
 
-    updatedAt:
-      FieldValue.serverTimestamp()
-  };
+      banned:
+        seller?.banned === true,
 
-  await resolvedUserRef.set(
-    seed,
-    {
-      merge: true
-    }
-  );
+      updatedAt:
+        FieldValue.serverTimestamp()
+    };
+
+    await seedRef.set(
+      seed,
+      {
+        merge: true
+      }
+    );
+
+    user =
+      seed;
+
+    userRef =
+      seedRef;
+  }
 
   return {
     user:
-      seed,
+      user || {},
 
-    userRef:
-      resolvedUserRef,
+    userRef,
 
     uid:
-      resolvedUid
+      resolvedUid,
+
+    seller,
+
+    sellerRef,
+
+    registration,
+
+    registrationRef,
+
+    authUser
   };
 }
 
@@ -346,9 +675,7 @@ async function resolveSeller(
   uid
 ) {
   const normalizedUid =
-    String(
-      uid || ''
-    ).trim();
+    normalize(uid);
 
   if (!normalizedUid) {
     return {
@@ -359,52 +686,38 @@ async function resolveSeller(
     };
   }
 
-  const sellerRef =
-    db
-      .collection('sellers')
-      .doc(
-        normalizedUid
-      );
+  let sellerSnap =
+    await findByIdOrUid(
+      'sellers',
+      [normalizedUid]
+    );
 
-  const registrationRef =
-    db
-      .collection('registrations')
-      .doc(
-        normalizedUid
-      );
-
-  const [
-    sellerSnap,
-    registrationSnap
-  ] = await Promise.all([
-    sellerRef.get(),
-    registrationRef.get()
-  ]);
+  let registrationSnap =
+    await findByIdOrUid(
+      'registrations',
+      [normalizedUid]
+    );
 
   let seller =
-    sellerSnap.exists
-      ? sellerSnap.data() || {}
-      : null;
+    sellerSnap?.data() ||
+    null;
 
-  let actualSellerRef =
-    sellerSnap.exists
-      ? sellerSnap.ref
-      : null;
+  let sellerRef =
+    sellerSnap?.ref ||
+    null;
 
   let registration =
-    registrationSnap.exists
-      ? registrationSnap.data() || {}
-      : null;
+    registrationSnap?.data() ||
+    null;
 
-  let actualRegistrationRef =
-    registrationSnap.exists
-      ? registrationSnap.ref
-      : null;
+  let registrationRef =
+    registrationSnap?.ref ||
+    null;
 
   if (
-    !seller ||
-    seller.status !==
-      'approved'
+    !isApprovedSeller(
+      seller
+    )
   ) {
     const sellerQuery =
       await db
@@ -420,8 +733,9 @@ async function resolveSeller(
     const approvedSeller =
       sellerQuery.docs.find(
         doc =>
-          doc.data()?.status ===
-          'approved'
+          isApprovedSeller(
+            doc.data()
+          )
       );
 
     if (
@@ -431,7 +745,7 @@ async function resolveSeller(
         approvedSeller.data() ||
         {};
 
-      actualSellerRef =
+      sellerRef =
         approvedSeller.ref;
     }
   }
@@ -466,21 +780,16 @@ async function resolveSeller(
         approvedRegistration.data() ||
         {};
 
-      actualRegistrationRef =
+      registrationRef =
         approvedRegistration.ref;
     }
   }
 
   return {
     seller,
-
-    sellerRef:
-      actualSellerRef,
-
+    sellerRef,
     registration,
-
-    registrationRef:
-      actualRegistrationRef
+    registrationRef
   };
 }
 
@@ -604,11 +913,10 @@ export async function listCollection(
       items.map(
         async user => {
           const uid =
-            String(
+            normalize(
               user.uid ||
-              user.id ||
-              ''
-            ).trim();
+              user.id
+            );
 
           const resolved =
             await resolveSeller(
@@ -635,6 +943,9 @@ export async function listCollection(
 
           return {
             ...user,
+
+            id:
+              user.id,
 
             uid,
 
@@ -789,10 +1100,10 @@ export async function setStatus(
       status === 'approved'
     ) {
       const sellerUid =
-        String(
+        normalize(
           registration.uid ||
           id
-        ).trim();
+        );
 
       const sellerRef =
         db
@@ -870,7 +1181,6 @@ export async function setStatus(
 
       return {
         ok: true,
-
         status:
           'approved'
       };
@@ -889,7 +1199,6 @@ export async function setStatus(
 
     return {
       ok: true,
-
       status:
         'rejected'
     };
@@ -1195,9 +1504,7 @@ export async function setBan(
   banned
 ) {
   const identifier =
-    String(
-      uid || ''
-    ).trim();
+    normalize(uid);
 
   if (!identifier) {
     throw new HttpError(
@@ -1208,11 +1515,18 @@ export async function setBan(
 
   const resolvedUser =
     await resolveUser(
-      identifier
+      identifier,
+      {
+        uid:
+          identifier
+      }
     );
 
+  /*
+   * Seller bisa saja ditemukan tetapi users/{uid}
+   * belum ada. resolveUser() sudah membuatnya.
+   */
   if (
-    !resolvedUser.userRef ||
     !resolvedUser.uid
   ) {
     throw new HttpError(
@@ -1238,7 +1552,15 @@ export async function setBan(
   const value =
     Boolean(banned);
 
-  await resolvedUser.userRef.set(
+  const userRef =
+    resolvedUser.userRef ||
+    db
+      .collection('users')
+      .doc(
+        normalizedUid
+      );
+
+  await userRef.set(
     {
       uid:
         normalizedUid,
@@ -1264,6 +1586,9 @@ export async function setBan(
   ) {
     await resolvedSeller.sellerRef.set(
       {
+        uid:
+          normalizedUid,
+
         banned:
           value,
 
@@ -1290,29 +1615,75 @@ export async function updateUser(
     banned,
     role,
     name,
-    phone
+    phone,
+    userId,
+    id,
+    email
   } = {}
 ) {
+  /*
+   * Jangan cuma mengandalkan parameter URL.
+   * Frontend sekarang mengirim beberapa identifier
+   * supaya backend bisa menemukan dokumen yang benar.
+   */
   const identifier =
-    String(
-      uid || ''
-    ).trim();
-
-  if (!identifier) {
-    throw new HttpError(
-      400,
-      'ID user wajib diisi.'
-    );
-  }
+    normalize(uid);
 
   const resolvedUser =
     await resolveUser(
-      identifier
+      identifier,
+      {
+        uid,
+        userId,
+        id,
+        email
+      }
     );
 
+  /*
+   * Kalau URL identifier gagal, coba semua
+   * identifier dari body secara berurutan.
+   */
+  let resolved =
+    resolvedUser;
+
   if (
-    !resolvedUser.userRef ||
-    !resolvedUser.uid
+    !resolved.uid
+  ) {
+    const fallbackIdentifiers =
+      uniqueValues([
+        userId,
+        id,
+        email
+      ]);
+
+    for (
+      const fallback
+      of fallbackIdentifiers
+    ) {
+      const attempt =
+        await resolveUser(
+          fallback,
+          {
+            uid,
+            userId,
+            id,
+            email
+          }
+        );
+
+      if (
+        attempt.uid
+      ) {
+        resolved =
+          attempt;
+        break;
+      }
+    }
+  }
+
+  if (
+    !resolved.uid
   ) {
     throw new HttpError(
       404,
@@ -1321,7 +1692,7 @@ export async function updateUser(
   }
 
   const normalizedUid =
-    resolvedUser.uid;
+    resolved.uid;
 
   if (
     isAdminUid(
@@ -1335,15 +1706,23 @@ export async function updateUser(
   }
 
   const userRef =
-    resolvedUser.userRef;
+    resolved.userRef ||
+    db
+      .collection('users')
+      .doc(
+        normalizedUid
+      );
 
   const user =
-    resolvedUser.user || {};
+    resolved.user || {};
 
   const result = {
     ok: true
   };
 
+  /*
+   * Edit nama / nomor seller.
+   */
   const hasName =
     name !== undefined;
 
@@ -1354,112 +1733,56 @@ export async function updateUser(
     hasName ||
     hasPhone
   ) {
-    let resolvedSeller =
-      await resolveSeller(
-        normalizedUid
-      );
-
     let seller =
-      resolvedSeller.seller;
+      resolved.seller;
 
     let sellerRef =
-      resolvedSeller.sellerRef;
+      resolved.sellerRef;
 
     let registration =
-      resolvedSeller.registration;
+      resolved.registration;
 
     let registrationRef =
-      resolvedSeller.registrationRef;
+      resolved.registrationRef;
 
+    /*
+     * Kalau resolver menemukan seller tetapi belum
+     * mendapatkan approved seller, tetap cari ulang.
+     */
     if (
-      seller?.banned === true
+      !sellerRef
     ) {
-      throw new HttpError(
-        409,
-        'Seller ini sedang diblokir.'
-      );
-    }
-
-    if (
-      !isApprovedSeller(
-        seller
-      ) &&
-      registration?.status !==
-        'approved' &&
-      user.role === 'seller'
-    ) {
-      await db
-        .collection('sellers')
-        .doc(
-          normalizedUid
-        )
-        .set(
-          {
-            uid:
-              normalizedUid,
-
-            email:
-              user.email || '',
-
-            name:
-              user.name || '',
-
-            phone:
-              user.phone || '',
-
-            reason:
-              user.reason || '',
-
-            description:
-              user.description ||
-              user.reason ||
-              '',
-
-            photoUrl:
-              user.photoUrl ||
-              user.photoURL ||
-              '',
-
-            status:
-              'approved',
-
-            banned:
-              user.banned === true,
-
-            approvedAt:
-              FieldValue.serverTimestamp(),
-
-            updatedAt:
-              FieldValue.serverTimestamp()
-          },
-          {
-            merge: true
-          }
-        );
-
-      resolvedSeller =
+      const sellerResolved =
         await resolveSeller(
           normalizedUid
         );
 
       seller =
-        resolvedSeller.seller;
+        sellerResolved.seller;
 
       sellerRef =
-        resolvedSeller.sellerRef;
+        sellerResolved.sellerRef;
 
       registration =
-        resolvedSeller.registration;
+        sellerResolved.registration;
 
       registrationRef =
-        resolvedSeller.registrationRef;
+        sellerResolved.registrationRef;
     }
 
+    /*
+     * Seller aktif ditentukan dari sellers/{uid}
+     * yang approved dan tidak banned.
+     */
     const activeSeller =
       isApprovedSeller(
         seller
       );
 
+    /*
+     * Registration approved juga dianggap sebagai
+     * sumber seller aktif untuk data legacy.
+     */
     const activeRegistration =
       Boolean(
         registration &&
@@ -1468,9 +1791,110 @@ export async function updateUser(
         registration.banned !== true
       );
 
+    /*
+     * Kalau user role seller tetapi sellers document
+     * belum ada, buat seller document dari data user.
+     * Ini menangani data lama/migrasi.
+     */
     if (
       !activeSeller &&
-      !activeRegistration
+      !activeRegistration &&
+      user.role === 'seller'
+    ) {
+      const sellerSeedRef =
+        db
+          .collection('sellers')
+          .doc(
+            normalizedUid
+          );
+
+      await sellerSeedRef.set(
+        {
+          uid:
+            normalizedUid,
+
+          email:
+            user.email ||
+            resolved.authUser?.email ||
+            '',
+
+          name:
+            user.name ||
+            '',
+
+          phone:
+            user.phone ||
+            '',
+
+          reason:
+            user.reason ||
+            '',
+
+          description:
+            user.description ||
+            user.reason ||
+            '',
+
+          photoUrl:
+            user.photoUrl ||
+            user.photoURL ||
+            resolved.authUser?.photoURL ||
+            '',
+
+          status:
+            'approved',
+
+          banned:
+            user.banned === true,
+
+          approvedAt:
+            FieldValue.serverTimestamp(),
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+
+      sellerRef =
+        sellerSeedRef;
+
+      const seededSeller =
+        await sellerSeedRef.get();
+
+      seller =
+        seededSeller.data() ||
+        {};
+
+      registration =
+        registration || null;
+
+      registrationRef =
+        registrationRef || null;
+    }
+
+    const finalActiveSeller =
+      isApprovedSeller(
+        seller
+      );
+
+    const finalActiveRegistration =
+      Boolean(
+        registration &&
+        registration.status ===
+          'approved' &&
+        registration.banned !== true
+      );
+
+    /*
+     * Ini tidak lagi langsung bergantung pada
+     * users.role saja.
+     */
+    if (
+      !finalActiveSeller &&
+      !finalActiveRegistration
     ) {
       throw new HttpError(
         409,
@@ -1479,35 +1903,33 @@ export async function updateUser(
     }
 
     const source =
-      activeSeller
+      finalActiveSeller
         ? seller
         : registration;
 
     const cleanName =
       hasName
-        ? String(
-            name ?? ''
-          ).trim()
-        : String(
+        ? normalize(name)
+        : normalize(
             source?.name ||
             seller?.name ||
             registration?.name ||
             user.name ||
+            user.displayName ||
             ''
-          ).trim();
+          );
 
     const cleanPhone =
       hasPhone
-        ? String(
-            phone ?? ''
-          ).trim()
-        : String(
+        ? normalize(phone)
+        : normalize(
             source?.phone ||
             seller?.phone ||
             registration?.phone ||
             user.phone ||
+            user.phoneNumber ||
             ''
-          ).trim();
+          );
 
     if (!cleanName) {
       throw new HttpError(
@@ -1537,6 +1959,7 @@ export async function updateUser(
           seller?.email ||
           registration?.email ||
           user.email ||
+          resolved.authUser?.email ||
           '',
 
         name:
@@ -1563,6 +1986,7 @@ export async function updateUser(
           registration?.photoUrl ||
           user.photoUrl ||
           user.photoURL ||
+          resolved.authUser?.photoURL ||
           '',
 
         status:
@@ -1581,6 +2005,9 @@ export async function updateUser(
       }
     );
 
+    /*
+     * users/{actual UID}
+     */
     batch.set(
       userRef,
       {
@@ -1604,6 +2031,10 @@ export async function updateUser(
       }
     );
 
+    /*
+     * Sinkronkan registration kalau memang
+     * registration document tersedia.
+     */
     if (
       registrationRef
     ) {
@@ -1642,8 +2073,14 @@ export async function updateUser(
 
     result.role =
       'seller';
+
+    result.uid =
+      normalizedUid;
   }
 
+  /*
+   * Ban / unban.
+   */
   if (
     typeof banned ===
     'boolean'
@@ -1658,6 +2095,9 @@ export async function updateUser(
       banResult.banned;
   }
 
+  /*
+   * Perubahan role.
+   */
   if (
     role !== undefined
   ) {
@@ -1689,16 +2129,21 @@ export async function updateUser(
             normalizedUid,
 
           email:
-            user.email || '',
+            user.email ||
+            resolved.authUser?.email ||
+            '',
 
           name:
-            user.name || '',
+            user.name ||
+            '',
 
           phone:
-            user.phone || '',
+            user.phone ||
+            '',
 
           reason:
-            user.reason || '',
+            user.reason ||
+            '',
 
           description:
             user.description ||
@@ -1708,6 +2153,7 @@ export async function updateUser(
           photoUrl:
             user.photoUrl ||
             user.photoURL ||
+            resolved.authUser?.photoURL ||
             '',
 
           status:
@@ -1809,7 +2255,7 @@ export function isAdminUid(
   }
 
   return (
-    String(uid) ===
+    normalize(uid) ===
     ADMIN_UID
   );
 }
@@ -1818,10 +2264,9 @@ export async function saveSettings(
   data
 ) {
   const qrisUrl =
-    String(
-      data?.qrisUrl ||
-      ''
-    ).trim();
+    normalize(
+      data?.qrisUrl
+    );
 
   const maintenanceMode =
     Boolean(
@@ -1829,16 +2274,14 @@ export async function saveSettings(
     );
 
   const maintenanceTitle =
-    String(
-      data?.maintenanceTitle ||
-      ''
-    ).trim();
+    normalize(
+      data?.maintenanceTitle
+    );
 
   const maintenanceMessage =
-    String(
-      data?.maintenanceMessage ||
-      ''
-    ).trim();
+    normalize(
+      data?.maintenanceMessage
+    );
 
   if (qrisUrl) {
     try {
