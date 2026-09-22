@@ -867,29 +867,13 @@ async function router(
     resource === 'admin' &&
     segments[1] ===
       'users' &&
-    id &&
+    segments[2] &&
     method === 'PATCH'
   ) {
     setQueryId(
       req,
-      id
+      segments[2]
     );
-
-    return requireAuth(
-      req,
-      res,
-      () =>
-        requireAdmin(
-          req,
-          res,
-          () =>
-            updateUser(
-              req,
-              res
-            )
-        )
-    );
-  }
 
   if (
     LISTABLE.includes(
