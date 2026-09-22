@@ -56,7 +56,25 @@ function getPath(req) {
       .replace(/^\/+|\/+$/g, '');
   }
 
-  return '';
+  const originalUrl =
+    req.url || '';
+
+  const pathname =
+    originalUrl.split('?')[0];
+
+  const normalized =
+    pathname
+      .replace(/^\/+/, '')
+      .replace(/\/+$/, '');
+
+  if (
+    normalized.startsWith('api/')
+  ) {
+    return normalized
+      .slice(4);
+  }
+
+  return normalized;
 }
 
 function getSegments(req) {
