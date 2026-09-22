@@ -20,9 +20,7 @@ export async function applySeller(
   }
 
   const email =
-    String(
-      authEmail || ''
-    )
+    String(authEmail || '')
       .trim()
       .toLowerCase();
 
@@ -33,60 +31,21 @@ export async function applySeller(
     );
   }
 
-  const sellerRef =
-    db
-      .collection('sellers')
-      .doc(uid);
-
-  const registrationRef =
-    db
-      .collection('registrations')
-      .doc(uid);
-
-  const [
-    sellerSnap,
-    registrationSnap
-  ] = await Promise.all([
-    sellerRef.get(),
-    registrationRef.get()
-  ]);
-
-  if (
-    sellerSnap.exists &&
-    sellerSnap.data()?.status ===
-      'approved'
-  ) {
+  if (email.length > 320) {
     throw new HttpError(
-      409,
-      'Akun ini sudah menjadi seller.'
-    );
-  }
-
-  if (
-    registrationSnap.exists &&
-    registrationSnap.data()?.status ===
-      'pending'
-  ) {
-    throw new HttpError(
-      409,
-      'Pengajuan seller masih pending.'
+      400,
+      'Email akun tidak valid.'
     );
   }
 
   const name =
-    String(
-      data?.name || ''
-    ).trim();
+    String(data?.name || '').trim();
 
   const phone =
-    String(
-      data?.phone || ''
-    ).trim();
+    String(data?.phone || '').trim();
 
   const reason =
-    String(
-      data?.reason || ''
-    ).trim();
+    String(data?.reason || '').trim();
 
   if (!name) {
     throw new HttpError(
@@ -130,58 +89,104 @@ export async function applySeller(
     );
   }
 
-  const profileSnap =
-    await db
+  const sellerRef =
+    db
+      .collection('sellers')
+      .doc(uid);
+
+  const registrationRef =
+    db
+      .collection('registrations')
+      .doc(uid);
+
+  const profileRef =
+    db
       .collection('users')
-      .doc(uid)
-      .get();
+      .doc(uid);
 
-  const profileData =
-    profileSnap.exists
-      ? profileSnap.data()
-      : {};
+  await db.runTransaction(
+    async tx => {
+      const [
+        sellerSnap,
+        registrationSnap,
+        profileSnap
+      ] = await Promise.all([
+        tx.get(sellerRef),
+        tx.get(registrationRef),
+        tx.get(profileRef)
+      ]);
 
-  const photoUrl =
-    String(
-      profileData?.photoUrl ||
-      ''
-    ).trim();
+      if (
+        sellerSnap.exists &&
+        sellerSnap.data()?.status ===
+          'approved'
+      ) {
+        throw new HttpError(
+          409,
+          'Akun ini sudah menjadi seller.'
+        );
+      }
 
-  await registrationRef.set(
-    {
-      uid,
+      if (
+        registrationSnap.exists &&
+        registrationSnap.data()?.status ===
+          'pending'
+      ) {
+        throw new HttpError(
+          409,
+          'Pengajuan seller masih pending.'
+        );
+      }
 
-      email,
+      const profileData =
+        profileSnap.exists
+          ? profileSnap.data() || {}
+          : {};
 
-      name,
+      const photoUrl =
+        String(
+          profileData?.photoUrl || ''
+        ).trim();
 
-      phone,
-
-      reason,
-
-      photoUrl,
-
-      status:
-        'pending',
-
-      createdAt:
+      const previous =
         registrationSnap.exists
-          ? registrationSnap.data()
-              ?.createdAt
-          : FieldValue.serverTimestamp(),
+          ? registrationSnap.data() || {}
+          : {};
 
-      updatedAt:
-        FieldValue.serverTimestamp()
-    },
-    {
-      merge: true
+      tx.set(
+        registrationRef,
+        {
+          uid,
+
+          email,
+
+          name,
+
+          phone,
+
+          reason,
+
+          photoUrl,
+
+          status:
+            'pending',
+
+          createdAt:
+            previous.createdAt ||
+            FieldValue.serverTimestamp(),
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
     }
   );
 
   return {
     ok: true,
-
-    status:
-      'pending'
+    status: 'pending'
   };
 }
