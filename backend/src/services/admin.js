@@ -1896,6 +1896,173 @@ export async function updateUser(
     throw new HttpError(403, 'Akun admin utama tidak dapat diubah.');
   }
 
+  const userRef = resolved.userRef || db.collection('users').doc(normalizedUid);
+  const user = resolved.user || {};
+  const result = { ok: true };
+
+  const hasName = name !== undefined;
+  const hasPhone = phone !== undefined;
+
+  if (hasName || hasPhone) {
+    let seller = resolved.seller;
+    let sellerRef = resolved.sellerRef;
+    let registration = resolved.registration;
+    let registrationRef = resolved.registrationRef;
+
+    const sellerResolved = await resolveSeller(normalizedUid);
+
+    if (sellerResolved.sellerRef) {
+      seller = sellerResolved.seller;
+      sellerRef = sellerResolved.sellerRef;
+    }
+
+    if (sellerResolved.registrationRef) {
+      registration = sellerResolved.registration;
+      registrationRef = sellerResolved.registrationRef;
+    }
+
+    const activeSeller = isApprovedSeller(seller);
+    const activeRegistration = Boolean(
+      registration &&
+      registration.status === 'approved' &&
+      registration.banned !== true
+    );
+
+    if (!activeSeller && !activeRegistration && user.role === 'seller') {
+      const sellerSeedRef = db.collection('sellers').doc(normalizedUid);
+      await sellerSeedRef.set(
+        {
+          uid: normalizedUid,
+          email: user.email || resolved.authUser?.email || '',
+          name: user.name || '',
+          phone: user.phone || '',
+          reason: user.reason || '',
+          description: user.description || user.reason || '',
+          photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '',
+          status: 'approved',
+          banned: user.banned === true,
+          approvedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+      sellerRef = sellerSeedRef;
+      const seededSeller = await sellerSeedRef.get();
+      seller = seededSeller.data() || {};
+    }
+
+    const finalActiveSeller = isApprovedSeller(seller);
+    const finalActiveRegistration = Boolean(
+      registration && registration.status === 'approved' && registration.banned !== true
+    );
+
+    if (!finalActiveSeller && !finalActiveRegistration) {
+      throw new HttpError(409, 'User ini bukan seller aktif.');
+    }
+
+    const source = finalActiveSeller ? seller : registration;
+    const cleanName = hasName ? normalize(name) : normalize(source?.name || seller?.name || registration?.name || user.name || user.displayName || '');
+    const cleanPhone = hasPhone ? normalize(phone) : normalize(source?.phone || seller?.phone || registration?.phone || user.phone || user.phoneNumber || '');
+
+    if (!cleanName) throw new HttpError(400, 'Nama seller wajib diisi.');
+
+    const batch = db.batch();
+    const targetSellerRef = sellerRef || db.collection('sellers').doc(normalizedUid);
+
+    batch.set(
+      targetSellerRef,
+      {
+        uid: normalizedUid,
+        email: seller?.email || registration?.email || user.email || resolved.authUser?.email || '',
+        name: cleanName,
+        phone: cleanPhone,
+        reason: seller?.reason || registration?.reason || user.reason || '',
+        description: seller?.description || registration?.description || user.description || user.reason || '',
+        photoUrl: seller?.photoUrl || registration?.photoUrl || user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '',
+        status: 'approved',
+        banned: seller?.banned === true || registration?.banned === true || user.banned === true,
+        updatedAt: FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
+
+    batch.set(
+      userRef,
+      {
+        uid: normalizedUid,
+        name: cleanName,
+        phone: cleanPhone,
+        role: 'seller',
+        updatedAt: FieldValue.serverTimestamp()
+      },
+      { merge: true }
+    );
+
+    if (registrationRef) {
+      batch.set(
+        registrationRef,
+        {
+          uid: registration?.uid || normalizedUid,
+          name: cleanName,
+          phone: cleanPhone,
+          status: 'approved',
+          updatedAt: FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+    }
+
+    await batch.commit();
+    result.name = cleanName;
+    result.phone = cleanPhone;
+    result.role = 'seller';
+    result.uid = normalizedUid;
+  }
+
+  if (typeof banned === 'boolean') {
+    const banResult = await setBan(normalizedUid, banned);
+    result.banned = banResult.banned;
+  }
+
+  if (role !== undefined) {
+    if (!['buyer', 'seller'].includes(role)) throw new HttpError(400, 'Role tidak valid.');
+
+    if (role === 'seller') {
+      const sellerRef = db.collection('sellers').doc(normalizedUid);
+      await sellerRef.set(
+        {
+          uid: normalizedUid,
+          email: user.email || resolved.authUser?.email || '',
+          name: user.name || '',
+          phone: user.phone || '',
+          reason: user.reason || '',
+          description: user.description || user.reason || '',
+          photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '',
+          status: 'approved',
+          banned: Boolean(user.banned),
+          approvedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+      await userRef.set({ uid: normalizedUid, role: 'seller', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      result.role = 'seller';
+    }
+
+    if (role === 'buyer') {
+      const sellerRef = db.collection('sellers').doc(normalizedUid);
+      const sellerSnap = await sellerRef.get();
+      if (sellerSnap.exists) {
+        await sellerRef.update({ status: 'revoked', updatedAt: FieldValue.serverTimestamp() });
+      }
+      await userRef.set({ uid: normalizedUid, role: 'buyer', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      result.role = 'buyer';
+    }
+  }
+
+  return result;
+}
+
   const userRef =
     resolved.userRef ||
     db
