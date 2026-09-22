@@ -281,6 +281,47 @@ export function AuthProvider({ children }) {
     return credential;
   };
 
+  const loginAdminWithGoogle = async () => {
+    if (!firebaseReady) {
+      throw new Error(
+        'Firebase belum dikonfigurasi.'
+      );
+    }
+
+    if (!ADMIN_UID) {
+      throw new Error(
+        'VITE_ADMIN_UID belum dikonfigurasi.'
+      );
+    }
+
+    const credential =
+      await signInWithPopup(
+        auth,
+        googleProvider
+      );
+
+    const loggedInUser =
+      credential.user;
+
+    if (
+      loggedInUser.uid !==
+      ADMIN_UID
+    ) {
+      await signOut(auth);
+
+      throw new Error(
+        'Akun Google ini bukan akun admin.'
+      );
+    }
+
+    setUser(loggedInUser);
+    setRole('admin');
+    setBanned(false);
+    setLoading(false);
+
+    return credential;
+  };
+
   const logout = () =>
     signOut(auth);
 
@@ -317,6 +358,7 @@ export function AuthProvider({ children }) {
       loginWithEmail,
       register,
       loginAdmin,
+      loginAdminWithGoogle,
       logout,
       updateUserPhoto
     }),
