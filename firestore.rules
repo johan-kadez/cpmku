@@ -2,8 +2,27 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function signedIn() {
       return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        request.auth.token.admin == true;
+    }
+
+    function isRoomParticipant() {
+      return signedIn() &&
+        request.auth.uid in resource.data.participantUids;
+    }
+
+    function isRoomParticipantById(roomId) {
+      return signedIn() &&
+        request.auth.uid in
+        get(
+          /databases/$(database)/documents/rooms/$(roomId)
+        ).data.participantUids;
     }
 
     match /products/{id} {
@@ -43,30 +62,40 @@ service cloud.firestore {
     }
 
     match /rooms/{id} {
-      allow read: if (
+      allow get: if (
         signedIn() &&
-        request.auth.uid in resource.data.participantUids
+        (
+          isRoomParticipant() ||
+          isAdmin()
+        )
       );
 
-      allow write: if false;
+      allow list: if (
+        signedIn() &&
+        (
+          request.query.where('participantUids', 'array-contains', request.auth.uid) ||
+          isAdmin()
+        )
+      );
+
+      allow create, update, delete: if false;
 
       match /messages/{mid} {
         allow read: if (
           signedIn() &&
-          request.auth.uid in
-          get(
-            /databases/$(database)/documents/rooms/$(id)
-          ).data.participantUids
+          (
+            isRoomParticipantById(id) ||
+            isAdmin()
+          )
         );
 
         allow create: if (
           signedIn() &&
-          request.auth.uid in
-          get(
-            /databases/$(database)/documents/rooms/$(id)
-          ).data.participantUids &&
-          request.resource.data.senderUid ==
-          request.auth.uid
+          (
+            isRoomParticipantById(id) ||
+            isAdmin()
+          ) &&
+          request.resource.data.senderUid == request.auth.uid
         );
 
         allow update, delete: if false;
