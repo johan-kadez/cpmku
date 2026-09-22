@@ -858,12 +858,19 @@ export async function updateUser(
       .collection('sellers')
       .doc(uid);
 
+  const registrationRef =
+    db
+      .collection('registrations')
+      .doc(uid);
+
   const [
     userSnap,
-    sellerSnap
+    sellerSnap,
+    registrationSnap
   ] = await Promise.all([
     userRef.get(),
-    sellerRef.get()
+    sellerRef.get(),
+    registrationRef.get()
   ]);
 
   const user =
@@ -874,6 +881,11 @@ export async function updateUser(
   const seller =
     sellerSnap.exists
       ? sellerSnap.data() || {}
+      : {};
+
+  const registration =
+    registrationSnap.exists
+      ? registrationSnap.data() || {}
       : {};
 
   const result = {
@@ -890,8 +902,32 @@ export async function updateUser(
     hasName ||
     hasPhone
   ) {
+    const sellerApproved =
+      sellerSnap.exists &&
+      seller.status ===
+        'approved';
+
+    const registrationApproved =
+      registrationSnap.exists &&
+      registration.status ===
+        'approved';
+
+    const sellerBanned =
+      sellerSnap.exists &&
+      seller.banned === true;
+
     if (
-      !sellerSnap.exists
+      sellerBanned
+    ) {
+      throw new HttpError(
+        409,
+        'Seller ini sedang diblokir.'
+      );
+    }
+
+    if (
+      !sellerApproved &&
+      !registrationApproved
     ) {
       throw new HttpError(
         409,
@@ -899,15 +935,10 @@ export async function updateUser(
       );
     }
 
-    if (
-      seller.status !==
-      'approved'
-    ) {
-      throw new HttpError(
-        409,
-        'Seller belum berstatus aktif.'
-      );
-    }
+    const sellerSource =
+      sellerApproved
+        ? seller
+        : registration;
 
     const sellerName =
       hasName
@@ -915,6 +946,7 @@ export async function updateUser(
             name || ''
           ).trim()
         : String(
+            sellerSource.name ||
             seller.name ||
             user.name ||
             ''
@@ -926,6 +958,7 @@ export async function updateUser(
             phone || ''
           ).trim()
         : String(
+            sellerSource.phone ||
             seller.phone ||
             user.phone ||
             ''
@@ -940,19 +973,58 @@ export async function updateUser(
       );
     }
 
+    const sellerUid =
+      String(
+        seller.uid ||
+        registration.uid ||
+        uid
+      ).trim();
+
     const batch =
       db.batch();
 
     batch.set(
       sellerRef,
       {
-        uid,
+        uid:
+          sellerUid,
+
+        email:
+          seller.email ||
+          registration.email ||
+          user.email ||
+          '',
 
         name:
           sellerName,
 
         phone:
           sellerPhone,
+
+        reason:
+          seller.reason ||
+          registration.reason ||
+          user.reason ||
+          '',
+
+        description:
+          seller.description ||
+          registration.description ||
+          registration.reason ||
+          '',
+
+        photoUrl:
+          seller.photoUrl ||
+          registration.photoUrl ||
+          user.photoUrl ||
+          user.photoURL ||
+          '',
+
+        status:
+          'approved',
+
+        banned:
+          seller.banned === true,
 
         updatedAt:
           FieldValue.serverTimestamp()
@@ -973,6 +1045,9 @@ export async function updateUser(
         phone:
           sellerPhone,
 
+        role:
+          'seller',
+
         updatedAt:
           FieldValue.serverTimestamp()
       },
@@ -980,6 +1055,30 @@ export async function updateUser(
         merge: true
       }
     );
+
+    if (
+      registrationSnap.exists
+    ) {
+      batch.set(
+        registrationRef,
+        {
+          name:
+            sellerName,
+
+          phone:
+            sellerPhone,
+
+          status:
+            'approved',
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+    }
 
     await batch.commit();
 
