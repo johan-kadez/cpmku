@@ -7,6 +7,12 @@ import {
   useAuth
 } from '../../context/AuthContext';
 
+import {
+  useEffect,
+  useRef,
+  useState
+} from 'react';
+
 const helpIcon =
   'https://d1x91p7vw3vuq8.cloudfront.net/bottom_navigation_content/2026618/rro9ab3xmyany3dq4bde5.svg';
 
@@ -20,6 +26,71 @@ export default function BottomNav() {
 
   const location =
     useLocation();
+
+  const [visible, setVisible] =
+    useState(true);
+
+  const lastScrollY =
+    useRef(0);
+
+  const ticking =
+    useRef(false);
+
+  useEffect(() => {
+    lastScrollY.current =
+      window.scrollY || 0;
+
+    const handleScroll = () => {
+      if (ticking.current) {
+        return;
+      }
+
+      ticking.current = true;
+
+      window.requestAnimationFrame(() => {
+        const currentY =
+          window.scrollY || 0;
+
+        const previousY =
+          lastScrollY.current;
+
+        const difference =
+          currentY - previousY;
+
+        if (currentY <= 20) {
+          setVisible(true);
+        } else if (difference > 6) {
+          setVisible(false);
+        } else if (difference < -6) {
+          setVisible(true);
+        }
+
+        lastScrollY.current =
+          currentY;
+
+        ticking.current = false;
+      });
+    };
+
+    window.addEventListener(
+      'scroll',
+      handleScroll,
+      {
+        passive: true
+      }
+    );
+
+    return () => {
+      window.removeEventListener(
+        'scroll',
+        handleScroll
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    setVisible(true);
+  }, [location.pathname]);
 
   const isAdminPanel =
     location.pathname === '/admin' ||
@@ -50,11 +121,17 @@ export default function BottomNav() {
 
   return (
     <nav
-      className={
+      className={[
+        'bottom-nav',
         isAdminPanel
-          ? 'bottom-nav bottom-nav-admin'
-          : 'bottom-nav'
-      }
+          ? 'bottom-nav-admin'
+          : '',
+        visible
+          ? 'bottom-nav-visible'
+          : 'bottom-nav-hidden'
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {items.map(
         ([to, icon, label]) => (
