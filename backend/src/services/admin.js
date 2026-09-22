@@ -1809,84 +1809,635 @@ export async function updateUser(
   { banned, role, name, phone, userId, id, email } = {}
 ) {
   const identifier = normalize(uid);
+  console.log('[updateUser] Mencoba resolve identifier:', identifier);
 
   // 1. Coba resolve user seperti biasa
   let resolved = await resolveUser(
     identifier,
     { uid, userId, id, email }
   );
+  console.log('[updateUser] Hasil resolveUser awal:', { uid: resolved.uid, hasUserRef: !!resolved.userRef });
 
-  // 2. SUPER FALLBACK: Cari di semua collection jika resolveUser gagal
+  // 2. ULTRA FALLBACK: Jika resolveUser gagal, cari manual di semua collection
   if (!resolved.uid) {
+    console.log('[updateUser] resolveUser gagal, menjalankan Ultra Fallback...');
     try {
       let canonicalUid = null;
-      let foundEmail = email;
+      let foundData = null;
 
-      // Cari di collection 'users'
-      const usersRef = db.collection('users');
-      const userDoc = await usersRef.doc(identifier).get();
-      if (userDoc.exists) {
-        canonicalUid = userDoc.data()?.uid || userDoc.id;
-        foundEmail = userDoc.data()?.email || foundEmail;
-      } else {
-        const userQuery = await usersRef.where('uid', '==', identifier).limit(1).get();
-        if (!userQuery.empty) {
-          canonicalUid = userQuery.docs[0].data()?.uid;
-          foundEmail = userQuery.docs[0].data()?.email || foundEmail;
+      // Helper untuk cek collection
+      const checkCollection = async (collName, idToCheck) => {
+        const ref = db.collection(collName).doc(idToCheck);
+        const snap = await ref.get();
+        if (snap.exists) {
+          return { ref, data: snap.data() };
         }
+        const query = await db.collection(collName).where('uid', '==', idToCheck).limit(1).get();
+        if (!query.empty) {
+          return { ref: query.docs[0].ref, data: query.docs[0].data() };
+        }
+        return null;
+      };
+
+      // Cek di users
+      let result = await checkCollection('users', identifier);
+      if (result) {
+        canonicalUid = result.data?.uid || result.ref.id;
+        foundData = result.data;
+        console.log('[updateUser] Ditemukan di users:', canonicalUid);
       }
 
-      // Cari di collection 'sellers' jika belum ketemu
+      // Cek di sellers jika belum ketemu
       if (!canonicalUid) {
-        const sellersRef = db.collection('sellers');
-        const sellerDoc = await sellersRef.doc(identifier).get();
-        if (sellerDoc.exists) {
-          canonicalUid = sellerDoc.data()?.uid || sellerDoc.id;
-          foundEmail = sellerDoc.data()?.email || foundEmail;
-        } else {
-          const sellerQuery = await sellersRef.where('uid', '==', identifier).limit(1).get();
-          if (!sellerQuery.empty) {
-            canonicalUid = sellerQuery.docs[0].data()?.uid;
-            foundEmail = sellerQuery.docs[0].data()?.email || foundEmail;
-          }
+        result = await checkCollection('sellers', identifier);
+        if (result) {
+          canonicalUid = result.data?.uid || result.ref.id;
+          foundData = result.data;
+          console.log('[updateUser] Ditemukan di sellers:', canonicalUid);
         }
       }
 
-      // Cari di collection 'registrations' jika masih belum ketemu
+      // Cek di registrations jika masih belum ketemu
       if (!canonicalUid) {
-        const regsRef = db.collection('registrations');
-        const regDoc = await regsRef.doc(identifier).get();
-        if (regDoc.exists) {
-          canonicalUid = regDoc.data()?.uid || regDoc.id;
-          foundEmail = regDoc.data()?.email || foundEmail;
-        } else {
-          const regQuery = await regsRef.where('uid', '==', identifier).limit(1).get();
-          if (!regQuery.empty) {
-            canonicalUid = regQuery.docs[0].data()?.uid;
-            foundEmail = regQuery.docs[0].data()?.email || foundEmail;
-          }
+        result = await checkCollection('registrations', identifier);
+        if (result) {
+          canonicalUid = result.data?.uid || result.ref.id;
+          foundData = result.data;
+          console.log('[updateUser] Ditemukan di registrations:', canonicalUid);
         }
       }
 
-      // Jika UID asli berhasil ditemukan, resolve ulang dengan UID yang benar
+      // Jika UID asli berhasil ditemukan, resolve ulang
       if (canonicalUid) {
-        resolved = await resolveUser(canonicalUid, { uid: canonicalUid, email: foundEmail });
+        console.log('[updateUser] Resolve ulang dengan UID:', canonicalUid);
+        resolved = await resolveUser(canonicalUid, { 
+          uid: canonicalUid, 
+          email: foundData?.email || email 
+        });
+      } else {
+        console.log('[updateUser] ID tidak ditemukan di collection manapun:', identifier);
       }
     } catch (err) {
-      console.error('Error in super fallback search:', err);
+      console.error('[updateUser] Error di Ultra Fallback:', err);
     }
   }
 
   // 3. Validasi hasil akhir
   if (!resolved.uid) {
+    console.error('[updateUser] GAGAL TOTAL. User tidak ditemukan untuk ID:', identifier);
     throw new HttpError(404, 'User tidak ditemukan.');
   }
+
+  console.log('[updateUser] Berhasil resolve. UID akhir:', resolved.uid);
 
   const normalizedUid = resolved.uid;
 
   if (isAdminUid(normalizedUid)) {
     throw new HttpError(403, 'Akun admin utama tidak dapat diubah.');
   }
+
+  const userRef =
+    resolved.userRef ||
+    db
+      .collection('users')
+      .doc(
+        normalizedUid
+      );
+
+  const user =
+    resolved.user || {};
+
+  const result = {
+    ok: true
+  };
+
+  /*
+   * Edit nama / nomor seller.
+   */
+  const hasName =
+    name !== undefined;
+
+  const hasPhone =
+    phone !== undefined;
+
+  if (
+    hasName ||
+    hasPhone
+  ) {
+    let seller =
+      resolved.seller;
+
+    let sellerRef =
+      resolved.sellerRef;
+
+    let registration =
+      resolved.registration;
+
+    let registrationRef =
+      resolved.registrationRef;
+
+    /*
+     * Selalu resolve seller berdasarkan canonical UID
+     * sebelum memakai fallback legacy.
+     */
+    const sellerResolved =
+      await resolveSeller(
+        normalizedUid
+      );
+
+    if (
+      sellerResolved.sellerRef
+    ) {
+      seller =
+        sellerResolved.seller;
+
+      sellerRef =
+        sellerResolved.sellerRef;
+    }
+
+    if (
+      sellerResolved.registrationRef
+    ) {
+      registration =
+        sellerResolved.registration;
+
+      registrationRef =
+        sellerResolved.registrationRef;
+    }
+
+    const activeSeller =
+      isApprovedSeller(
+        seller
+      );
+
+    const activeRegistration =
+      Boolean(
+        registration &&
+        registration.status ===
+          'approved' &&
+        registration.banned !== true
+      );
+
+    /*
+     * Data lama: users role seller tetapi
+     * sellers/{uid} belum ada.
+     */
+    if (
+      !activeSeller &&
+      !activeRegistration &&
+      user.role === 'seller'
+    ) {
+      const sellerSeedRef =
+        db
+          .collection('sellers')
+          .doc(
+            normalizedUid
+          );
+
+      await sellerSeedRef.set(
+        {
+          uid:
+            normalizedUid,
+
+          email:
+            user.email ||
+            resolved.authUser?.email ||
+            '',
+
+          name:
+            user.name ||
+            '',
+
+          phone:
+            user.phone ||
+            '',
+
+          reason:
+            user.reason ||
+            '',
+
+          description:
+            user.description ||
+            user.reason ||
+            '',
+
+          photoUrl:
+            user.photoUrl ||
+            user.photoURL ||
+            resolved.authUser?.photoURL ||
+            '',
+
+          status:
+            'approved',
+
+          banned:
+            user.banned === true,
+
+          approvedAt:
+            FieldValue.serverTimestamp(),
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+
+      sellerRef =
+        sellerSeedRef;
+
+      const seededSeller =
+        await sellerSeedRef.get();
+
+      seller =
+        seededSeller.data() ||
+        {};
+
+      registration =
+        registration ||
+        null;
+
+      registrationRef =
+        registrationRef ||
+        null;
+    }
+
+    const finalActiveSeller =
+      isApprovedSeller(
+        seller
+      );
+
+    const finalActiveRegistration =
+      Boolean(
+        registration &&
+        registration.status ===
+          'approved' &&
+        registration.banned !== true
+      );
+
+    if (
+      !finalActiveSeller &&
+      !finalActiveRegistration
+    ) {
+      throw new HttpError(
+        409,
+        'User ini bukan seller aktif.'
+      );
+    }
+
+    const source =
+      finalActiveSeller
+        ? seller
+        : registration;
+
+    const cleanName =
+      hasName
+        ? normalize(
+            name
+          )
+        : normalize(
+            source?.name ||
+            seller?.name ||
+            registration?.name ||
+            user.name ||
+            user.displayName ||
+            ''
+          );
+
+    const cleanPhone =
+      hasPhone
+        ? normalize(
+            phone
+          )
+        : normalize(
+            source?.phone ||
+            seller?.phone ||
+            registration?.phone ||
+            user.phone ||
+            user.phoneNumber ||
+            ''
+          );
+
+    if (
+      !cleanName
+    ) {
+      throw new HttpError(
+        400,
+        'Nama seller wajib diisi.'
+      );
+    }
+
+    const batch =
+      db.batch();
+
+    /*
+     * Target seller selalu menggunakan sellerRef
+     * yang sudah diverifikasi terhadap canonical UID.
+     */
+    const targetSellerRef =
+      sellerRef ||
+      db
+        .collection('sellers')
+        .doc(
+          normalizedUid
+        );
+
+    batch.set(
+      targetSellerRef,
+      {
+        uid:
+          normalizedUid,
+
+        email:
+          seller?.email ||
+          registration?.email ||
+          user.email ||
+          resolved.authUser?.email ||
+          '',
+
+        name:
+          cleanName,
+
+        phone:
+          cleanPhone,
+
+        reason:
+          seller?.reason ||
+          registration?.reason ||
+          user.reason ||
+          '',
+
+        description:
+          seller?.description ||
+          registration?.description ||
+          user.description ||
+          user.reason ||
+          '',
+
+        photoUrl:
+          seller?.photoUrl ||
+          registration?.photoUrl ||
+          user.photoUrl ||
+          user.photoURL ||
+          resolved.authUser?.photoURL ||
+          '',
+
+        status:
+          'approved',
+
+        banned:
+          seller?.banned === true ||
+          registration?.banned === true ||
+          user.banned === true,
+
+        updatedAt:
+          FieldValue.serverTimestamp()
+      },
+      {
+        merge: true
+      }
+    );
+
+    /*
+     * users/{Firebase Auth UID}
+     */
+    batch.set(
+      userRef,
+      {
+        uid:
+          normalizedUid,
+
+        name:
+          cleanName,
+
+        phone:
+          cleanPhone,
+
+        role:
+          'seller',
+
+        updatedAt:
+          FieldValue.serverTimestamp()
+      },
+      {
+        merge: true
+      }
+    );
+
+    /*
+     * Sinkronisasi registration.
+     */
+    if (
+      registrationRef
+    ) {
+      batch.set(
+        registrationRef,
+        {
+          uid:
+            registration?.uid ||
+            normalizedUid,
+
+          name:
+            cleanName,
+
+          phone:
+            cleanPhone,
+
+          status:
+            'approved',
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+    }
+
+    await batch.commit();
+
+    result.name =
+      cleanName;
+
+    result.phone =
+      cleanPhone;
+
+    result.role =
+      'seller';
+
+    result.uid =
+      normalizedUid;
+  }
+
+  /*
+   * Ban / unban.
+   */
+  if (
+    typeof banned ===
+    'boolean'
+  ) {
+    const banResult =
+      await setBan(
+        normalizedUid,
+        banned
+      );
+
+    result.banned =
+      banResult.banned;
+  }
+
+  /*
+   * Perubahan role.
+   */
+  if (
+    role !== undefined
+  ) {
+    if (
+      ![
+        'buyer',
+        'seller'
+      ].includes(
+        role
+      )
+    ) {
+      throw new HttpError(
+        400,
+        'Role tidak valid.'
+      );
+    }
+
+    if (
+      role === 'seller'
+    ) {
+      const sellerRef =
+        db
+          .collection('sellers')
+          .doc(
+            normalizedUid
+          );
+
+      await sellerRef.set(
+        {
+          uid:
+            normalizedUid,
+
+          email:
+            user.email ||
+            resolved.authUser?.email ||
+            '',
+
+          name:
+            user.name ||
+            '',
+
+          phone:
+            user.phone ||
+            '',
+
+          reason:
+            user.reason ||
+            '',
+
+          description:
+            user.description ||
+            user.reason ||
+            '',
+
+          photoUrl:
+            user.photoUrl ||
+            user.photoURL ||
+            resolved.authUser?.photoURL ||
+            '',
+
+          status:
+            'approved',
+
+          banned:
+            Boolean(
+              user.banned
+            ),
+
+          approvedAt:
+            FieldValue.serverTimestamp(),
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+
+      await userRef.set(
+        {
+          uid:
+            normalizedUid,
+
+          role:
+            'seller',
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+
+      result.role =
+        'seller';
+    }
+
+    if (
+      role === 'buyer'
+    ) {
+      const sellerRef =
+        db
+          .collection('sellers')
+          .doc(
+            normalizedUid
+          );
+
+      const sellerSnap =
+        await sellerRef.get();
+
+      if (
+        sellerSnap.exists
+      ) {
+        await sellerRef.update({
+          status:
+            'revoked',
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        });
+      }
+
+      await userRef.set(
+        {
+          uid:
+            normalizedUid,
+
+          role:
+            'buyer',
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        },
+        {
+          merge: true
+        }
+      );
+
+      result.role =
+        'buyer';
+    }
+  }
+
+  return result;
+}
   
   // ... (LANJUTKAN DENGAN KODE ASLI DI BAWAHNYA, jangan diubah yang sisa)
 
