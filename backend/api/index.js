@@ -117,7 +117,7 @@ async function router(req, res) {
   }
 
   // =====================================================================
-  // PERBAIKAN BUG ROUTER (Mengambil segments[2] sebagai UID Asli)
+  // PERBAIKAN BUG ROUTER (Mengambil segments[2] sebagai UID Aslik)
   // =====================================================================
   if (
     resource === 'admin' &&
