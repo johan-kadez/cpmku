@@ -1816,36 +1816,64 @@ export async function updateUser(
     { uid, userId, id, email }
   );
 
-  // 2. FALLBACK: Jika user belum ketemu, cari manual di collection 'sellers'
+  // 2. SUPER FALLBACK: Cari di semua collection jika resolveUser gagal
   if (!resolved.uid) {
     try {
-      const sellersRef = db.collection('sellers');
-      let sellerSnap = null;
+      let canonicalUid = null;
+      let foundEmail = email;
 
-      // Cari berdasarkan Document ID
-      const docSnap = await sellersRef.doc(identifier).get();
-      if (docSnap.exists) {
-        sellerSnap = docSnap;
+      // Cari di collection 'users'
+      const usersRef = db.collection('users');
+      const userDoc = await usersRef.doc(identifier).get();
+      if (userDoc.exists) {
+        canonicalUid = userDoc.data()?.uid || userDoc.id;
+        foundEmail = userDoc.data()?.email || foundEmail;
       } else {
-        // Cari berdasarkan field uid di dokumen seller
-        const querySnap = await sellersRef.where('uid', '==', identifier).limit(1).get();
-        if (!querySnap.empty) {
-          sellerSnap = querySnap.docs[0];
+        const userQuery = await usersRef.where('uid', '==', identifier).limit(1).get();
+        if (!userQuery.empty) {
+          canonicalUid = userQuery.docs[0].data()?.uid;
+          foundEmail = userQuery.docs[0].data()?.email || foundEmail;
         }
       }
 
-      if (sellerSnap) {
-        const sellerData = sellerSnap.data();
-        const canonicalUid = sellerData?.uid || sellerSnap.id;
-        
-        // Coba resolve ulang menggunakan UID asli dari dokumen seller
-        resolved = await resolveUser(canonicalUid, {
-          uid: canonicalUid,
-          email: sellerData?.email
-        });
+      // Cari di collection 'sellers' jika belum ketemu
+      if (!canonicalUid) {
+        const sellersRef = db.collection('sellers');
+        const sellerDoc = await sellersRef.doc(identifier).get();
+        if (sellerDoc.exists) {
+          canonicalUid = sellerDoc.data()?.uid || sellerDoc.id;
+          foundEmail = sellerDoc.data()?.email || foundEmail;
+        } else {
+          const sellerQuery = await sellersRef.where('uid', '==', identifier).limit(1).get();
+          if (!sellerQuery.empty) {
+            canonicalUid = sellerQuery.docs[0].data()?.uid;
+            foundEmail = sellerQuery.docs[0].data()?.email || foundEmail;
+          }
+        }
+      }
+
+      // Cari di collection 'registrations' jika masih belum ketemu
+      if (!canonicalUid) {
+        const regsRef = db.collection('registrations');
+        const regDoc = await regsRef.doc(identifier).get();
+        if (regDoc.exists) {
+          canonicalUid = regDoc.data()?.uid || regDoc.id;
+          foundEmail = regDoc.data()?.email || foundEmail;
+        } else {
+          const regQuery = await regsRef.where('uid', '==', identifier).limit(1).get();
+          if (!regQuery.empty) {
+            canonicalUid = regQuery.docs[0].data()?.uid;
+            foundEmail = regQuery.docs[0].data()?.email || foundEmail;
+          }
+        }
+      }
+
+      // Jika UID asli berhasil ditemukan, resolve ulang dengan UID yang benar
+      if (canonicalUid) {
+        resolved = await resolveUser(canonicalUid, { uid: canonicalUid, email: foundEmail });
       }
     } catch (err) {
-      console.error('Error fallback seller search:', err);
+      console.error('Error in super fallback search:', err);
     }
   }
 
@@ -1859,6 +1887,8 @@ export async function updateUser(
   if (isAdminUid(normalizedUid)) {
     throw new HttpError(403, 'Akun admin utama tidak dapat diubah.');
   }
+  
+  // ... (LANJUTKAN DENGAN KODE ASLI DI BAWAHNYA, jangan diubah yang sisa)
 
   const userRef =
     resolved.userRef ||
