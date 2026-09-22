@@ -51,7 +51,7 @@ export async function approveOrder(
       }
 
       const order =
-        orderSnap.data();
+        orderSnap.data() || {};
 
       if (
         ![
@@ -87,7 +87,33 @@ export async function approveOrder(
       }
 
       const product =
-        productSnap.data();
+        productSnap.data() || {};
+
+      if (
+        product.activeOrderId &&
+        product.activeOrderId !==
+          orderId
+      ) {
+        throw new HttpError(
+          409,
+          'Product sedang dipesan oleh seseorang.'
+        );
+      }
+
+      if (
+        product.reservedOrderId &&
+        product.reservedOrderId !==
+          orderId
+      ) {
+        throw new HttpError(
+          409,
+          'Product sedang dipesan oleh seseorang.'
+        );
+      }
+
+      const reservationMatches =
+        product.reservedOrderId ===
+        orderId;
 
       if (
         product.status !==
@@ -98,6 +124,19 @@ export async function approveOrder(
         throw new HttpError(
           409,
           'Produk sudah tidak tersedia.'
+        );
+      }
+
+      if (
+        !reservationMatches &&
+        order.reservedProduct === true &&
+        Number(
+          product.stock
+        ) === 1
+      ) {
+        throw new HttpError(
+          409,
+          'Product sedang dipesan oleh seseorang.'
         );
       }
 
@@ -122,6 +161,15 @@ export async function approveOrder(
 
           visibility:
             'private',
+
+          activeOrderId:
+            orderId,
+
+          reservedOrderId:
+            FieldValue.delete(),
+
+          reservedAt:
+            FieldValue.delete(),
 
           updatedAt:
             FieldValue.serverTimestamp()
@@ -269,7 +317,7 @@ export async function rejectOrder(
       }
 
       const order =
-        orderSnap.data();
+        orderSnap.data() || {};
 
       if (
         ![
@@ -316,6 +364,54 @@ export async function rejectOrder(
           tx.get(paymentRef)
         ]);
 
+      if (
+        productSnap.exists
+      ) {
+        const product =
+          productSnap.data() || {};
+
+        if (
+          product.activeOrderId &&
+          product.activeOrderId !==
+            orderId
+        ) {
+          throw new HttpError(
+            409,
+            'Product sedang dipesan oleh seseorang.'
+          );
+        }
+
+        if (
+          product.reservedOrderId &&
+          product.reservedOrderId !==
+            orderId
+        ) {
+          throw new HttpError(
+            409,
+            'Product sedang dipesan oleh seseorang.'
+          );
+        }
+
+        if (
+          product.reservedOrderId ===
+          orderId
+        ) {
+          tx.update(
+            productRef,
+            {
+              reservedOrderId:
+                FieldValue.delete(),
+
+              reservedAt:
+                FieldValue.delete(),
+
+              updatedAt:
+                FieldValue.serverTimestamp()
+            }
+          );
+        }
+      }
+
       tx.delete(
         orderRef
       );
@@ -333,24 +429,6 @@ export async function rejectOrder(
       ) {
         tx.delete(
           paymentRef
-        );
-      }
-
-      if (
-        productSnap.exists
-      ) {
-        tx.update(
-          productRef,
-          {
-            status:
-              'available',
-
-            visibility:
-              'public',
-
-            updatedAt:
-              FieldValue.serverTimestamp()
-          }
         );
       }
 
@@ -396,7 +474,7 @@ export async function cancelOrder(
       }
 
       const order =
-        orderSnap.data();
+        orderSnap.data() || {};
 
       if (
         ![
@@ -444,6 +522,80 @@ export async function cancelOrder(
           tx.get(paymentRef)
         ]);
 
+      if (
+        productSnap.exists
+      ) {
+        const product =
+          productSnap.data() || {};
+
+        if (
+          product.activeOrderId &&
+          product.activeOrderId !==
+            orderId
+        ) {
+          throw new HttpError(
+            409,
+            'Product sedang dipesan oleh seseorang.'
+          );
+        }
+
+        if (
+          product.reservedOrderId &&
+          product.reservedOrderId !==
+            orderId
+        ) {
+          throw new HttpError(
+            409,
+            'Product sedang dipesan oleh seseorang.'
+          );
+        }
+
+        if (
+          product.activeOrderId ===
+          orderId
+        ) {
+          tx.update(
+            productRef,
+            {
+              status:
+                'available',
+
+              visibility:
+                'public',
+
+              activeOrderId:
+                FieldValue.delete(),
+
+              reservedOrderId:
+                FieldValue.delete(),
+
+              reservedAt:
+                FieldValue.delete(),
+
+              updatedAt:
+                FieldValue.serverTimestamp()
+            }
+          );
+        } else if (
+          product.reservedOrderId ===
+          orderId
+        ) {
+          tx.update(
+            productRef,
+            {
+              reservedOrderId:
+                FieldValue.delete(),
+
+              reservedAt:
+                FieldValue.delete(),
+
+              updatedAt:
+                FieldValue.serverTimestamp()
+            }
+          );
+        }
+      }
+
       tx.delete(
         orderRef
       );
@@ -461,24 +613,6 @@ export async function cancelOrder(
       ) {
         tx.delete(
           paymentRef
-        );
-      }
-
-      if (
-        productSnap.exists
-      ) {
-        tx.update(
-          productRef,
-          {
-            status:
-              'available',
-
-            visibility:
-              'public',
-
-            updatedAt:
-              FieldValue.serverTimestamp()
-          }
         );
       }
 
@@ -509,51 +643,66 @@ export async function deleteProduct(
       .collection('products')
       .doc(productId);
 
-  const snap =
-    await productRef.get();
+  const result =
+    await db.runTransaction(
+      async tx => {
+        const snap =
+          await tx.get(
+            productRef
+          );
 
-  if (!snap.exists) {
-    throw new HttpError(
-      404,
-      'Produk tidak ditemukan.'
+        if (!snap.exists) {
+          throw new HttpError(
+            404,
+            'Produk tidak ditemukan.'
+          );
+        }
+
+        const product =
+          snap.data() || {};
+
+        if (
+          product.status ===
+            'in_transaction' ||
+          product.activeOrderId ||
+          product.reservedOrderId
+        ) {
+          throw new HttpError(
+            409,
+            'Produk sedang dalam transaksi dan tidak dapat dihapus.'
+          );
+        }
+
+        const images =
+          Array.isArray(
+            product.images
+          )
+            ? product.images
+            : product.imageUrl
+              ? [
+                  {
+                    url:
+                      product.imageUrl,
+
+                    publicId:
+                      ''
+                  }
+                ]
+              : [];
+
+        tx.delete(
+          productRef
+        );
+
+        return {
+          images
+        };
+      }
     );
-  }
-
-  const product =
-    snap.data() || {};
-
-  if (
-    product.status ===
-    'in_transaction'
-  ) {
-    throw new HttpError(
-      409,
-      'Produk sedang dalam transaksi dan tidak dapat dihapus.'
-    );
-  }
-
-  const images =
-    Array.isArray(
-      product.images
-    )
-      ? product.images
-      : product.imageUrl
-        ? [
-            {
-              url:
-                product.imageUrl,
-
-              publicId:
-                ''
-            }
-          ]
-        : [];
-
-  await productRef.delete();
 
   try {
     await destroyCloudinaryImages(
-      images
+      result.images
     );
   } catch {
   }
@@ -580,34 +729,42 @@ export async function deletePayment(
       .collection('payments')
       .doc(paymentId);
 
-  const snap =
-    await paymentRef.get();
+  await db.runTransaction(
+    async tx => {
+      const snap =
+        await tx.get(
+          paymentRef
+        );
 
-  if (!snap.exists) {
-    throw new HttpError(
-      404,
-      'Pembayaran tidak ditemukan.'
-    );
-  }
+      if (!snap.exists) {
+        throw new HttpError(
+          404,
+          'Pembayaran tidak ditemukan.'
+        );
+      }
 
-  const payment =
-    snap.data() || {};
+      const payment =
+        snap.data() || {};
 
-  if (
-    [
-      'pending',
-      'verified'
-    ].includes(
-      payment.status
-    )
-  ) {
-    throw new HttpError(
-      409,
-      'Pembayaran aktif atau terverifikasi tidak dapat dihapus.'
-    );
-  }
+      if (
+        [
+          'pending',
+          'verified'
+        ].includes(
+          payment.status
+        )
+      ) {
+        throw new HttpError(
+          409,
+          'Pembayaran aktif atau terverifikasi tidak dapat dihapus.'
+        );
+      }
 
-  await paymentRef.delete();
+      tx.delete(
+        paymentRef
+      );
+    }
+  );
 
   return {
     ok: true,
@@ -631,30 +788,38 @@ export async function deleteRoom(
       .collection('rooms')
       .doc(roomId);
 
-  const snap =
-    await roomRef.get();
+  await db.runTransaction(
+    async tx => {
+      const snap =
+        await tx.get(
+          roomRef
+        );
 
-  if (!snap.exists) {
-    throw new HttpError(
-      404,
-      'Room tidak ditemukan.'
-    );
-  }
+      if (!snap.exists) {
+        throw new HttpError(
+          404,
+          'Room tidak ditemukan.'
+        );
+      }
 
-  const room =
-    snap.data() || {};
+      const room =
+        snap.data() || {};
 
-  if (
-    room.status ===
-    'in_transaction'
-  ) {
-    throw new HttpError(
-      409,
-      'Room sedang dalam transaksi dan tidak dapat dihapus.'
-    );
-  }
+      if (
+        room.status ===
+        'in_transaction'
+      ) {
+        throw new HttpError(
+          409,
+          'Room sedang dalam transaksi dan tidak dapat dihapus.'
+        );
+      }
 
-  await roomRef.delete();
+      tx.delete(
+        roomRef
+      );
+    }
+  );
 
   return {
     ok: true,
