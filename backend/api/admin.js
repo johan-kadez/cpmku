@@ -7,11 +7,7 @@ function setCors(res) {
 }
 
 function setHealthResponse(res) {
-  res.status(200).json({
-    ok: true,
-    service: 'cpmku-marketplace-backend',
-    time: new Date().toISOString()
-  });
+  res.status(200).json({ ok: true, service: 'johan-marketplace-backend', time: new Date().toISOString() });
 }
 
 function getPath(req) {
@@ -47,6 +43,7 @@ async function router(req, res) {
 
   const segments = getSegments(req);
   const resource = segments[0];
+  const id = segments[1];
 
   const {
     me, profilePhotoSignature, profilePhotoUpdate, profileNickname,
@@ -67,24 +64,24 @@ async function router(req, res) {
   if (path === 'seller/apply' && method === 'POST') return requireAuth(req, res, () => sellerApply(req, res));
   if (path === 'products' && method === 'POST') return requireAuth(req, res, () => requireSeller(req, res, () => productCreate(req, res)));
   
-  if (resource === 'products' && segments[1] && method === 'PATCH') {
-    setQueryId(req, segments[1]);
+  if (resource === 'products' && id && method === 'PATCH') {
+    setQueryId(req, id);
     return requireAuth(req, res, () => requireSeller(req, res, () => productUpdate(req, res)));
   }
-  if (resource === 'products' && segments[1] && method === 'DELETE') {
-    setQueryId(req, segments[1]);
+  if (resource === 'products' && id && method === 'DELETE') {
+    setQueryId(req, id);
     return requireAuth(req, res, () => requireSeller(req, res, () => productDelete(req, res)));
   }
   
   if (path === 'orders' && method === 'POST') return requireAuth(req, res, () => orderCreate(req, res));
   if (path === 'orders/done' && method === 'POST') return requireAuth(req, res, () => orderDone(req, res));
   
-  if (resource === 'rooms' && segments[1] && segments[2] === 'messages' && method === 'POST') {
-    setQueryId(req, segments[1]);
+  if (resource === 'rooms' && id && segments[2] === 'messages' && method === 'POST') {
+    setQueryId(req, id);
     return requireAuth(req, res, () => messageCreate(req, res));
   }
-  if (resource === 'rooms' && segments[1] && (segments[2] === 'call' || segments[2] === 'call-seller') && method === 'POST') {
-    setQueryId(req, segments[1]);
+  if (resource === 'rooms' && id && (segments[2] === 'call' || segments[2] === 'call-seller') && method === 'POST') {
+    setQueryId(req, id);
     return requireAuth(req, res, () => sellerCall(req, res));
   }
   
@@ -95,29 +92,32 @@ async function router(req, res) {
   const STATUSABLE = ['orders', 'payments', 'products', 'rooms', 'sellers'];
 
   if (resource === 'admin' && segments[1] === 'list' && LISTABLE.includes(segments[2]) && method === 'GET') {
-    return requireAuth(req, res, () => requireAdmin(req, res, () => list(segments[2])(req, res)));
+    const type = segments[2];
+    return requireAuth(req, res, () => requireAdmin(req, res, () => list(type)(req, res)));
   }
   if (resource === 'admin' && LISTABLE.includes(segments[1]) && !segments[2] && method === 'GET') {
-    return requireAuth(req, res, () => requireAdmin(req, res, () => list(segments[1])(req, res)));
+    const type = segments[1];
+    return requireAuth(req, res, () => requireAdmin(req, res, () => list(type)(req, res)));
   }
   
-  if (resource === 'admin' && segments[1] === 'rooms' && segments[2] && method === 'DELETE') {
+  if (resource === 'admin' && segments[1] === 'rooms' && id && method === 'DELETE') {
     const { deleteRoom } = await getAdminActions();
-    setQueryId(req, segments[2]);
+    setQueryId(req, id);
     return requireAuth(req, res, () => requireAdmin(req, res, async () => {
-      const result = await deleteRoom(segments[2]);
+      const result = await deleteRoom(id);
       return res.status(200).json(result);
     }));
   }
   
   if (resource === 'admin' && segments[1] === 'status' && STATUSABLE.includes(segments[2]) && method === 'PATCH') {
+    const type = segments[2];
     const statusId = segments[3] || req.query?.id;
     setQueryId(req, statusId);
-    return requireAuth(req, res, () => requireAdmin(req, res, () => status(segments[2])(req, res)));
+    return requireAuth(req, res, () => requireAdmin(req, res, () => status(type)(req, res)));
   }
 
   // =====================================================================
-  // INI BAGIAN YANG PALING PENTING! PERHATIKAN segments[2]
+  // PERBAIKAN BUG ROUTER (Mengambil segments[2] sebagai UID Asli)
   // =====================================================================
   if (
     resource === 'admin' &&
@@ -125,11 +125,7 @@ async function router(req, res) {
     segments[2] &&
     method === 'PATCH'
   ) {
-    // segments[0] = 'admin'
-    // segments[1] = 'users'
-    // segments[2] = 'Tq48iOAD5eUo9mDPSWf0RvohwPq1' (UID Asli)
     setQueryId(req, segments[2]);
-    
     return requireAuth(req, res, () => requireAdmin(req, res, () => updateUser(req, res)));
   }
   // =====================================================================
@@ -138,7 +134,7 @@ async function router(req, res) {
     return requireAuth(req, res, () => list(resource)(req, res));
   }
   if (STATUSABLE.includes(resource) && method === 'PATCH') {
-    setQueryId(req, segments[1] || req.query?.id);
+    setQueryId(req, id || req.query?.id);
     return requireAuth(req, res, () => status(resource)(req, res));
   }
 
