@@ -1,21 +1,7 @@
-import {
-  db,
-  auth,
-  FieldValue
-} from '../firebase/admin.js';
-
-import {
-  HttpError
-} from '../utils/errors.js';
-
-import {
-  env
-} from '../config/env.js';
-
-import {
-  approveOrder,
-  rejectOrder
-} from './adminActions.js';
+import { db, auth, FieldValue } from '../firebase/admin.js';
+import { HttpError } from '../utils/errors.js';
+import { env } from '../config/env.js';
+import { approveOrder, rejectOrder } from './adminActions.js';
 
 const COLLECTIONS = {
   sellers: 'registrations',
@@ -25,41 +11,30 @@ const COLLECTIONS = {
   users: 'users'
 };
 
-const ADMIN_UID = String(
-  env.adminUid || ''
-).trim();
+const ADMIN_UID = String(env.adminUid || '').trim();
 
 function normalize(value) {
   return String(value || '').trim();
 }
 
 function uniqueValues(values) {
-  return [
-    ...new Set(
-      values
-        .map(normalize)
-        .filter(Boolean)
-    )
-  ];
+  return [...new Set(values.map(normalize).filter(Boolean))];
 }
 
 async function findByIdOrUid(collectionName, identifiers) {
   const values = uniqueValues(identifiers);
   if (!values.length) return null;
   const collection = db.collection(collectionName);
-
   for (const value of values) {
     const directRef = collection.doc(value);
     const directSnap = await directRef.get();
     if (directSnap.exists) return directSnap;
   }
-
   for (const value of values) {
     const query = await collection.where('uid', '==', value).limit(20).get();
     const match = query.docs.find(doc => normalize(doc.data()?.uid) === value);
     if (match) return match;
   }
-
   return null;
 }
 
@@ -67,29 +42,24 @@ async function findUserByEmail(email) {
   const normalizedEmail = normalize(email).toLowerCase();
   if (!normalizedEmail) return null;
   const query = await db.collection('users').where('email', '==', normalizedEmail).limit(20).get();
-  return (
-    query.docs.find(doc => normalize(doc.data()?.email).toLowerCase() === normalizedEmail) || null
-  );
+  return query.docs.find(doc => normalize(doc.data()?.email).toLowerCase() === normalizedEmail) || null;
 }
 
 async function resolveFirebaseAuth(identifiers, email) {
   const values = uniqueValues(identifiers);
   const normalizedEmail = normalize(email).toLowerCase();
-
   if (normalizedEmail) {
     try {
       const user = await auth.getUserByEmail(normalizedEmail);
       if (user?.uid) return user;
-    } catch { /* Lanjutkan */ }
+    } catch {}
   }
-
   for (const value of values) {
     try {
       const user = await auth.getUser(value);
       if (user?.uid) return user;
-    } catch { /* Lanjutkan */ }
+    } catch {}
   }
-
   return null;
 }
 
@@ -123,7 +93,6 @@ async function loadRegistrationByAuthUid(uid) {
 async function resolveUser(identifier, hints = {}) {
   const identifiers = uniqueValues([identifier, hints.uid, hints.userId, hints.id]);
   const email = normalize(hints.email);
-
   if (!identifiers.length && !email) {
     return { user: null, userRef: null, uid: null, seller: null, sellerRef: null, registration: null, registrationRef: null, authUser: null };
   }
@@ -135,10 +104,7 @@ async function resolveUser(identifier, hints = {}) {
 
   if (resolvedUid) {
     const authProfile = await loadUserByAuthUid(resolvedUid);
-    if (authProfile) {
-      user = authProfile.user;
-      userRef = authProfile.userRef;
-    }
+    if (authProfile) { user = authProfile.user; userRef = authProfile.userRef; }
   }
 
   if (!userRef) {
@@ -185,13 +151,8 @@ async function resolveUser(identifier, hints = {}) {
     if (registrationSnap) { registration = registrationSnap.data() || {}; registrationRef = registrationSnap.ref; }
   }
 
-  if (!resolvedUid) {
-    resolvedUid = normalize(user?.uid || seller?.uid || registration?.uid);
-  }
-
-  if (!resolvedUid && userRef) {
-    resolvedUid = normalize(userRef.id);
-  }
+  if (!resolvedUid) resolvedUid = normalize(user?.uid || seller?.uid || registration?.uid);
+  if (!resolvedUid && userRef) resolvedUid = normalize(userRef.id);
 
   if (!resolvedUid && !userRef && !sellerRef && !registrationRef && !authUser) {
     return { user: null, userRef: null, uid: null, seller: null, sellerRef: null, registration: null, registrationRef: null, authUser: null };
@@ -219,9 +180,7 @@ async function resolveUser(identifier, hints = {}) {
     userRef = seedRef;
   }
 
-  if (userRef && resolvedUid) {
-    user = { ...(user || {}), uid: resolvedUid };
-  }
+  if (userRef && resolvedUid) user = { ...(user || {}), uid: resolvedUid };
 
   if (resolvedUid && !sellerRef) {
     const resolvedSeller = await loadSellerByAuthUid(resolvedUid);
@@ -285,7 +244,6 @@ export async function dashboard() {
     db.collection('payments').count().get(),
     db.collection('rooms').count().get()
   ]);
-
   const activeSellers = sellers.docs.filter(doc => doc.data()?.banned !== true).length;
   return { stats: { users: users.data().count, sellers: activeSellers, products: products.data().count, orders: orders.data().count, payments: payments.data().count, rooms: rooms.data().count } };
 }
@@ -294,7 +252,6 @@ export async function listCollection(name) {
   const collection = COLLECTIONS[name] || name;
   const snap = await db.collection(collection).limit(200).get();
   const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
   if (name !== 'users') return { items };
 
   const normalizedUsers = await Promise.all(items.map(async user => {
@@ -305,7 +262,6 @@ export async function listCollection(name) {
     const role = uid === ADMIN_UID ? 'admin' : sellerApproved ? 'seller' : (user.role || 'buyer');
     return { ...user, id: user.id, uid, role, sellerActive: sellerApproved, sellerStatus: seller?.status || null, sellerBanned: Boolean(seller?.banned) };
   }));
-
   return { items: normalizedUsers };
 }
 
@@ -401,27 +357,15 @@ export async function setBan(uid, banned) {
   return { ok: true, banned: value };
 }
 
-export async function updateUser(
-  uid,
-  { banned, role, name, phone, userId, id, email } = {}
-) {
+export async function updateUser(uid, { banned, role, name, phone, userId, id, email } = {}) {
   const identifier = normalize(uid);
   console.log('[updateUser] Mencoba resolve identifier:', identifier);
+  let resolved = await resolveUser(identifier, { uid, userId, id, email });
 
-  // 1. Coba resolve user seperti biasa
-  let resolved = await resolveUser(
-    identifier,
-    { uid, userId, id, email }
-  );
-  console.log('[updateUser] Hasil resolveUser awal:', { uid: resolved.uid, hasUserRef: !!resolved.userRef });
-
-  // 2. ULTRA FALLBACK: Jika resolveUser gagal, cari manual di semua collection
   if (!resolved.uid) {
-    console.log('[updateUser] resolveUser gagal, menjalankan Ultra Fallback...');
     try {
       let canonicalUid = null;
       let foundData = null;
-
       const checkCollection = async (collName, idToCheck) => {
         const ref = db.collection(collName).doc(idToCheck);
         const snap = await ref.get();
@@ -430,60 +374,20 @@ export async function updateUser(
         if (!query.empty) return { ref: query.docs[0].ref, data: query.docs[0].data() };
         return null;
       };
-
       let result = await checkCollection('users', identifier);
-      if (result) {
-        canonicalUid = result.data?.uid || result.ref.id;
-        foundData = result.data;
-        console.log('[updateUser] Ditemukan di users:', canonicalUid);
-      }
-
-      if (!canonicalUid) {
-        result = await checkCollection('sellers', identifier);
-        if (result) {
-          canonicalUid = result.data?.uid || result.ref.id;
-          foundData = result.data;
-          console.log('[updateUser] Ditemukan di sellers:', canonicalUid);
-        }
-      }
-
-      if (!canonicalUid) {
-        result = await checkCollection('registrations', identifier);
-        if (result) {
-          canonicalUid = result.data?.uid || result.ref.id;
-          foundData = result.data;
-          console.log('[updateUser] Ditemukan di registrations:', canonicalUid);
-        }
-      }
-
-      if (canonicalUid) {
-        console.log('[updateUser] Resolve ulang dengan UID:', canonicalUid);
-        resolved = await resolveUser(canonicalUid, { 
-          uid: canonicalUid, 
-          email: foundData?.email || email 
-        });
-      } else {
-        console.log('[updateUser] ID tidak ditemukan di collection manapun:', identifier);
-      }
-    } catch (err) {
-      console.error('[updateUser] Error di Ultra Fallback:', err);
-    }
+      if (result) { canonicalUid = result.data?.uid || result.ref.id; foundData = result.data; }
+      if (!canonicalUid) { result = await checkCollection('sellers', identifier); if (result) { canonicalUid = result.data?.uid || result.ref.id; foundData = result.data; } }
+      if (!canonicalUid) { result = await checkCollection('registrations', identifier); if (result) { canonicalUid = result.data?.uid || result.ref.id; foundData = result.data; } }
+      if (canonicalUid) resolved = await resolveUser(canonicalUid, { uid: canonicalUid, email: foundData?.email || email });
+    } catch (err) { console.error('[updateUser] Error di Ultra Fallback:', err); }
   }
 
-  if (!resolved.uid) {
-    console.error('[updateUser] GAGAL TOTAL. User tidak ditemukan untuk ID:', identifier);
-    throw new HttpError(404, 'User tidak ditemukan.');
-  }
-
-  console.log('[updateUser] Berhasil resolve. UID akhir:', resolved.uid);
+  if (!resolved.uid) throw new HttpError(404, 'User tidak ditemukan.');
   const normalizedUid = resolved.uid;
-
   if (isAdminUid(normalizedUid)) throw new HttpError(403, 'Akun admin utama tidak dapat diubah.');
-
   const userRef = resolved.userRef || db.collection('users').doc(normalizedUid);
   const user = resolved.user || {};
   const result = { ok: true };
-
   const hasName = name !== undefined;
   const hasPhone = phone !== undefined;
 
@@ -492,48 +396,30 @@ export async function updateUser(
     let sellerRef = resolved.sellerRef;
     let registration = resolved.registration;
     let registrationRef = resolved.registrationRef;
-
     const sellerResolved = await resolveSeller(normalizedUid);
     if (sellerResolved.sellerRef) { seller = sellerResolved.seller; sellerRef = sellerResolved.sellerRef; }
     if (sellerResolved.registrationRef) { registration = sellerResolved.registration; registrationRef = sellerResolved.registrationRef; }
-
     const activeSeller = isApprovedSeller(seller);
     const activeRegistration = Boolean(registration && registration.status === 'approved' && registration.banned !== true);
-
     if (!activeSeller && !activeRegistration && user.role === 'seller') {
       const sellerSeedRef = db.collection('sellers').doc(normalizedUid);
-      await sellerSeedRef.set({
-        uid: normalizedUid, email: user.email || resolved.authUser?.email || '', name: user.name || '', phone: user.phone || '',
-        reason: user.reason || '', description: user.description || user.reason || '', photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '',
-        status: 'approved', banned: user.banned === true, approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
+      await sellerSeedRef.set({ uid: normalizedUid, email: user.email || resolved.authUser?.email || '', name: user.name || '', phone: user.phone || '', reason: user.reason || '', description: user.description || user.reason || '', photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '', status: 'approved', banned: user.banned === true, approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       sellerRef = sellerSeedRef;
       const seededSeller = await sellerSeedRef.get();
       seller = seededSeller.data() || {};
     }
-
     const finalActiveSeller = isApprovedSeller(seller);
     const finalActiveRegistration = Boolean(registration && registration.status === 'approved' && registration.banned !== true);
     if (!finalActiveSeller && !finalActiveRegistration) throw new HttpError(409, 'User ini bukan seller aktif.');
-
     const source = finalActiveSeller ? seller : registration;
     const cleanName = hasName ? normalize(name) : normalize(source?.name || seller?.name || registration?.name || user.name || user.displayName || '');
     const cleanPhone = hasPhone ? normalize(phone) : normalize(source?.phone || seller?.phone || registration?.phone || user.phone || user.phoneNumber || '');
     if (!cleanName) throw new HttpError(400, 'Nama seller wajib diisi.');
-
     const batch = db.batch();
     const targetSellerRef = sellerRef || db.collection('sellers').doc(normalizedUid);
-    batch.set(targetSellerRef, {
-      uid: normalizedUid, email: seller?.email || registration?.email || user.email || resolved.authUser?.email || '', name: cleanName, phone: cleanPhone,
-      reason: seller?.reason || registration?.reason || user.reason || '', description: seller?.description || registration?.description || user.description || user.reason || '',
-      photoUrl: seller?.photoUrl || registration?.photoUrl || user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '', status: 'approved',
-      banned: seller?.banned === true || registration?.banned === true || user.banned === true, updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
-
+    batch.set(targetSellerRef, { uid: normalizedUid, email: seller?.email || registration?.email || user.email || resolved.authUser?.email || '', name: cleanName, phone: cleanPhone, reason: seller?.reason || registration?.reason || user.reason || '', description: seller?.description || registration?.description || user.description || user.reason || '', photoUrl: seller?.photoUrl || registration?.photoUrl || user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '', status: 'approved', banned: seller?.banned === true || registration?.banned === true || user.banned === true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     batch.set(userRef, { uid: normalizedUid, name: cleanName, phone: cleanPhone, role: 'seller', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    if (registrationRef) {
-      batch.set(registrationRef, { uid: registration?.uid || normalizedUid, name: cleanName, phone: cleanPhone, status: 'approved', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    }
+    if (registrationRef) batch.set(registrationRef, { uid: registration?.uid || normalizedUid, name: cleanName, phone: cleanPhone, status: 'approved', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     await batch.commit();
     result.name = cleanName;
     result.phone = cleanPhone;
@@ -550,11 +436,7 @@ export async function updateUser(
     if (!['buyer', 'seller'].includes(role)) throw new HttpError(400, 'Role tidak valid.');
     if (role === 'seller') {
       const sellerRef = db.collection('sellers').doc(normalizedUid);
-      await sellerRef.set({
-        uid: normalizedUid, email: user.email || resolved.authUser?.email || '', name: user.name || '', phone: user.phone || '', reason: user.reason || '',
-        description: user.description || user.reason || '', photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '',
-        status: 'approved', banned: Boolean(user.banned), approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
+      await sellerRef.set({ uid: normalizedUid, email: user.email || resolved.authUser?.email || '', name: user.name || '', phone: user.phone || '', reason: user.reason || '', description: user.description || user.reason || '', photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '', status: 'approved', banned: Boolean(user.banned), approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       await userRef.set({ uid: normalizedUid, role: 'seller', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       result.role = 'seller';
     }
@@ -566,7 +448,6 @@ export async function updateUser(
       result.role = 'buyer';
     }
   }
-
   return result;
 }
 
@@ -580,14 +461,7 @@ export async function saveSettings(data) {
   const maintenanceMode = Boolean(data?.maintenanceMode);
   const maintenanceTitle = normalize(data?.maintenanceTitle);
   const maintenanceMessage = normalize(data?.maintenanceMessage);
-
-  if (qrisUrl) {
-    try { new URL(qrisUrl); } catch { throw new HttpError(400, 'URL QRIS tidak valid.'); }
-  }
-
-  await db.collection('settings').doc('main').set({
-    qrisUrl, maintenanceMode, maintenanceTitle, maintenanceMessage, updatedAt: FieldValue.serverTimestamp()
-  }, { merge: true });
-
+  if (qrisUrl) { try { new URL(qrisUrl); } catch { throw new HttpError(400, 'URL QRIS tidak valid.'); } }
+  await db.collection('settings').doc('main').set({ qrisUrl, maintenanceMode, maintenanceTitle, maintenanceMessage, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   return { ok: true };
 }
