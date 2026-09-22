@@ -1,4 +1,8 @@
 import {
+  createPortal
+} from 'react-dom';
+
+import {
   Outlet,
   useLocation
 } from 'react-router-dom';
@@ -23,6 +27,48 @@ import {
 
 import TransactionChatFloat from '../chat/TransactionChatFloat';
 
+function NotificationToast({
+  toast,
+  dismissToast
+}) {
+  if (!toast) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className="cpmku-toast"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="cpmku-toast-content">
+        <strong>
+          {
+            toast.title
+          }
+        </strong>
+
+        <p>
+          {
+            toast.message
+          }
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={
+          dismissToast
+        }
+        aria-label="Tutup notifikasi"
+      >
+        ×
+      </button>
+    </div>,
+    document.body
+  );
+}
+
 export default function AppLayout() {
   const {
     settings,
@@ -42,7 +88,7 @@ export default function AppLayout() {
     useLocation();
 
   const admin =
-  role === 'admin';
+    role === 'admin';
 
   if (
     !loading &&
@@ -85,36 +131,12 @@ export default function AppLayout() {
 
       <TransactionChatFloat />
 
-      {toast && (
-        <div
-          className="cpmku-toast"
-          role="status"
-        >
-          <div className="cpmku-toast-content">
-            <strong>
-              {
-                toast.title
-              }
-            </strong>
-
-            <p>
-              {
-                toast.message
-              }
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              dismissToast
-            }
-            aria-label="Tutup notifikasi"
-          >
-            ×
-          </button>
-        </div>
-      )}
+      <NotificationToast
+        toast={toast}
+        dismissToast={
+          dismissToast
+        }
+      />
     </>
   );
 }
