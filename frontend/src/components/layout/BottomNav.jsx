@@ -37,14 +37,8 @@ export default function BottomNav() {
     useRef(false);
 
   useEffect(() => {
-    const updateInitialPosition = () => {
-      lastScrollY.current =
-        window.scrollY || 0;
-
-      setVisible(true);
-    };
-
-    updateInitialPosition();
+    lastScrollY.current =
+      window.scrollY || 0;
 
     const handleScroll = () => {
       if (ticking.current) {
