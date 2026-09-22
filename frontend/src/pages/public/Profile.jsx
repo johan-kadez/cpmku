@@ -659,7 +659,7 @@ export default function Profile() {
           </button>
         </div>
 
-        {role === 'buyer' && (
+        {(role === 'buyer' || role === 'admin') && (
           <>
             <div className="profile-section">
               <h2>
