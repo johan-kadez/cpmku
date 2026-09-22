@@ -273,18 +273,32 @@ export default function Users() {
         setError('');
 
         await api(
-          `/admin/users/${encodeURIComponent(uid)}`,
-          {
-            method:
-              'PATCH',
+  `/admin/users/${encodeURIComponent(
+    editing?.uid ||
+    editing?.id ||
+    ''
+  )}`,
+  {
+    method: 'PATCH',
 
-            body:
-              JSON.stringify({
-                name,
-                phone
-              })
-          }
-        );
+    body: JSON.stringify({
+      name,
+      phone,
+
+      uid:
+        editing?.uid ||
+        '',
+
+      userId:
+        editing?.id ||
+        '',
+
+      email:
+        editing?.email ||
+        ''
+    })
+  }
+);
 
         setEditing(
           null
