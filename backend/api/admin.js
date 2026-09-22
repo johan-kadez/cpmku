@@ -62,27 +62,14 @@ async function router(req, res) {
   const { requireAdmin } = await getAdminMiddleware();
   const { requireSeller } = await getSellerMiddleware();
 
-  if (path === 'me' && method === 'GET') {
-    return requireAuth(req, res, () => me(req, res));
-  }
-  if (path === 'profile/nickname' && method === 'PATCH') {
-    return requireAuth(req, res, () => profileNickname(req, res));
-  }
-  if (path === 'profile/photo/signature' && method === 'POST') {
-    return requireAuth(req, res, () => profilePhotoSignature(req, res));
-  }
-  if (path === 'profile/photo/update' && method === 'POST') {
-    return requireAuth(req, res, () => profilePhotoUpdate(req, res));
-  }
-  if (path === 'products/images/signature' && method === 'POST') {
-    return requireAuth(req, res, () => requireSeller(req, res, () => productPhotoSignature(req, res)));
-  }
-  if (path === 'seller/apply' && method === 'POST') {
-    return requireAuth(req, res, () => sellerApply(req, res));
-  }
-  if (path === 'products' && method === 'POST') {
-    return requireAuth(req, res, () => requireSeller(req, res, () => productCreate(req, res)));
-  }
+  if (path === 'me' && method === 'GET') return requireAuth(req, res, () => me(req, res));
+  if (path === 'profile/nickname' && method === 'PATCH') return requireAuth(req, res, () => profileNickname(req, res));
+  if (path === 'profile/photo/signature' && method === 'POST') return requireAuth(req, res, () => profilePhotoSignature(req, res));
+  if (path === 'profile/photo/update' && method === 'POST') return requireAuth(req, res, () => profilePhotoUpdate(req, res));
+  if (path === 'products/images/signature' && method === 'POST') return requireAuth(req, res, () => requireSeller(req, res, () => productPhotoSignature(req, res)));
+  if (path === 'seller/apply' && method === 'POST') return requireAuth(req, res, () => sellerApply(req, res));
+  if (path === 'products' && method === 'POST') return requireAuth(req, res, () => requireSeller(req, res, () => productCreate(req, res)));
+  
   if (resource === 'products' && id && method === 'PATCH') {
     setQueryId(req, id);
     return requireAuth(req, res, () => requireSeller(req, res, () => productUpdate(req, res)));
@@ -91,12 +78,10 @@ async function router(req, res) {
     setQueryId(req, id);
     return requireAuth(req, res, () => requireSeller(req, res, () => productDelete(req, res)));
   }
-  if (path === 'orders' && method === 'POST') {
-    return requireAuth(req, res, () => orderCreate(req, res));
-  }
-  if (path === 'orders/done' && method === 'POST') {
-    return requireAuth(req, res, () => orderDone(req, res));
-  }
+  
+  if (path === 'orders' && method === 'POST') return requireAuth(req, res, () => orderCreate(req, res));
+  if (path === 'orders/done' && method === 'POST') return requireAuth(req, res, () => orderDone(req, res));
+  
   if (resource === 'rooms' && id && segments[2] === 'messages' && method === 'POST') {
     setQueryId(req, id);
     return requireAuth(req, res, () => messageCreate(req, res));
@@ -105,12 +90,9 @@ async function router(req, res) {
     setQueryId(req, id);
     return requireAuth(req, res, () => sellerCall(req, res));
   }
-  if (path === 'admin/dashboard' && method === 'GET') {
-    return requireAuth(req, res, () => requireAdmin(req, res, () => dashboard(req, res)));
-  }
-  if (path === 'admin/settings' && (method === 'POST' || method === 'PATCH')) {
-    return requireAuth(req, res, () => requireAdmin(req, res, () => settings(req, res)));
-  }
+  
+  if (path === 'admin/dashboard' && method === 'GET') return requireAuth(req, res, () => requireAdmin(req, res, () => dashboard(req, res)));
+  if (path === 'admin/settings' && (method === 'POST' || method === 'PATCH')) return requireAuth(req, res, () => requireAdmin(req, res, () => settings(req, res)));
 
   const LISTABLE = ['orders', 'payments', 'products', 'rooms', 'sellers', 'users'];
   const STATUSABLE = ['orders', 'payments', 'products', 'rooms', 'sellers'];
@@ -123,6 +105,7 @@ async function router(req, res) {
     const type = segments[1];
     return requireAuth(req, res, () => requireAdmin(req, res, () => list(type)(req, res)));
   }
+  
   if (resource === 'admin' && segments[1] === 'rooms' && id && method === 'DELETE') {
     const { deleteRoom } = await getAdminActions();
     setQueryId(req, id);
@@ -131,6 +114,7 @@ async function router(req, res) {
       return res.status(200).json(result);
     }));
   }
+  
   if (resource === 'admin' && segments[1] === 'status' && STATUSABLE.includes(segments[2]) && method === 'PATCH') {
     const type = segments[2];
     const statusId = segments[3] || req.query?.id;
@@ -138,17 +122,23 @@ async function router(req, res) {
     return requireAuth(req, res, () => requireAdmin(req, res, () => status(type)(req, res)));
   }
 
-  // ================= PERBAIKAN UTAMA DI SINI =================
+  // ==========================================
+  // PERBAIKAN UTAMA ADA DI SINI (segments[2])
+  // ==========================================
   if (
     resource === 'admin' &&
     segments[1] === 'users' &&
-    segments[2] &&           // <-- Ambil segmen ke-3 (UID asli)
+    segments[2] && 
     method === 'PATCH'
   ) {
-    setQueryId(req, segments[2]); // <-- Kirim UID asli, BUKAN string "users"
+    // segments[0] = 'admin'
+    // segments[1] = 'users'
+    // segments[2] = 'Tq48iOAD5eUo9mDPSWf0RvohwPq1' (UID Asli)
+    setQueryId(req, segments[2]); 
+    
     return requireAuth(req, res, () => requireAdmin(req, res, () => updateUser(req, res)));
   }
-  // ===========================================================
+  // ==========================================
 
   if (LISTABLE.includes(resource) && method === 'GET') {
     return requireAuth(req, res, () => list(resource)(req, res));
