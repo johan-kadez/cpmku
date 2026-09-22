@@ -4,10 +4,10 @@ import {
   FieldValue
 } from '../firebase/admin.js';
 import { env } from '../config/env.js';
-import { HttpError } from '../utils/errors.js';
 import {
   destroyCloudinaryImages
 } from './cloudinary.js';
+import { HttpError } from '../utils/errors.js';
 
 export const PRODUCT_IMAGE_PREFIX =
   'cpmku/products/';
@@ -19,39 +19,15 @@ function generateProductId() {
   let productId = '';
 
   for (let index = 0; index < 7; index += 1) {
-    const randomIndex = crypto.randomInt(
-      0,
-      PRODUCT_ID_CHARACTERS.length
-    );
-
-    productId +=
-      PRODUCT_ID_CHARACTERS[randomIndex];
+    productId += PRODUCT_ID_CHARACTERS[
+      crypto.randomInt(
+        0,
+        PRODUCT_ID_CHARACTERS.length
+      )
+    ];
   }
 
   return productId;
-}
-
-async function generateUniqueProductId() {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const productId =
-      generateProductId();
-
-    const ref = db
-      .collection('products')
-      .doc(productId);
-
-    const snapshot =
-      await ref.get();
-
-    if (!snapshot.exists) {
-      return productId;
-    }
-  }
-
-  throw new HttpError(
-    500,
-    'Gagal membuat ID produk unik. Silakan coba lagi.'
-  );
 }
 
 function normalizeImages(product) {
@@ -81,21 +57,15 @@ function verifyCloudinarySignature(
   version,
   signature
 ) {
-  if (
-    !/^\d+$/.test(version)
-  ) {
+  if (!/^\d+$/.test(version)) {
     return false;
   }
 
-  if (
-    !/^[a-f0-9]{40}$/i.test(signature)
-  ) {
+  if (!/^[a-f0-9]{40}$/i.test(signature)) {
     return false;
   }
 
-  if (
-    !env.cloudinary.apiSecret
-  ) {
+  if (!env.cloudinary.apiSecret) {
     return false;
   }
 
@@ -107,10 +77,7 @@ function verifyCloudinarySignature(
     .digest('hex');
 
   const expectedBuffer =
-    Buffer.from(
-      expected,
-      'utf8'
-    );
+    Buffer.from(expected, 'utf8');
 
   const receivedBuffer =
     Buffer.from(
@@ -135,14 +102,7 @@ function validateImages(
   uid,
   images
 ) {
-  if (!Array.isArray(images)) {
-    throw new HttpError(
-      400,
-      'Minimal 1 foto produk wajib diupload.'
-    );
-  }
-
-  if (images.length < 1) {
+  if (!Array.isArray(images) || images.length < 1) {
     throw new HttpError(
       400,
       'Minimal 1 foto produk wajib diupload.'
@@ -156,17 +116,25 @@ function validateImages(
     );
   }
 
+  if (!env.cloudinary.cloudName) {
+    throw new HttpError(
+      500,
+      'Konfigurasi Cloudinary belum lengkap.'
+    );
+  }
+
   const prefix =
     `${PRODUCT_IMAGE_PREFIX}${uid}/`;
 
-  const cloudinaryUrlPrefix =
-    `https://res.cloudinary.com/${env.cloudinary.cloudName}/image/upload/`;
+  const cloudinaryOrigin =
+    `https://res.cloudinary.com/${env.cloudinary.cloudName}`;
 
   return images.map(
     (image, index) => {
       if (
         !image ||
-        typeof image !== 'object'
+        typeof image !== 'object' ||
+        Array.isArray(image)
       ) {
         throw new HttpError(
           400,
@@ -174,26 +142,29 @@ function validateImages(
         );
       }
 
-      const url = String(
-        image.url || ''
-      ).trim();
+      const url =
+        String(image.url || '').trim();
 
-      const publicId = String(
-        image.publicId || ''
-      ).trim();
+      const publicId =
+        String(image.publicId || '').trim();
 
-      const version = String(
-        image.version || ''
-      ).trim();
+      const version =
+        String(image.version || '').trim();
 
-      const signature = String(
-        image.signature || ''
-      ).trim();
+      const signature =
+        String(image.signature || '').trim();
 
       if (!url) {
         throw new HttpError(
           400,
           `URL foto produk ke-${index + 1} wajib diisi.`
+        );
+      }
+
+      if (url.length > 2048) {
+        throw new HttpError(
+          400,
+          `URL foto produk ke-${index + 1} terlalu panjang.`
         );
       }
 
@@ -204,10 +175,24 @@ function validateImages(
         );
       }
 
+      if (publicId.length > 512) {
+        throw new HttpError(
+          400,
+          `Public ID foto produk ke-${index + 1} terlalu panjang.`
+        );
+      }
+
       if (!version) {
         throw new HttpError(
           400,
           `Version foto produk ke-${index + 1} wajib diisi.`
+        );
+      }
+
+      if (version.length > 32) {
+        throw new HttpError(
+          400,
+          `Version foto produk ke-${index + 1} tidak valid.`
         );
       }
 
@@ -218,38 +203,35 @@ function validateImages(
         );
       }
 
-      if (
-        !publicId.startsWith(prefix)
-      ) {
+      if (!publicId.startsWith(prefix)) {
         throw new HttpError(
           400,
           'Foto produk tidak berasal dari folder Cloudinary yang valid.'
         );
       }
 
-      if (
-        publicId.length <=
-        prefix.length
-      ) {
+      if (publicId.length <= prefix.length) {
         throw new HttpError(
           400,
           'Public ID foto produk tidak valid.'
         );
       }
 
-      if (
-        !env.cloudinary.cloudName
-      ) {
+      let parsedUrl;
+
+      try {
+        parsedUrl = new URL(url);
+      } catch {
         throw new HttpError(
-          500,
-          'Konfigurasi Cloudinary belum lengkap.'
+          400,
+          `URL foto produk ke-${index + 1} tidak valid.`
         );
       }
 
       if (
-        !url.startsWith(
-          cloudinaryUrlPrefix
-        )
+        parsedUrl.protocol !== 'https:' ||
+        parsedUrl.origin !== cloudinaryOrigin ||
+        !parsedUrl.pathname.startsWith('/image/upload/')
       ) {
         throw new HttpError(
           400,
@@ -280,19 +262,12 @@ function validateImages(
   );
 }
 
-function normalizeText(
-  value
-) {
-  return String(
-    value ?? ''
-  ).trim();
+function normalizeText(value) {
+  return String(value ?? '').trim();
 }
 
-function normalizePrice(
-  value
-) {
-  const price =
-    Number(value);
+function normalizePrice(value) {
+  const price = Number(value);
 
   if (
     !Number.isFinite(price) ||
@@ -304,14 +279,18 @@ function normalizePrice(
     );
   }
 
+  if (price > Number.MAX_SAFE_INTEGER) {
+    throw new HttpError(
+      400,
+      'Harga produk terlalu besar.'
+    );
+  }
+
   return price;
 }
 
-function normalizeStock(
-  value
-) {
-  const stock =
-    Number(value);
+function normalizeStock(value) {
+  const stock = Number(value);
 
   if (
     !Number.isInteger(stock) ||
@@ -323,12 +302,17 @@ function normalizeStock(
     );
   }
 
+  if (stock > 1000000) {
+    throw new HttpError(
+      400,
+      'Stok produk terlalu besar.'
+    );
+  }
+
   return stock;
 }
 
-function validateBasicProductData(
-  input
-) {
+function validateBasicProductData(input) {
   const title =
     normalizeText(input?.title);
 
@@ -384,12 +368,8 @@ function validateBasicProductData(
     title,
     description,
     category,
-    price: normalizePrice(
-      input?.price
-    ),
-    stock: normalizeStock(
-      input?.stock
-    )
+    price: normalizePrice(input?.price),
+    stock: normalizeStock(input?.stock)
   };
 }
 
@@ -406,9 +386,7 @@ export async function createProduct(
   }
 
   const productData =
-    validateBasicProductData(
-      input
-    );
+    validateBasicProductData(input);
 
   const images =
     validateImages(
@@ -416,62 +394,102 @@ export async function createProduct(
       input?.images
     );
 
-  const productId =
-    await generateUniqueProductId();
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const productId =
+      generateProductId();
 
-  const ref = db
-    .collection('products')
-    .doc(productId);
+    const ref =
+      db
+        .collection('products')
+        .doc(productId);
 
-  await ref.set({
-    productId,
+    try {
+      await db.runTransaction(
+        async tx => {
+          const existing =
+            await tx.get(ref);
 
-    title:
-      productData.title,
+          if (existing.exists) {
+            throw new HttpError(
+              409,
+              'ID produk bentrok. Silakan coba lagi.'
+            );
+          }
 
-    description:
-      productData.description,
+          tx.create(
+            ref,
+            {
+              productId,
 
-    images,
+              title:
+                productData.title,
 
-    imageUrl:
-      images[0].url,
+              description:
+                productData.description,
 
-    price:
-      productData.price,
+              images,
 
-    stock:
-      productData.stock,
+              imageUrl:
+                images[0].url,
 
-    category:
-      productData.category,
+              price:
+                productData.price,
 
-    sellerUid:
-      uid,
+              stock:
+                productData.stock,
 
-    sellerName:
-      seller?.name || '',
+              category:
+                productData.category,
 
-    sellerPhotoUrl:
-      seller?.photoUrl || '',
+              sellerUid:
+                uid,
 
-    status:
-      'pending',
+              sellerName:
+                String(
+                  seller?.name || ''
+                ).trim(),
 
-    visibility:
-      'private',
+              sellerPhotoUrl:
+                String(
+                  seller?.photoUrl || ''
+                ).trim(),
 
-    createdAt:
-      FieldValue.serverTimestamp(),
+              status:
+                'pending',
 
-    updatedAt:
-      FieldValue.serverTimestamp()
-  });
+              visibility:
+                'private',
 
-  return {
-    ok: true,
-    productId
-  };
+              createdAt:
+                FieldValue.serverTimestamp(),
+
+              updatedAt:
+                FieldValue.serverTimestamp()
+            }
+          );
+        }
+      );
+
+      return {
+        ok: true,
+        productId
+      };
+    } catch (error) {
+      if (
+        error instanceof HttpError &&
+        error.status === 409
+      ) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new HttpError(
+    500,
+    'Gagal membuat ID produk unik. Silakan coba lagi.'
+  );
 }
 
 export async function updateProduct(
@@ -487,62 +505,20 @@ export async function updateProduct(
     );
   }
 
-  if (!id) {
+  if (
+    typeof id !== 'string' ||
+    !id.trim() ||
+    id.length > 150 ||
+    id.includes('/')
+  ) {
     throw new HttpError(
       400,
-      'ID produk wajib diisi.'
-    );
-  }
-
-  const ref = db
-    .collection('products')
-    .doc(id);
-
-  const snapshot =
-    await ref.get();
-
-  if (!snapshot.exists) {
-    throw new HttpError(
-      404,
-      'Produk tidak ditemukan.'
-    );
-  }
-
-  const existing =
-    snapshot.data();
-
-  if (
-    existing.sellerUid !== uid
-  ) {
-    throw new HttpError(
-      403,
-      'Anda tidak memiliki akses ke produk ini.'
-    );
-  }
-
-  if (
-    existing.status ===
-      'in_transaction'
-  ) {
-    throw new HttpError(
-      409,
-      'Produk sedang dalam transaksi dan tidak dapat diedit.'
-    );
-  }
-
-  if (
-    existing.status === 'sold'
-  ) {
-    throw new HttpError(
-      409,
-      'Produk yang sudah terjual tidak dapat diedit.'
+      'ID produk tidak valid.'
     );
   }
 
   const productData =
-    validateBasicProductData(
-      input
-    );
+    validateBasicProductData(input);
 
   const images =
     validateImages(
@@ -550,71 +526,133 @@ export async function updateProduct(
       input?.images
     );
 
-  const oldImages =
-    normalizeImages(
-      existing
-    );
+  const ref =
+    db
+      .collection('products')
+      .doc(id);
 
-  const newPublicIds =
-    new Set(
-      images
-        .map(
-          image =>
-            image?.publicId
-        )
-        .filter(Boolean)
-    );
+  let removedImages = [];
 
-  const removedImages =
-    oldImages.filter(
-      image => {
-        const publicId =
-          image?.publicId;
+  await db.runTransaction(
+    async tx => {
+      const snapshot =
+        await tx.get(ref);
 
-        if (!publicId) {
-          return false;
-        }
-
-        return !newPublicIds.has(
-          publicId
+      if (!snapshot.exists) {
+        throw new HttpError(
+          404,
+          'Produk tidak ditemukan.'
         );
       }
-    );
 
-  await ref.update({
-    title:
-      productData.title,
+      const existing =
+        snapshot.data() || {};
 
-    description:
-      productData.description,
+      if (
+        existing.sellerUid !== uid
+      ) {
+        throw new HttpError(
+          403,
+          'Anda tidak memiliki akses ke produk ini.'
+        );
+      }
 
-    images,
+      if (
+        existing.status ===
+        'in_transaction'
+      ) {
+        throw new HttpError(
+          409,
+          'Produk sedang dalam transaksi dan tidak dapat diedit.'
+        );
+      }
 
-    imageUrl:
-      images[0].url,
+      if (
+        existing.status === 'sold'
+      ) {
+        throw new HttpError(
+          409,
+          'Produk yang sudah terjual tidak dapat diedit.'
+        );
+      }
 
-    price:
-      productData.price,
+      if (
+        existing.reservedOrderId
+      ) {
+        throw new HttpError(
+          409,
+          'Produk sedang dipesan oleh seseorang dan tidak dapat diedit.'
+        );
+      }
 
-    stock:
-      productData.stock,
+      const oldImages =
+        normalizeImages(existing);
 
-    category:
-      productData.category,
+      const newPublicIds =
+        new Set(
+          images
+            .map(
+              image => image?.publicId
+            )
+            .filter(Boolean)
+        );
 
-    sellerName:
-      seller?.name ||
-      existing.sellerName ||
-      '',
+      removedImages =
+        oldImages.filter(
+          image => {
+            const publicId =
+              image?.publicId;
 
-    sellerPhotoUrl:
-      seller?.photoUrl ||
-      existing.sellerPhotoUrl ||
-      '',
+            return Boolean(
+              publicId &&
+              !newPublicIds.has(publicId)
+            );
+          }
+        );
 
-    updatedAt:
-      FieldValue.serverTimestamp()
-  });
+      tx.update(
+        ref,
+        {
+          title:
+            productData.title,
+
+          description:
+            productData.description,
+
+          images,
+
+          imageUrl:
+            images[0].url,
+
+          price:
+            productData.price,
+
+          stock:
+            productData.stock,
+
+          category:
+            productData.category,
+
+          sellerName:
+            String(
+              seller?.name ||
+              existing.sellerName ||
+              ''
+            ).trim(),
+
+          sellerPhotoUrl:
+            String(
+              seller?.photoUrl ||
+              existing.sellerPhotoUrl ||
+              ''
+            ).trim(),
+
+          updatedAt:
+            FieldValue.serverTimestamp()
+        }
+      );
+    }
+  );
 
   await destroyCloudinaryImages(
     removedImages
@@ -637,55 +675,83 @@ export async function deleteProduct(
     );
   }
 
-  if (!id) {
+  if (
+    typeof id !== 'string' ||
+    !id.trim() ||
+    id.length > 150 ||
+    id.includes('/')
+  ) {
     throw new HttpError(
       400,
-      'ID produk wajib diisi.'
+      'ID produk tidak valid.'
     );
   }
 
-  const ref = db
-    .collection('products')
-    .doc(id);
+  const ref =
+    db
+      .collection('products')
+      .doc(id);
 
-  const snapshot =
-    await ref.get();
+  let images = [];
 
-  if (!snapshot.exists) {
-    throw new HttpError(
-      404,
-      'Produk tidak ditemukan.'
-    );
-  }
+  await db.runTransaction(
+    async tx => {
+      const snapshot =
+        await tx.get(ref);
 
-  const product =
-    snapshot.data();
+      if (!snapshot.exists) {
+        throw new HttpError(
+          404,
+          'Produk tidak ditemukan.'
+        );
+      }
 
-  if (
-    product.sellerUid !== uid
-  ) {
-    throw new HttpError(
-      403,
-      'Anda tidak memiliki akses ke produk ini.'
-    );
-  }
+      const product =
+        snapshot.data() || {};
 
-  if (
-    product.status ===
-      'in_transaction'
-  ) {
-    throw new HttpError(
-      409,
-      'Produk sedang dalam transaksi dan tidak dapat dihapus.'
-    );
-  }
+      if (
+        product.sellerUid !== uid
+      ) {
+        throw new HttpError(
+          403,
+          'Anda tidak memiliki akses ke produk ini.'
+        );
+      }
 
-  const images =
-    normalizeImages(
-      product
-    );
+      if (
+        product.status ===
+        'in_transaction'
+      ) {
+        throw new HttpError(
+          409,
+          'Produk sedang dalam transaksi dan tidak dapat dihapus.'
+        );
+      }
 
-  await ref.delete();
+      if (
+        product.reservedOrderId
+      ) {
+        throw new HttpError(
+          409,
+          'Produk sedang dipesan oleh seseorang dan tidak dapat dihapus.'
+        );
+      }
+
+      if (
+        product.activeOrderId
+      ) {
+        throw new HttpError(
+          409,
+          'Produk sedang dalam transaksi dan tidak dapat dihapus.'
+        );
+      }
+
+      images =
+        normalizeImages(product);
+
+      tx.delete(ref);
+    }
+  );
 
   await destroyCloudinaryImages(
     images
