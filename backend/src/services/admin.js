@@ -28,6 +28,69 @@ const ADMIN_UID = String(
   env.adminUid || ''
 ).trim();
 
+async function resolveUser(uid) {
+  const normalizedUid =
+    String(uid || '').trim();
+
+  if (!normalizedUid) {
+    return {
+      user: null,
+      userRef: null
+    };
+  }
+
+  const directRef =
+    db
+      .collection('users')
+      .doc(normalizedUid);
+
+  const directSnap =
+    await directRef.get();
+
+  if (directSnap.exists) {
+    const data =
+      directSnap.data() || {};
+
+    return {
+      user: data,
+      userRef: directSnap.ref
+    };
+  }
+
+  const query =
+    await db
+      .collection('users')
+      .where(
+        'uid',
+        '==',
+        normalizedUid
+      )
+      .limit(20)
+      .get();
+
+  const found =
+    query.docs.find(
+      doc =>
+        String(
+          doc.data()?.uid || ''
+        ).trim() === normalizedUid
+    );
+
+  if (!found) {
+    return {
+      user: null,
+      userRef: null
+    };
+  }
+
+  return {
+    user:
+      found.data() || {},
+    userRef:
+      found.ref
+  };
+}
+
 async function resolveSeller(uid) {
   const normalizedUid =
     String(uid || '').trim();
@@ -86,7 +149,11 @@ async function resolveSeller(uid) {
     const sellerQuery =
       await db
         .collection('sellers')
-        .where('uid', '==', normalizedUid)
+        .where(
+          'uid',
+          '==',
+          normalizedUid
+        )
         .limit(20)
         .get();
 
@@ -94,7 +161,7 @@ async function resolveSeller(uid) {
       sellerQuery.docs.find(
         doc =>
           doc.data()?.status ===
-            'approved'
+          'approved'
       );
 
     if (approvedSeller) {
@@ -114,7 +181,11 @@ async function resolveSeller(uid) {
     const registrationQuery =
       await db
         .collection('registrations')
-        .where('uid', '==', normalizedUid)
+        .where(
+          'uid',
+          '==',
+          normalizedUid
+        )
         .limit(20)
         .get();
 
@@ -122,7 +193,7 @@ async function resolveSeller(uid) {
       registrationQuery.docs.find(
         doc =>
           doc.data()?.status ===
-            'approved'
+          'approved'
       );
 
     if (approvedRegistration) {
@@ -569,6 +640,7 @@ export async function setStatus(
         ok: true,
         status:
           'approved',
+
         actualStatus:
           'available'
       };
@@ -599,19 +671,6 @@ export async function setStatus(
     type === 'orders' &&
     status === 'cancelled'
   ) {
-    const order =
-      snap.data();
-
-    if (
-      order.status !==
-      'in_transaction'
-    ) {
-      throw new HttpError(
-        409,
-        'Order tidak sedang aktif.'
-      );
-    }
-
     return db.runTransaction(
       async transaction => {
         const fresh =
@@ -852,7 +911,10 @@ export async function setBan(
   uid,
   banned
 ) {
-  if (!uid) {
+  const normalizedUid =
+    String(uid || '').trim();
+
+  if (!normalizedUid) {
     throw new HttpError(
       400,
       'UID user wajib diisi.'
@@ -860,7 +922,9 @@ export async function setBan(
   }
 
   if (
-    isAdminUid(uid)
+    isAdminUid(
+      normalizedUid
+    )
   ) {
     throw new HttpError(
       403,
@@ -868,27 +932,27 @@ export async function setBan(
     );
   }
 
-  const value =
-    Boolean(banned);
+  const resolvedUser =
+    await resolveUser(
+      normalizedUid
+    );
 
-  const userRef =
-    db
-      .collection('users')
-      .doc(uid);
-
-  const userSnap =
-    await userRef.get();
-
-  if (!userSnap.exists) {
+  if (
+    !resolvedUser.userRef
+  ) {
     throw new HttpError(
       404,
       'User tidak ditemukan.'
     );
   }
 
-  await userRef.set(
+  const value =
+    Boolean(banned);
+
+  await resolvedUser.userRef.set(
     {
-      uid,
+      uid:
+        normalizedUid,
 
       banned:
         value,
@@ -901,19 +965,26 @@ export async function setBan(
     }
   );
 
-  const resolved =
-    await resolveSeller(uid);
+  const resolvedSeller =
+    await resolveSeller(
+      normalizedUid
+    );
 
   if (
-    resolved.sellerRef
+    resolvedSeller.sellerRef
   ) {
-    await resolved.sellerRef.update({
-      banned:
-        value,
+    await resolvedSeller.sellerRef.set(
+      {
+        banned:
+          value,
 
-      updatedAt:
-        FieldValue.serverTimestamp()
-    });
+        updatedAt:
+          FieldValue.serverTimestamp()
+      },
+      {
+        merge: true
+      }
+    );
   }
 
   return {
@@ -932,15 +1003,15 @@ export async function updateUser(
     phone
   } = {}
 ) {
-  if (!uid) {
+  const normalizedUid =
+    String(uid || '').trim();
+
+  if (!normalizedUid) {
     throw new HttpError(
       400,
       'UID user wajib diisi.'
     );
   }
-
-  const normalizedUid =
-    String(uid).trim();
 
   if (
     isAdminUid(
@@ -953,25 +1024,25 @@ export async function updateUser(
     );
   }
 
-  const userRef =
-    db
-      .collection('users')
-      .doc(
-        normalizedUid
-      );
+  const resolvedUser =
+    await resolveUser(
+      normalizedUid
+    );
 
-  const userSnap =
-    await userRef.get();
-
-  if (!userSnap.exists) {
+  if (
+    !resolvedUser.userRef
+  ) {
     throw new HttpError(
       404,
       'User tidak ditemukan.'
     );
   }
 
+  const userRef =
+    resolvedUser.userRef;
+
   const user =
-    userSnap.data() || {};
+    resolvedUser.user || {};
 
   const result = {
     ok: true
@@ -987,40 +1058,25 @@ export async function updateUser(
     hasName ||
     hasPhone
   ) {
-    let resolved =
+    let resolvedSeller =
       await resolveSeller(
         normalizedUid
       );
 
     let seller =
-      resolved.seller;
+      resolvedSeller.seller;
 
     let sellerRef =
-      resolved.sellerRef;
+      resolvedSeller.sellerRef;
 
     let registration =
-      resolved.registration;
+      resolvedSeller.registration;
 
     let registrationRef =
-      resolved.registrationRef;
-
-    const sellerApproved =
-      isApprovedSeller(
-        seller
-      );
-
-    const registrationApproved =
-      Boolean(
-        registration &&
-        registration.status ===
-          'approved'
-      );
-
-    const sellerBanned =
-      seller?.banned === true;
+      resolvedSeller.registrationRef;
 
     if (
-      sellerBanned
+      seller?.banned === true
     ) {
       throw new HttpError(
         409,
@@ -1028,92 +1084,79 @@ export async function updateUser(
       );
     }
 
-    /*
-     * Jika users/{uid} sudah mempunyai
-     * role seller tetapi dokumen seller
-     * lama tidak ditemukan, repair data
-     * seller dari dokumen user.
-     *
-     * Endpoint ini hanya dapat dipanggil
-     * oleh admin, sehingga repair dilakukan
-     * di backend dan bukan dari client.
-     */
     if (
-      !sellerApproved &&
-      !registrationApproved &&
+      !isApprovedSeller(
+        seller
+      ) &&
+      registration?.status !==
+        'approved' &&
       user.role === 'seller'
     ) {
-      const repairedSeller = {
-        uid:
-          normalizedUid,
-
-        email:
-          user.email ||
-          '',
-
-        name:
-          user.name ||
-          '',
-
-        phone:
-          user.phone ||
-          '',
-
-        reason:
-          user.reason ||
-          '',
-
-        description:
-          user.description ||
-          user.reason ||
-          '',
-
-        photoUrl:
-          user.photoUrl ||
-          user.photoURL ||
-          '',
-
-        status:
-          'approved',
-
-        banned:
-          user.banned === true,
-
-        approvedAt:
-          FieldValue.serverTimestamp(),
-
-        updatedAt:
-          FieldValue.serverTimestamp()
-      };
-
       await db
         .collection('sellers')
         .doc(
           normalizedUid
         )
         .set(
-          repairedSeller,
+          {
+            uid:
+              normalizedUid,
+
+            email:
+              user.email || '',
+
+            name:
+              user.name || '',
+
+            phone:
+              user.phone || '',
+
+            reason:
+              user.reason || '',
+
+            description:
+              user.description ||
+              user.reason ||
+              '',
+
+            photoUrl:
+              user.photoUrl ||
+              user.photoURL ||
+              '',
+
+            status:
+              'approved',
+
+            banned:
+              user.banned === true,
+
+            approvedAt:
+              FieldValue.serverTimestamp(),
+
+            updatedAt:
+              FieldValue.serverTimestamp()
+          },
           {
             merge: true
           }
         );
 
-      resolved =
+      resolvedSeller =
         await resolveSeller(
           normalizedUid
         );
 
       seller =
-        resolved.seller;
+        resolvedSeller.seller;
 
       sellerRef =
-        resolved.sellerRef;
+        resolvedSeller.sellerRef;
 
       registration =
-        resolved.registration;
+        resolvedSeller.registration;
 
       registrationRef =
-        resolved.registrationRef;
+        resolvedSeller.registrationRef;
     }
 
     const activeSeller =
@@ -1139,77 +1182,46 @@ export async function updateUser(
       );
     }
 
-    const sellerSource =
+    const source =
       activeSeller
         ? seller
         : registration;
 
-    const sellerName =
+    const cleanName =
       hasName
         ? String(
             name ?? ''
           ).trim()
         : String(
-            sellerSource?.name ||
+            source?.name ||
             seller?.name ||
             registration?.name ||
             user.name ||
             ''
           ).trim();
 
-    const sellerPhone =
+    const cleanPhone =
       hasPhone
         ? String(
             phone ?? ''
           ).trim()
         : String(
-            sellerSource?.phone ||
+            source?.phone ||
             seller?.phone ||
             registration?.phone ||
             user.phone ||
             ''
           ).trim();
 
-    if (
-      !sellerName
-    ) {
+    if (!cleanName) {
       throw new HttpError(
         400,
         'Nama seller wajib diisi.'
       );
     }
 
-    const sellerEmail =
-      seller?.email ||
-      registration?.email ||
-      user.email ||
-      '';
-
-    const sellerReason =
-      seller?.reason ||
-      registration?.reason ||
-      user.reason ||
-      '';
-
-    const sellerDescription =
-      seller?.description ||
-      registration?.description ||
-      registration?.reason ||
-      user.description ||
-      user.reason ||
-      '';
-
-    const sellerPhoto =
-      seller?.photoUrl ||
-      registration?.photoUrl ||
-      user.photoUrl ||
-      user.photoURL ||
-      '';
-
-    const sellerBannedValue =
-      seller?.banned === true ||
-      registration?.banned === true ||
-      user.banned === true;
+    const batch =
+      db.batch();
 
     const targetSellerRef =
       sellerRef ||
@@ -1219,9 +1231,6 @@ export async function updateUser(
           normalizedUid
         );
 
-    const batch =
-      db.batch();
-
     batch.set(
       targetSellerRef,
       {
@@ -1229,28 +1238,44 @@ export async function updateUser(
           normalizedUid,
 
         email:
-          sellerEmail,
+          seller?.email ||
+          registration?.email ||
+          user.email ||
+          '',
 
         name:
-          sellerName,
+          cleanName,
 
         phone:
-          sellerPhone,
+          cleanPhone,
 
         reason:
-          sellerReason,
+          seller?.reason ||
+          registration?.reason ||
+          user.reason ||
+          '',
 
         description:
-          sellerDescription,
+          seller?.description ||
+          registration?.description ||
+          user.description ||
+          user.reason ||
+          '',
 
         photoUrl:
-          sellerPhoto,
+          seller?.photoUrl ||
+          registration?.photoUrl ||
+          user.photoUrl ||
+          user.photoURL ||
+          '',
 
         status:
           'approved',
 
         banned:
-          sellerBannedValue,
+          seller?.banned === true ||
+          registration?.banned === true ||
+          user.banned === true,
 
         updatedAt:
           FieldValue.serverTimestamp()
@@ -1267,10 +1292,10 @@ export async function updateUser(
           normalizedUid,
 
         name:
-          sellerName,
+          cleanName,
 
         phone:
-          sellerPhone,
+          cleanPhone,
 
         role:
           'seller',
@@ -1294,10 +1319,10 @@ export async function updateUser(
             normalizedUid,
 
           name:
-            sellerName,
+            cleanName,
 
           phone:
-            sellerPhone,
+            cleanPhone,
 
           status:
             'approved',
@@ -1314,10 +1339,10 @@ export async function updateUser(
     await batch.commit();
 
     result.name =
-      sellerName;
+      cleanName;
 
     result.phone =
-      sellerPhone;
+      cleanPhone;
 
     result.role =
       'seller';
@@ -1327,13 +1352,14 @@ export async function updateUser(
     typeof banned ===
     'boolean'
   ) {
-    await setBan(
-      normalizedUid,
-      banned
-    );
+    const banResult =
+      await setBan(
+        normalizedUid,
+        banned
+      );
 
     result.banned =
-      banned;
+      banResult.banned;
   }
 
   if (
@@ -1354,9 +1380,6 @@ export async function updateUser(
     if (
       role === 'seller'
     ) {
-      const currentUser =
-        user;
-
       const sellerRef =
         db
           .collection('sellers')
@@ -1370,29 +1393,25 @@ export async function updateUser(
             normalizedUid,
 
           email:
-            currentUser.email ||
-            '',
+            user.email || '',
 
           name:
-            currentUser.name ||
-            '',
+            user.name || '',
 
           phone:
-            currentUser.phone ||
-            '',
+            user.phone || '',
 
           reason:
-            currentUser.reason ||
-            '',
+            user.reason || '',
 
           description:
-            currentUser.description ||
-            currentUser.reason ||
+            user.description ||
+            user.reason ||
             '',
 
           photoUrl:
-            currentUser.photoUrl ||
-            currentUser.photoURL ||
+            user.photoUrl ||
+            user.photoURL ||
             '',
 
           status:
@@ -1400,7 +1419,7 @@ export async function updateUser(
 
           banned:
             Boolean(
-              currentUser.banned
+              user.banned
             ),
 
           approvedAt:
@@ -1437,18 +1456,20 @@ export async function updateUser(
     if (
       role === 'buyer'
     ) {
-      const currentSeller =
-        await db
+      const sellerRef =
+        db
           .collection('sellers')
           .doc(
             normalizedUid
-          )
-          .get();
+          );
+
+      const sellerSnap =
+        await sellerRef.get();
 
       if (
-        currentSeller.exists
+        sellerSnap.exists
       ) {
-        await currentSeller.ref.update({
+        await sellerRef.update({
           status:
             'revoked',
 
