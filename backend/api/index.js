@@ -30,10 +30,8 @@ function setCors(res) {
 function setHealthResponse(res) {
   res.status(200).json({
     ok: true,
-
     service:
       'johan-marketplace-backend',
-
     time:
       new Date().toISOString()
   });
@@ -46,14 +44,16 @@ function getPath(req) {
   if (
     Array.isArray(rawPath)
   ) {
-    return rawPath.join('/');
+    return rawPath
+      .join('/')
+      .replace(/^\/+|\/+$/g, '');
   }
 
   if (
-    typeof rawPath ===
-    'string'
+    typeof rawPath === 'string'
   ) {
-    return rawPath;
+    return rawPath
+      .replace(/^\/+|\/+$/g, '');
   }
 
   return '';
@@ -622,6 +622,11 @@ async function router(
       deleteRoom
     } = await getAdminActions();
 
+    setQueryId(
+      req,
+      id
+    );
+
     return requireAuth(
       req,
       res,
@@ -653,6 +658,11 @@ async function router(
     const {
       deleteProduct
     } = await getAdminActions();
+
+    setQueryId(
+      req,
+      id
+    );
 
     return requireAuth(
       req,
@@ -686,6 +696,11 @@ async function router(
       cancelOrder
     } = await getAdminActions();
 
+    setQueryId(
+      req,
+      id
+    );
+
     return requireAuth(
       req,
       res,
@@ -717,6 +732,11 @@ async function router(
     const {
       deletePayment
     } = await getAdminActions();
+
+    setQueryId(
+      req,
+      id
+    );
 
     return requireAuth(
       req,
