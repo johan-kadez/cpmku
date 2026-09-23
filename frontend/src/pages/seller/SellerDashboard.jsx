@@ -13,10 +13,10 @@ import { api } from '../../services/api';
 import { rupiah } from '../../utils/format';
 
 const MAX_IMAGES = 7;
-const MAX_FILE_SIZE = 2 * 1024 * 1024;
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 1600;
-const TARGET_IMAGE_SIZE = 500 * 1024;
-const MAX_COMPRESSED_IMAGE_SIZE = 500 * 1024;
+const TARGET_IMAGE_SIZE = 800 * 1024;
+const MAX_COMPRESSED_IMAGE_SIZE = 800 * 1024;
 
 const CATEGORIES = [
   'Mobil',
