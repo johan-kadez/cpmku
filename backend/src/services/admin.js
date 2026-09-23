@@ -94,9 +94,7 @@ async function loadRegistrationByAuthUid(uid) {
 async function resolveUser(identifier, hints = {}) {
   const identifiers = uniqueValues([identifier, hints.uid, hints.userId, hints.id]);
   const email = normalize(hints.email);
-  if (!identifiers.length && !email) {
-    return { user: null, userRef: null, uid: null, seller: null, sellerRef: null, registration: null, registrationRef: null, authUser: null };
-  }
+  if (!identifiers.length && !email) return { user: null, userRef: null, uid: null, seller: null, sellerRef: null, registration: null, registrationRef: null, authUser: null };
   const authUser = await resolveFirebaseAuth(identifiers, email);
   let resolvedUid = normalize(authUser?.uid);
   let user = null;
@@ -145,9 +143,7 @@ async function resolveUser(identifier, hints = {}) {
   }
   if (!resolvedUid) resolvedUid = normalize(user?.uid || seller?.uid || registration?.uid);
   if (!resolvedUid && userRef) resolvedUid = normalize(userRef.id);
-  if (!resolvedUid && !userRef && !sellerRef && !registrationRef && !authUser) {
-    return { user: null, userRef: null, uid: null, seller: null, sellerRef: null, registration: null, registrationRef: null, authUser: null };
-  }
+  if (!resolvedUid && !userRef && !sellerRef && !registrationRef && !authUser) return { user: null, userRef: null, uid: null, seller: null, sellerRef: null, registration: null, registrationRef: null, authUser: null };
   if (resolvedUid && !userRef) {
     const resolvedUser = await loadUserByAuthUid(resolvedUid);
     if (resolvedUser) { user = resolvedUser.user; userRef = resolvedUser.userRef; }
@@ -258,7 +254,6 @@ export async function setStatus(type, id, status) {
   const ref = db.collection(collection).doc(id);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpError(404, 'Data tidak ditemukan.');
-
   if (type === 'sellers') {
     const registration = snap.data();
     if (registration.status !== 'pending') throw new HttpError(409, 'Pengajuan seller ini sudah diproses.');
@@ -274,7 +269,6 @@ export async function setStatus(type, id, status) {
     await ref.update({ status: 'rejected', rejectedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
     return { ok: true, status: 'rejected' };
   }
-
   if (type === 'products') {
     if (status === 'approved') {
       await ref.update({ status: 'available', visibility: 'public', approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
@@ -285,9 +279,7 @@ export async function setStatus(type, id, status) {
         const sellerSnap = await sellerRef.get();
         if (sellerSnap.exists) {
           const sellerData = sellerSnap.data();
-          try {
-            await sendProductApprovedEmail(sellerData?.email, sellerData?.name || 'Seller', productData.title, id, productData.price);
-          } catch {}
+          try { await sendProductApprovedEmail(sellerData?.email, sellerData?.name || 'Seller', productData.title, id, productData.price); } catch {}
         }
       }
       return { ok: true, status: 'approved', actualStatus: 'available' };
@@ -295,7 +287,6 @@ export async function setStatus(type, id, status) {
     await ref.update({ status: 'rejected', visibility: 'private', rejectedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
     return { ok: true, status: 'rejected' };
   }
-
   if (type === 'orders' && status === 'cancelled') {
     return db.runTransaction(async transaction => {
       const fresh = await transaction.get(ref);
@@ -313,7 +304,6 @@ export async function setStatus(type, id, status) {
       return { ok: true, status: 'cancelled' };
     });
   }
-
   if (type === 'payments') {
     const payment = snap.data();
     if (payment.status !== 'pending') throw new HttpError(409, 'Pembayaran ini sudah diproses.');
@@ -328,7 +318,6 @@ export async function setStatus(type, id, status) {
     }
     return { ok: true, status };
   }
-
   throw new HttpError(400, 'Aksi tidak tersedia.');
 }
 
@@ -389,4 +378,63 @@ export async function updateUser(uid, { banned, role, name, phone, userId, id, e
     const activeRegistration = Boolean(registration && registration.status === 'approved' && registration.banned !== true);
     if (!activeSeller && !activeRegistration && user.role === 'seller') {
       const sellerSeedRef = db.collection('sellers').doc(normalizedUid);
-      await sellerSeedRef.set({ uid: normalizedUid, email: user.email || resolved.authUser?.email || '', name: user.n
+      await sellerSeedRef.set({ uid: normalizedUid, email: user.email || resolved.authUser?.email || '', name: user.name || '', phone: user.phone || '', reason: user.reason || '', description: user.description || user.reason || '', photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '', status: 'approved', banned: user.banned === true, approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      sellerRef = sellerSeedRef;
+      const seededSeller = await sellerSeedRef.get();
+      seller = seededSeller.data() || {};
+    }
+    const finalActiveSeller = isApprovedSeller(seller);
+    const finalActiveRegistration = Boolean(registration && registration.status === 'approved' && registration.banned !== true);
+    if (!finalActiveSeller && !finalActiveRegistration) throw new HttpError(409, 'User ini bukan seller aktif.');
+    const source = finalActiveSeller ? seller : registration;
+    const cleanName = hasName ? normalize(name) : normalize(source?.name || seller?.name || registration?.name || user.name || user.displayName || '');
+    const cleanPhone = hasPhone ? normalize(phone) : normalize(source?.phone || seller?.phone || registration?.phone || user.phone || user.phoneNumber || '');
+    if (!cleanName) throw new HttpError(400, 'Nama seller wajib diisi.');
+    const batch = db.batch();
+    const targetSellerRef = sellerRef || db.collection('sellers').doc(normalizedUid);
+    batch.set(targetSellerRef, { uid: normalizedUid, email: seller?.email || registration?.email || user.email || resolved.authUser?.email || '', name: cleanName, phone: cleanPhone, reason: seller?.reason || registration?.reason || user.reason || '', description: seller?.description || registration?.description || user.description || user.reason || '', photoUrl: seller?.photoUrl || registration?.photoUrl || user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '', status: 'approved', banned: seller?.banned === true || registration?.banned === true || user.banned === true, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    batch.set(userRef, { uid: normalizedUid, name: cleanName, phone: cleanPhone, role: 'seller', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    if (registrationRef) batch.set(registrationRef, { uid: registration?.uid || normalizedUid, name: cleanName, phone: cleanPhone, status: 'approved', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    await batch.commit();
+    result.name = cleanName;
+    result.phone = cleanPhone;
+    result.role = 'seller';
+    result.uid = normalizedUid;
+  }
+  if (typeof banned === 'boolean') {
+    const banResult = await setBan(normalizedUid, banned);
+    result.banned = banResult.banned;
+  }
+  if (role !== undefined) {
+    if (!['buyer', 'seller'].includes(role)) throw new HttpError(400, 'Role tidak valid.');
+    if (role === 'seller') {
+      const sellerRef = db.collection('sellers').doc(normalizedUid);
+      await sellerRef.set({ uid: normalizedUid, email: user.email || resolved.authUser?.email || '', name: user.name || '', phone: user.phone || '', reason: user.reason || '', description: user.description || user.reason || '', photoUrl: user.photoUrl || user.photoURL || resolved.authUser?.photoURL || '', status: 'approved', banned: Boolean(user.banned), approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await userRef.set({ uid: normalizedUid, role: 'seller', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      result.role = 'seller';
+    }
+    if (role === 'buyer') {
+      const sellerRef = db.collection('sellers').doc(normalizedUid);
+      const sellerSnap = await sellerRef.get();
+      if (sellerSnap.exists) await sellerRef.update({ status: 'revoked', updatedAt: FieldValue.serverTimestamp() });
+      await userRef.set({ uid: normalizedUid, role: 'buyer', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      result.role = 'buyer';
+    }
+  }
+  return result;
+}
+
+export function isAdminUid(uid) {
+  if (!uid || !ADMIN_UID) return false;
+  return normalize(uid) === ADMIN_UID;
+}
+
+export async function saveSettings(data) {
+  const qrisUrl = normalize(data?.qrisUrl);
+  const maintenanceMode = Boolean(data?.maintenanceMode);
+  const maintenanceTitle = normalize(data?.maintenanceTitle);
+  const maintenanceMessage = normalize(data?.maintenanceMessage);
+  if (qrisUrl) { try { new URL(qrisUrl); } catch { throw new HttpError(400, 'URL QRIS tidak valid.'); } }
+  await db.collection('settings').doc('main').set({ qrisUrl, maintenanceMode, maintenanceTitle, maintenanceMessage, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return { ok: true };
+}
