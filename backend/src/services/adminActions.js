@@ -1,6 +1,10 @@
 import { db, FieldValue } from '../firebase/admin.js';
 import { HttpError } from '../utils/errors.js';
-import { getAdminUid } from '../middleware/admin.js';
+import { env } from '../config/env.js';
+
+function getAdminUid() {
+  return String(env.adminUid || '').trim();
+}
 
 export async function approveOrder(orderId) {
   if (!orderId) {
