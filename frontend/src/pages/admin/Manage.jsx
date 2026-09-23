@@ -1093,6 +1093,26 @@ export default function Manage({
           )
       : [];
 
+  const pendingProducts =
+    type === 'products'
+      ? rows.filter(
+          row =>
+            row.status ===
+            'pending'
+        )
+      : [];
+
+  const approvedProducts =
+    type === 'products'
+      ? rows.filter(
+          row =>
+            row.status ===
+              'available' ||
+            row.status ===
+              'approved'
+        )
+      : [];
+
   const sellerDetail =
     row => (
       <div className="cpmku-admin-profile">
@@ -2102,19 +2122,49 @@ export default function Manage({
             )}
           </div>
         </>
+      ) : type === 'products' ? (
+        <>
+          <h3>
+            Pending Product
+          </h3>
+
+          <div className="cpmku-admin-list">
+            {pendingProducts.map(
+              renderProduct
+            )}
+
+            {!pendingProducts.length && (
+              <div className="state">
+                Tidak ada produk pending.
+              </div>
+            )}
+          </div>
+
+          <h3
+            style={{
+              marginTop:
+                28
+            }}
+          >
+            Approved Product
+          </h3>
+
+          <div className="cpmku-admin-list">
+            {approvedProducts.map(
+              renderProduct
+            )}
+
+            {!approvedProducts.length && (
+              <div className="state">
+                Tidak ada produk approved.
+              </div>
+            )}
+          </div>
+        </>
       ) : (
         <div className="cpmku-admin-list">
           {rows.map(
             row => {
-              if (
-                type ===
-                'products'
-              ) {
-                return renderProduct(
-                  row
-                );
-              }
-
               if (
                 type ===
                 'orders'
