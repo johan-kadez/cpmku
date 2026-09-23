@@ -911,6 +911,48 @@ export default function Manage({
       }
     };
 
+  const runCallSeller =
+    async row => {
+      const id =
+        getId(row);
+
+      if (!id) {
+        setError(
+          'ID order tidak ditemukan.'
+        );
+        return;
+      }
+
+      try {
+        setLoading(
+          true
+        );
+
+        setError('');
+
+        await api(
+          `/rooms/${encodeURIComponent(id)}/call-seller`,
+          {
+            method:
+              'POST'
+          }
+        );
+
+        await load();
+      } catch (
+        actionError
+      ) {
+        setError(
+          actionError?.message ||
+          'Gagal memanggil seller.'
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
+
   const openSellerEdit =
     row => {
       const uid =
@@ -1824,24 +1866,41 @@ export default function Manage({
 
             {row.status ===
               'in_transaction' && (
-              <button
-                type="button"
-                className="cpmku-admin-button cpmku-admin-danger"
-                onClick={() =>
-                  setConfirm({
-                    row,
-                    status:
-                      'cancelled',
-                    text:
-                      'Batalkan order ini? Order, room dan payment pending akan dihapus dan produk kembali tersedia.'
-                  })
-                }
-                disabled={
-                  loading
-                }
-              >
-                Batalkan
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-edit"
+                  onClick={() =>
+                    runCallSeller(
+                      row
+                    )
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Panggil Seller
+                </button>
+
+                <button
+                  type="button"
+                  className="cpmku-admin-button cpmku-admin-danger"
+                  onClick={() =>
+                    setConfirm({
+                      row,
+                      status:
+                        'cancelled',
+                      text:
+                        'Batalkan order ini? Order, room dan payment pending akan dihapus dan produk kembali tersedia.'
+                    })
+                  }
+                  disabled={
+                    loading
+                  }
+                >
+                  Batalkan
+                </button>
+              </>
             )}
           </div>
         </article>
