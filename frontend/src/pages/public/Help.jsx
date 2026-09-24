@@ -16,13 +16,12 @@ const contacts = [
     title: 'Contact Developer',
     status: 'Low Resp',
     statusClass: 'low',
-    href: 'mailto:cpmkuadmin@gmail.com',
+    href: 'mailto:8061ce@gmail.com',
     icon: 'https://uxwing.com/wp-content/themes/uxwing/download/communication-chat-call/email-envelope-white-icon.png'
   },
   {
     id: 'community',
     title: 'CPMKU Community',
-    status: 'Join',
     statusClass: 'community',
     href: 'https://whatsapp.com/channel/0029VbDBGJzDuMRp1Z1i1o3G',
     icon: 'https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/whatsapp-white-icon.png',
