@@ -46,7 +46,7 @@ export async function sendMessage(roomId, user, body) {
     const lastTime = lastMsg.createdAt?.toMillis ? lastMsg.createdAt.toMillis() : 0;
     const now = Date.now();
     if (now - lastTime < 2000) {
-      throw new HttpError(429, 'Terlalu cepat! Tunggu 2 detik sebelum mengirim pesan lagi.');
+      throw new HttpError(429, 'Tunggu bentar bosqu, jangan spam gitu dong');
     }
   }
 
