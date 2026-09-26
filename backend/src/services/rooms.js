@@ -33,6 +33,23 @@ export async function sendMessage(roomId, user, body) {
   } else {
     throw new HttpError(403, 'Role pengguna tidak sesuai dengan transaksi.');
   }
+
+  const lastMsgSnap = await ref
+    .collection('messages')
+    .where('senderUid', '==', user.uid)
+    .orderBy('createdAt', 'desc')
+    .limit(1)
+    .get();
+
+  if (!lastMsgSnap.empty) {
+    const lastMsg = lastMsgSnap.docs[0].data();
+    const lastTime = lastMsg.createdAt?.toMillis ? lastMsg.createdAt.toMillis() : 0;
+    const now = Date.now();
+    if (now - lastTime < 2000) {
+      throw new HttpError(429, 'Terlalu cepat! Tunggu 2 detik sebelum mengirim pesan lagi.');
+    }
+  }
+
   await ref.collection('messages').add({
     senderUid: user.uid,
     senderName: String(user.name || user.email || 'User').slice(0, 150),
