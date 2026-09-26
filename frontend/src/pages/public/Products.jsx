@@ -54,39 +54,81 @@ export default function Products() {
       <ProductGrid products={paginatedProducts} />
 
       {totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '40px', marginBottom: '40px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="cpmku-admin-button"
-            style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
-          >
-            Previous
-          </button>
+        <>
+          <style>{`
+            .cpmku-pagination {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              gap: 10px;
+              margin-top: 50px;
+              margin-bottom: 50px;
+              flex-wrap: wrap;
+            }
+            .cpmku-page-btn {
+              min-width: 44px;
+              min-height: 44px;
+              padding: 10px 16px;
+              border: 1px solid rgba(55, 119, 255, 0.4);
+              border-radius: 14px;
+              background: linear-gradient(180deg, #172d59, #10224a);
+              color: #fff;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+            .cpmku-page-btn:hover:not(:disabled) {
+              border-color: rgba(80, 145, 255, 0.8);
+              transform: translateY(-2px);
+              box-shadow: 0 6px 16px rgba(55, 119, 255, 0.3);
+            }
+            .cpmku-page-btn:disabled {
+              opacity: 0.4;
+              cursor: not-allowed;
+              transform: none;
+            }
+            .cpmku-page-btn-active {
+              background: linear-gradient(180deg, #2a5298, #1e3c72);
+              border-color: rgba(80, 145, 255, 0.9);
+              box-shadow: 0 0 15px rgba(55, 119, 255, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+              font-weight: 700;
+            }
+            .cpmku-page-btn-nav {
+              padding: 10px 20px;
+              font-weight: 700;
+            }
+          `}</style>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+          <div className="cpmku-pagination">
             <button
-              key={pageNum}
-              onClick={() => handlePageChange(pageNum)}
-              className={`cpmku-admin-button ${currentPage === pageNum ? 'cpmku-admin-edit' : ''}`}
-              style={{
-                fontWeight: currentPage === pageNum ? 'bold' : 'normal',
-                minWidth: '42px'
-              }}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="cpmku-page-btn cpmku-page-btn-nav"
             >
-              {pageNum}
+              ← Prev
             </button>
-          ))}
 
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="cpmku-admin-button"
-            style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-          >
-            Next
-          </button>
-        </div>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+              <button
+                key={pageNum}
+                onClick={() => handlePageChange(pageNum)}
+                className={`cpmku-page-btn ${currentPage === pageNum ? 'cpmku-page-btn-active' : ''}`}
+              >
+                {pageNum}
+              </button>
+            ))}
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="cpmku-page-btn cpmku-page-btn-nav"
+            >
+              Next →
+            </button>
+          </div>
+        </>
       )}
     </section>
   );
