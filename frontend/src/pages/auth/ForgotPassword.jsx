@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
-import './ForgotPassword.css';
+import '../ForgotPassword.css';
 
 const OTP_LENGTH = 6;
 
