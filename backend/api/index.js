@@ -58,9 +58,9 @@ async function router(req, res) {
   const { requireSeller } = await getSellerMiddleware();
   const { deleteRoom, deleteProduct, deletePayment, cancelOrder } = await getAdminActions();
 
-  if (path === 'auth/forgot-password' && method === 'POST') return passwordResetRequest(req, res);
-  if (path === 'auth/verify-otp' && method === 'POST') return passwordResetVerify(req, res);
-  if (path === 'auth/reset-password' && method === 'POST') return passwordResetConfirm(req, res);
+  if (path === 'auth/password-reset/request' && method === 'POST') return passwordResetRequest(req, res);
+  if (path === 'auth/password-reset/verify' && method === 'POST') return passwordResetVerify(req, res);
+  if (path === 'auth/password-reset/confirm' && method === 'POST') return passwordResetConfirm(req, res);
 
   if (path === 'me' && method === 'GET') return requireAuth(req, res, () => me(req, res));
   if (path === 'profile/nickname' && method === 'PATCH') return requireAuth(req, res, () => profileNickname(req, res));
