@@ -48,13 +48,25 @@ async function router(req, res) {
     me, profilePhotoSignature, profilePhotoUpdate, profileNickname,
     productPhotoSignature, sellerApply, productCreate, productUpdate,
     productDelete, orderCreate, orderDone, messageCreate, sellerCall,
-    dashboard, list, status, settings, updateUser, bad
+    dashboard, list, status, settings, updateUser,
+    passwordResetRequest, passwordResetVerify, passwordResetConfirm,
+    bad
   } = await getControllers();
 
   const { requireAuth } = await getAuthMiddleware();
   const { requireAdmin } = await getAdminMiddleware();
   const { requireSeller } = await getSellerMiddleware();
   const { deleteRoom, deleteProduct, deletePayment, cancelOrder } = await getAdminActions();
+
+  if (path === 'auth/forgot-password' && method === 'POST') {
+    return passwordResetRequest(req, res);
+  }
+  if (path === 'auth/verify-otp' && method === 'POST') {
+    return passwordResetVerify(req, res);
+  }
+  if (path === 'auth/reset-password' && method === 'POST') {
+    return passwordResetConfirm(req, res);
+  }
 
   if (path === 'me' && method === 'GET') return requireAuth(req, res, () => me(req, res));
   if (path === 'profile/nickname' && method === 'PATCH') return requireAuth(req, res, () => profileNickname(req, res));
@@ -63,6 +75,7 @@ async function router(req, res) {
   if (path === 'products/images/signature' && method === 'POST') return requireAuth(req, res, () => requireSeller(req, res, () => productPhotoSignature(req, res)));
   if (path === 'seller/apply' && method === 'POST') return requireAuth(req, res, () => sellerApply(req, res));
   if (path === 'products' && method === 'POST') return requireAuth(req, res, () => requireSeller(req, res, () => productCreate(req, res)));
+  
   if (resource === 'products' && segments[1] && method === 'PATCH') {
     setQueryId(req, segments[1]);
     return requireAuth(req, res, () => requireSeller(req, res, () => productUpdate(req, res)));
@@ -71,8 +84,10 @@ async function router(req, res) {
     setQueryId(req, segments[1]);
     return requireAuth(req, res, () => requireSeller(req, res, () => productDelete(req, res)));
   }
+  
   if (path === 'orders' && method === 'POST') return requireAuth(req, res, () => orderCreate(req, res));
   if (path === 'orders/done' && method === 'POST') return requireAuth(req, res, () => orderDone(req, res));
+  
   if (resource === 'rooms' && segments[1] && segments[2] === 'messages' && method === 'POST') {
     setQueryId(req, segments[1]);
     return requireAuth(req, res, () => messageCreate(req, res));
@@ -81,14 +96,19 @@ async function router(req, res) {
     setQueryId(req, segments[1]);
     return requireAuth(req, res, () => sellerCall(req, res));
   }
+  
   if (path === 'admin/dashboard' && method === 'GET') return requireAuth(req, res, () => requireAdmin(req, res, () => dashboard(req, res)));
   if (path === 'admin/settings' && (method === 'POST' || method === 'PATCH')) return requireAuth(req, res, () => requireAdmin(req, res, () => settings(req, res)));
 
   const LISTABLE = ['orders', 'payments', 'products', 'rooms', 'sellers', 'users'];
   const STATUSABLE = ['orders', 'payments', 'products', 'rooms', 'sellers'];
 
-  if (resource === 'admin' && segments[1] === 'list' && LISTABLE.includes(segments[2]) && method === 'GET') return requireAuth(req, res, () => requireAdmin(req, res, () => list(segments[2])(req, res)));
-  if (resource === 'admin' && LISTABLE.includes(segments[1]) && !segments[2] && method === 'GET') return requireAuth(req, res, () => requireAdmin(req, res, () => list(segments[1])(req, res)));
+  if (resource === 'admin' && segments[1] === 'list' && LISTABLE.includes(segments[2]) && method === 'GET') {
+    return requireAuth(req, res, () => requireAdmin(req, res, () => list(segments[2])(req, res)));
+  }
+  if (resource === 'admin' && LISTABLE.includes(segments[1]) && !segments[2] && method === 'GET') {
+    return requireAuth(req, res, () => requireAdmin(req, res, () => list(segments[1])(req, res)));
+  }
   
   if (resource === 'admin' && segments[1] === 'status' && STATUSABLE.includes(segments[2]) && method === 'PATCH') {
     const statusId = segments[3] || req.query?.id;
